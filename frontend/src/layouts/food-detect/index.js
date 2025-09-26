@@ -122,25 +122,15 @@ function DetectFood() {
                   </Typography>
 
                   <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" mb={1}>
-                    🧑‍🍳 Công thức nấu
-                  </Typography>
-                  <Typography variant="body2" mb={2}>
-                    {recipe}
-                  </Typography>
+                  <Typography variant="subtitle2">🧑‍🍳 Công thức nấu</Typography>
+                  <Typography variant="body2">{recipe}</Typography>
 
                   <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" mb={1}>
-                    🥗 Thành phần dinh dưỡng
-                  </Typography>
-                  <Typography variant="body2" mb={2}>
-                    {nutrition}
-                  </Typography>
+                  <Typography variant="subtitle2">🥗 Thành phần dinh dưỡng</Typography>
+                  <Typography variant="body2">{nutrition}</Typography>
 
                   <Divider sx={{ my: 2 }} />
-                  <Typography variant="subtitle2" mb={1}>
-                    ⚠️ Nhận xét / Cảnh báo
-                  </Typography>
+                  <Typography variant="subtitle2">⚠️ Nhận xét / Cảnh báo</Typography>
                   <Typography variant="body2" mb={3}>
                     {note}
                   </Typography>
