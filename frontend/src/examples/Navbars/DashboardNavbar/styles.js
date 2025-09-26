@@ -9,11 +9,11 @@ function navbar(theme, ownerState) {
 
   return {
     boxShadow: transparentNavbar || absolute ? "none" : navbarBoxShadow,
-    backdropFilter: transparentNavbar || absolute ? "none" : `saturate(200%) blur(${pxToRem(30)})`,
+    backdropFilter: transparentNavbar || absolute ? "none" : `saturate(200%) blur(${pxToRem(10)})`,
     backgroundColor:
       transparentNavbar || absolute
-        ? `${transparent.main} !important`
-        : rgba(darkMode ? background.default : white.main, 0.8),
+        ? `rgba(255, 255, 255, 0.8)` // hoặc dùng theme.palette.white.main nếu có
+        : rgba(darkMode ? background.default : white.main, 0.6),
 
     color: () => {
       let color;
