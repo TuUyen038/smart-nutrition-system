@@ -24,9 +24,22 @@ import MDTypography from "components/MDTypography";
 import CustomList from "components/CustomList";
 import MDButton from "components/MDButton";
 import MDBox from "components/MDBox";
-function MenuSuggestion() {
+import { useNavigate } from "react-router-dom";
+
+function MenuCreation() {
   const [filters, setFilters] = useState({ goal: "", duration: "" });
   const [comboByDuration, setComboByDuration] = useState({});
+
+  const navigate = useNavigate();
+
+  const handleSelectCombo = () => {
+    navigate("/edit-menu", {
+      state: {
+        selectedCombo: comboByDuration, // truyền dữ liệu sang trang phụ
+        filters,
+      },
+    });
+  };
 
   useEffect(() => {
     if (filters.goal && filters.duration) {
@@ -239,7 +252,12 @@ function MenuSuggestion() {
                   );
                 })}
                 <Box display="flex" justifyContent="center" mt={3}>
-                  <MDButton variant="contained" color="info" size="large">
+                  <MDButton
+                    variant="contained"
+                    color="info"
+                    size="large"
+                    onClick={handleSelectCombo}
+                  >
                     Chọn combo
                   </MDButton>
                 </Box>
@@ -256,4 +274,4 @@ function MenuSuggestion() {
   );
 }
 
-export default MenuSuggestion;
+export default MenuCreation;

@@ -9,6 +9,8 @@ import DefaultDoughnutChart from "examples/Charts/DoughnutCharts/DefaultDoughnut
 import donutChartData from "./data/donutChartData";
 import MDTypography from "components/MDTypography";
 import DefaultInfoCard from "examples/Cards/InfoCards/DefaultInfoCard";
+import { Card } from "@mui/material";
+import MenuList from "./components/MenuList";
 function Dashboard() {
   return (
     <DashboardLayout>
@@ -77,49 +79,27 @@ function Dashboard() {
           </Grid>
         </Grid>
         <MDBox mt={4.5}>
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={6} lg={4}>
-              <MDBox mb={3}>
+          <Grid container spacing={3} alignItems="stretch">
+            {/* Chart bên trái */}
+            <Grid item xs={12} md={5} lg={4}>
+              <MDBox mb={3} height="100%">
                 <DefaultDoughnutChart
                   color="info"
                   title="Tổng quan"
-                  description="Last Campaign Performance"
+                  description="Dinh dưỡng đã nạp trong hôm nay"
                   chart={donutChartData}
                 />
               </MDBox>
             </Grid>
-            <Grid item xs={12} md={6} lg={8}>
-              <MDBox
-                mb={3}
-                borderRadius="lg"
-                border="1px solid #eee"
-                minWidth="100%"
-                display="flex"
-                flexDirection="column"
-                justifyContent="flex-start"
-              >
-                <MDBox
-                  p={2}
-                  borderRadius="lg"
-                  variant="gradient"
-                  bgColor="white"
-                  shadow="md"
-                  minHeight="100%"
-                >
-                  <MDTypography variant="body1" fontSize="14px" color="dark">
-                    Chu thich:
-                  </MDTypography>
-                  <MDTypography variant="body1" fontSize="14px" color="dark">
-                    Chu thich:
-                  </MDTypography>
-                  <MDTypography variant="body1" fontSize="14px" color="dark">
-                    Chu thich:
-                  </MDTypography>
-                  <MDTypography variant="body1" fontSize="14px" color="dark">
-                    Chu thich:
-                  </MDTypography>
-                </MDBox>
-              </MDBox>
+
+            {/* Thông tin chi tiết bên phải */}
+            <Grid item xs={12} md={7} lg={8}>
+              <Card sx={{ p: 3, height: "calc( 100% - 1.5rem) " }} mb={3} height="100%">
+                <MDTypography variant="h6" color="dark" mb={0.5}>
+                  Thực đơn hôm nay
+                </MDTypography>
+                <MenuList />
+              </Card>
             </Grid>
           </Grid>
         </MDBox>

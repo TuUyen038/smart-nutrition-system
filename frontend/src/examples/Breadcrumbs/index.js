@@ -11,9 +11,15 @@ import Icon from "@mui/material/Icon";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 
+import routesConfig from "routes";
+
 function Breadcrumbs({ icon, title, route, light }) {
   const routes = route.slice(0, -1);
 
+  const getRouteName = (key) => {
+    const found = routesConfig.find((r) => r.key === key);
+    return found ? found.name : key; // nếu không tìm thấy, hiển thị key mặc định
+  };
   return (
     <MDBox mr={{ xs: 0, xl: 8 }}>
       <MuiBreadcrumbs
@@ -45,7 +51,7 @@ function Breadcrumbs({ icon, title, route, light }) {
               opacity={light ? 0.8 : 0.5}
               sx={{ lineHeight: 0 }}
             >
-              {el}
+              {getRouteName(el)}
             </MDTypography>
           </Link>
         ))}
@@ -56,7 +62,7 @@ function Breadcrumbs({ icon, title, route, light }) {
           color={light ? "white" : "dark"}
           sx={{ lineHeight: 0 }}
         >
-          {title.replace("-", " ")}
+          {getRouteName(title)}
         </MDTypography>
       </MuiBreadcrumbs>
       <MDTypography
@@ -66,7 +72,7 @@ function Breadcrumbs({ icon, title, route, light }) {
         color={light ? "white" : "dark"}
         noWrap
       >
-        {title.replace("-", " ")}
+        {getRouteName(title)}
       </MDTypography>
     </MDBox>
   );

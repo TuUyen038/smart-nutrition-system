@@ -6,6 +6,8 @@ import Profile from "layouts/profile";
 import SignIn from "layouts/authentication/sign-in";
 import SignUp from "layouts/authentication/sign-up";
 import Analyze from "layouts/analyze-recipe";
+import MenuCreation from "layouts/menu";
+import MenuEditor from "layouts/menu/menu-editor";
 // @mui icons
 import Icon from "@mui/material/Icon";
 
@@ -17,6 +19,12 @@ const routes = [
     icon: <Icon fontSize="small">dashboard</Icon>,
     route: "/dashboard",
     component: <Dashboard />,
+  },
+  {
+    name: "Chỉnh sửa thực đơn",
+    key: "menu-editor",
+    route: "/edit-menu",
+    component: <MenuEditor />,
   },
   {
     type: "collapse",
