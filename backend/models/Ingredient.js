@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const ingredientSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
+  nutrition: {
   calories: Number,
   protein: Number,
   fat: Number,
@@ -9,6 +10,7 @@ const ingredientSchema = new mongoose.Schema({
   fiber: Number,
   sugar: Number,
   sodium: Number,
+  },
   unit: String,
   category: {
     type: String,

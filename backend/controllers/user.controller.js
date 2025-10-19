@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { upsertNutritionGoal } = require("../services/nutritionGoal.service");
 
 // Lấy danh sách tất cả người dùng
 exports.getAllUsers = async (req, res) => {
@@ -51,15 +52,20 @@ exports.createUser = async (req, res) => {
 // Cập nhật thông tin người dùng
 exports.updateUser = async (req, res) => {
   try {
-    const updatedUser = await User.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      { new: true }
-    );
-    if (!updatedUser) return res.status(404).json({ message: "User not found" });
-    res.json(updatedUser);
+    const user = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // ⚡ Tự động tính và cập nhật lại NutritionGoal
+    const updatedGoal = await upsertNutritionGoal(user);
+
+    res.json({
+      message: "User and nutrition goal updated successfully",
+      user,
+      nutritionGoal: updatedGoal
+    });
   } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ message: err.message });
   }
 };
 

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { upsertNutritionGoal } = require("../services/nutritionGoal.service");
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -8,8 +9,26 @@ const userSchema = new mongoose.Schema({
   gender: { type: String, enum: ["male", "female", "other"] },
   height: Number,
   weight: Number,
-  goal: String,
+  goal: { type: String, enum: ["lose_weight", "maintain_weight", "gain_weight"] },
   allergies: [String],
 }, { timestamps: true });
+
+/**
+ * 🧩 Middleware:
+ * - Khi user được tạo mới hoặc cập nhật thông tin dinh dưỡng,
+ *   tự động tính toán lại NutritionGoal tương ứng.
+ */
+userSchema.post("save", async function (doc, next) {
+  try {
+    // ⚠️ Chỉ chạy khi đủ thông tin để tính
+    if (doc.age && doc.gender && doc.height && doc.weight) {
+      await upsertNutritionGoal(doc);
+    }
+    next();
+  } catch (error) {
+    console.error("❌ Failed to update nutrition goal:", error);
+    next(error);
+  }
+});
 
 module.exports = mongoose.model("User", userSchema);
