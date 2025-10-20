@@ -37,22 +37,30 @@ const mealSchema = new mongoose.Schema({
     sodium: Number,
   },
 
+  mealType: { 
+        type: String, 
+        enum: ["breakfast", "lunch", "dinner", "snack"], 
+        required: true 
+  },
+
   recipes: [
     {
       recipeId: { type: mongoose.Schema.Types.ObjectId, ref: "Recipe" },
       portion: Number,
-      mealType: { 
-        type: String, 
-        enum: ["breakfast", "lunch", "dinner", "snack"], 
-        required: true 
-      },
       note: String,
     },
   ],
 
+  //id cua meal duoc goi y ban dau
+  originalMealId: { 
+  type: mongoose.Schema.Types.ObjectId, 
+  ref: "Meal", 
+  default: null 
+  },
+
   status: { 
     type: String, 
-    enum: ["suggested", "accepted", "edited", "completed", "skipped"], 
+    enum: ["suggested", "selected", "completed", "skipped", "edited", "archived_suggestion"], 
     default: "suggested" 
   },
 
