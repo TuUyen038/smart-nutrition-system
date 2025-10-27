@@ -31,7 +31,7 @@ const mealPlanSchema = new mongoose.Schema({
 
   status: { 
     type: String, 
-    enum: ["suggested", "selected", "past", "cancelled"], 
+    enum: ["suggested", "selected", "completed", "cancelled"], 
     default: "suggested" 
   },
 

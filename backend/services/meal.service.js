@@ -4,14 +4,31 @@ const Meal = require('../models/Meal');
 const MealPlan = require('../models/MealPlan');
 const { calculateTotalNutrition } = require('../utils/calTotalNutri');
 const mongoose = require('mongoose');
+
+exports.createMeal = async(data) => {
+    const { userId, mealType, date, recipes } = data;
+
+    if (!userId || !mealType || !date || !recipes?.length) {
+      throw new Error("Missing required fields");
+    }
+
+    const totalNutrition = await calculateTotalNutrition(recipes);
+
+    const meal = await Meal.create({
+      ...data,
+      totalNutrition
+    });
+
+    return meal;
+  }
 /**
  * Lấy lịch sử ăn uống (Các Meal đã 'done').
  */
 exports.getMealHistory = async (userId) => {
-    return Meal.find({ userId, status: "done" })
+    return Meal.find({ userId, status: "completed" })
         .sort({ date: -1 })
         .populate({
-            path: 'recipes.recipeId',
+            path: 'recipes._id',
             model: 'Recipe',
             select: 'date name imageUrl totalNutrition' 
         });
@@ -228,25 +245,27 @@ exports.updateMeal = async (mealId, updateData, userId) => {
         throw new Error('Meal not found.');
     }
 
-    // 1. Kiểm tra quyền sở hữu (Security check)
-    if (meal.userId.toString() !== userId.toString()) {
-        throw new Error('Permission denied. User does not own this meal.');
-    }
+    // // 1. Kiểm tra quyền sở hữu (Security check)
+    // if (meal.userId.toString() !== userId.toString()) {
+    //     throw new Error('Permission denied. User does not own this meal.');
+    // }
 
     const oldStatus = meal.status;
     const oldMealId = meal._id;
-    let newMeal = meal;
+    let newMeal = meal; // Mặc định là bản gốc, sẽ thay đổi nếu có clone
 
     // 2. Xử lý logic nhân bản (Cloning) nếu người dùng chỉnh sửa gợi ý AI gốc
-    // Chỉ nhân bản nếu là gợi ý AI VÀ chưa từng được chỉnh sửa (status: suggested)
+    // Chỉ nhân bản nếu là gợi ý AI VÀ đang ở trạng thái suggested VÀ có chỉnh sửa recipes
     if (meal.source === 'ai' && oldStatus === 'suggested' && updateData.recipes) {
         
-        // a. Lưu trữ bản gốc A
+        // a. Lưu trữ bản gốc A (archive the original suggestion)
+        // Chuyển bản gốc sang trạng thái lưu trữ để không hiển thị trong Plan
         meal.status = 'archived_suggestion';
         await meal.save();
 
         // b. Tạo bản ghi mới B (Bản sao/chỉnh sửa)
         const clonedMealData = meal.toObject();
+        // Loại bỏ các trường tự động tạo để Mongoose tạo mới
         delete clonedMealData._id;
         delete clonedMealData.createdAt;
         delete clonedMealData.updatedAt;
@@ -254,15 +273,17 @@ exports.updateMeal = async (mealId, updateData, userId) => {
         newMeal = new Meal({
             ...clonedMealData,
             _id: new mongoose.Types.ObjectId(),
-            source: 'user', // Nguồn từ người dùng (vì đã chỉnh sửa)
-            status: 'edited',
-            originalMealId: oldMealId, // Trỏ về bản gốc A
+            source: 'user', // Nguồn từ người dùng (đã chỉnh sửa/chốt)
+            status: 'edited', // Trạng thái là bản đã được chỉnh sửa
+            originalMealId: oldMealId, // Trỏ về bản gốc A (để truy vết)
+            
+            // NOTE: TotalNutrition sẽ được tính lại ở bước 5
         });
 
         // c. Cập nhật MealPlan (Nếu có)
         if (meal.mealPlanId) {
-            // Cần gọi hàm đã viết trước đó để cập nhật Plan (thay thế ID cũ bằng ID mới)
-            exports.updateMealPlanOnMealClone(
+            // SỬA LỖI CÚ PHÁP: Gọi phương thức từ MealPlanService đã import
+            await MealPlanService.updateMealPlanOnMealClone(
                 meal.mealPlanId, 
                 oldMealId, 
                 newMeal._id
@@ -270,25 +291,33 @@ exports.updateMeal = async (mealId, updateData, userId) => {
         }
     }
 
-    // 3. Áp dụng các cập nhật dữ liệu (recipes, note, date, v.v.)
+    // --- BƯỚC 3, 4, 5 ÁP DỤNG TRÊN BẢN GHI MỚI/HIỆN TẠI (newMeal) ---
+
+    // 3. Áp dụng các cập nhật dữ liệu
     // Nếu có recipes mới, thay thế toàn bộ mảng recipes hiện tại
     if (updateData.recipes) {
         newMeal.recipes = updateData.recipes;
     }
     
-    // Áp dụng các trường khác (ví dụ: note, date, feedback)
+    // Áp dụng các trường khác (ví dụ: note, date, feedback, v.v.)
     Object.keys(updateData).forEach(key => {
+        // Tránh ghi đè các trường cố định
         if (key !== 'recipes' && key !== 'userId' && key !== 'mealPlanId' && newMeal[key] !== undefined) {
             newMeal[key] = updateData[key];
         }
     });
 
     // 4. Cập nhật trạng thái nếu cần thiết
-    if (newMeal.isModified() && newMeal.status !== 'edited' && newMeal.status !== 'done' && newMeal.status !== 'cancelled') {
-        newMeal.status = 'edited';
-    }
+    // Ưu tiên sử dụng status từ updateData nếu nó được truyền vào
+    if (updateData.status && updateData.status !== newMeal.status) {
+        newMeal.status = updateData.status;
+    } 
+    
+    // Nếu đây là bản clone từ AI (đang có status 'edited'), thì giữ nguyên.
+    // Nếu là bản gốc (không clone), và người dùng cập nhật, có thể chuyển sang 'selected'
+    // Logic này có thể tùy chỉnh thêm để đảm bảo status hợp lý.
 
-    // 5. Tính toán lại tổng dinh dưỡng
+    // 5. Tính toán lại tổng dinh dưỡng (BẮT BUỘC)
     newMeal.totalNutrition = await calculateTotalNutrition(newMeal.recipes);
     
     await newMeal.save();

@@ -1,7 +1,16 @@
 // src/controllers/meal.controller.js
 
 const mealService = require('../services/meal.service');
+const Recipe = require('../models/Recipe');
 
+exports.createMeal = async (req, res) => {
+  try {
+    const meal = await mealService.createMeal(req.body);
+    res.status(200).json(meal);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+};
 exports.getMeal = async (req, res) => {
     try {
         const userId = req.user.id; // Lấy userId từ middleware xác thực
@@ -15,7 +24,8 @@ exports.getMeal = async (req, res) => {
 // API: GET /api/meals/history
 exports.getHistory = async (req, res) => {
     try {
-        const userId = req.user.id; // Lấy userId từ middleware xác thực
+        //const userId = req.user.id; // Lấy userId từ middleware xác thực
+        const userId = req.body.id;
         const history = await mealService.getMealHistory(userId);
         res.status(200).json(history);
     } catch (error) {
@@ -27,7 +37,8 @@ exports.getHistory = async (req, res) => {
 // API: POST /api/meals/add-recipe
 exports.addRecipe = async (req, res) => {
     try {
-        const userId = req.user.id;
+        // const userId = req.user.id;
+        const userId = req.body.id;
         const { date, mealType, recipeId, portion } = req.body;
 
         if (!date || !mealType || !recipeId) {

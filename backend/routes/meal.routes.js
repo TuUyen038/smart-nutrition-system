@@ -2,6 +2,7 @@
 
 const express = require('express');
 const mealController = require('../controllers/meal.controller');
+const { route } = require('./mealPlan.routes');
 // const authMiddleware = require('../middleware/auth'); // Giả định có middleware xác thực
 
 const router = express.Router();
@@ -9,6 +10,8 @@ const router = express.Router();
 // Tất cả route đều nên dùng authMiddleware để xác định req.user.id
 // router.use(authMiddleware); 
 
+router.post('/', mealController.createMeal);
+router.get('/', mealController.getMeal);
 // 1. Lấy lịch sử ăn uống
 router.get('/history', mealController.getHistory);
 
