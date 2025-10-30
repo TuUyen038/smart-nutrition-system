@@ -15,38 +15,58 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
+import { analyzeFoodImage } from "../../services/recipeApi";
+
 function DetectFood() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
+  const [result, setResult] = useState(null);
   const [recipe, setRecipe] = useState("");
   const [nutrition, setNutrition] = useState("");
   const [note, setNote] = useState("");
+  const [error, setError] = useState(null); // Trạng thái lỗi
+  // Trạng thái kết quả, khớp với cấu trúc JSON của Backend
+  const [analysisData, setAnalysisData] = useState(null);
+  const [fileToUpload, setFileToUpload] = useState(null); // Lưu file gốc
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
     if (file) {
+      // 1. Thiết lập trạng thái ban đầu
+      setFileToUpload(file);
       setSelectedImage(URL.createObjectURL(file));
+      setAnalysisData(null);
+      setError(null);
       setLoading(true);
-      setResult("");
-      setRecipe("");
-      setNutrition("");
-      setNote("");
 
-      setTimeout(() => {
-        setResult("Phở bò");
-        setRecipe("Nước dùng từ xương bò, bánh phở, thịt bò tái, rau thơm, chanh, tương ớt.");
-        setNutrition("Calo: 350, Protein: 25g, Carb: 40g, Chất béo: 10g");
-        setNote("Thích hợp cho bữa sáng. Không nên ăn quá muộn nếu bạn đang giảm cân.");
-        setLoading(false);
-      }, 2000);
+      // 2. GỌI HÀM API THỰC TẾ
+      uploadAndAnalyze(file);
+    }
+  };
+
+  const uploadAndAnalyze = async (file) => {
+    try {
+      const result = await analyzeFoodImage(file);
+      // Kiểm tra xem result có phải là JSON hợp lệ và có đủ trường không
+      console.log("hello result ne");
+      console.log(result);
+      if (result && result.name) {
+        setAnalysisData(result);
+      } else {
+        // Xử lý trường hợp Gemini trả về JSON không đúng format
+        throw new Error("Dữ liệu phân tích không đúng cấu trúc.");
+      }
+    } catch (err) {
+      setError(err.message || "Lỗi không xác định khi phân tích món ăn.");
+      setAnalysisData(null);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleSave = () => {
-    alert("Đã lưu vào lịch sử ăn uống!");
+    alert(`Đã lưu món ${analysisData?.name} vào lịch sử ăn uống!`);
   };
-
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -114,32 +134,33 @@ function DetectFood() {
                   <Typography variant="body2" mt={1}>
                     Đang xử lý ảnh...
                   </Typography>
+                  {console.log("hi")};
                 </Box>
-              ) : result ? (
+              ) : analysisData ? (
                 <>
                   <Typography variant="h5" mb={0}>
-                    Kết quả nhận diện: {result}
+                    Kết quả nhận diện: {analysisData.name}
                   </Typography>
-
                   <Divider sx={{ my: 2 }} />
-                  <MDTypography variant="h6" fontWeight="medium">
+                  {/* <MDTypography variant="h6" fontWeight="medium">
                     Công thức nấu
                   </MDTypography>
-                  <Typography variant="body2">{recipe}</Typography>
-
+                  {console.log(result.recipe)}
+                  <Typography variant="body2">{result.recipe}</Typography>
                   <Divider sx={{ my: 2 }} />
                   <MDTypography variant="h6" fontWeight="medium">
                     Thành phần dinh dưỡng
                   </MDTypography>
-                  <Typography variant="body2">{nutrition}</Typography>
-
+                  {console.log(result.totalNutrition)}
+                  <Typography variant="body2">{result.totalNutrition}</Typography>
                   <Divider sx={{ my: 2 }} />
                   <MDTypography variant="h6" fontWeight="medium">
                     Cảnh báo
                   </MDTypography>
+                  {console.log(result.Recommendation.phuHopVoi)}
                   <Typography variant="body2" mb={3}>
-                    {note}
-                  </Typography>
+                    {result.Recommendation.phuHopVoi}
+                  </Typography> */}
                   <Grid item xs={12} sm={6} lg={12}>
                     <MDBox display="flex" gap={2} flexWrap="wrap">
                       <MDButton variant="contained" color="info" onClick={handleSave}>
@@ -161,7 +182,9 @@ function DetectFood() {
                   </Grid>
                 </>
               ) : (
-                <Typography variant="body2" color="text.secondary"></Typography>
+                <Typography variant="body2" color="text.secondary">
+                  không tìm thấy món ăn
+                </Typography>
               )}
             </Card>
           </Grid>

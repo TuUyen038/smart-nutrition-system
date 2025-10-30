@@ -1,8 +1,17 @@
-const express = require("express");
-const { analyzeRecipe } = require("../controllers/recipe.controller");
+const express = require('express');
+const multer = require('multer');
+const { analyzeImage } = require('../controllers/recipe.controller');
 
 const router = express.Router();
 
-router.post("/analyze", analyzeRecipe);
+const upload = multer({ dest: 'uploads/' }); 
 
-module.exports = router;
+// POST /api/food/analyze
+// 'foodImage' phải khớp với tên field trong FormData của Frontend
+router.post(
+    '/analyze', 
+    upload.single('foodImage'), 
+    analyzeImage 
+);
+
+module.exports = router; 
