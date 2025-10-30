@@ -1,44 +1,22 @@
+// geminiProvider.js (Nâng cấp)
 const { GoogleGenAI } = require('@google/genai');
 const fs = require('fs');
 
-// Đảm bảo khóa API được cấu hình
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-if (!GEMINI_API_KEY) {
-    console.error("LỖI CẤU HÌNH: Biến môi trường GEMINI_API_KEY không được tìm thấy.");
-    // Thay vì crash, có thể ném lỗi hoặc dùng một key rỗng (nhưng API call sẽ thất bại)
-    // Tuy nhiên, lỗi hiện tại cho thấy nó crash ngay lúc khởi tạo.
-    // Nếu bạn muốn server khởi động mà không cần key ngay lập tức (cho các route khác),
-    // bạn có thể khởi tạo GoogleGenAI bên trong analyzeWithGemini.
-}
-
-// Khởi tạo GoogleGenAI bằng cách truyền đối tượng cấu hình rõ ràng
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY }); 
-const modelName = "gemini-2.5-flash"; 
-
 /**
- * Chuyển đổi dữ liệu file ảnh Multer sang định dạng PartData cho Gemini API
- * @param {object} imageFile - Đối tượng file từ Multer (có path, mimetype, size)
- * @returns {object} - Dữ liệu PartData cho Gemini
+ * Hàm hỗ trợ: Chuyển đổi dữ liệu file ảnh Multer sang PartData.
+ * (Giữ nguyên và tách ra khỏi Class/Service)
  */
 function fileToGenerativePart(imageFile) {
-  // Lỗi xảy ra ở đây vì imageFile có thể là undefined/null
   if (!imageFile || !imageFile.path || !imageFile.mimetype) {
     throw new Error("Dữ liệu file ảnh bị thiếu hoặc không hợp lệ.");
   }
-  
-  // KIỂM TRA QUAN TRỌNG: Đảm bảo thuộc tính size tồn tại trước khi dùng
-  if (imageFile.size === undefined) {
-      console.warn("File object is missing 'size' property. Using fs.statSync.");
-      // Nếu Multer không cung cấp size, hãy cố gắng đọc từ FS
-      try {
-          const stats = fs.statSync(imageFile.path);
-          imageFile.size = stats.size;
-      } catch (e) {
-          throw new Error(`[FS Error] Không thể đọc kích thước file tại đường dẫn: ${imageFile.path}`);
-      }
+  // Kiểm tra file tồn tại
+  if (!fs.existsSync(imageFile.path)) {
+       throw new Error(`[FS Error] File ảnh không tồn tại tại đường dẫn: ${imageFile.path}`);
   }
-
+  
+  // Logic đọc file
+  // ... (giữ nguyên logic fileToGenerativePart) ...
   return {
     inlineData: {
       data: Buffer.from(fs.readFileSync(imageFile.path)).toString("base64"),
@@ -47,38 +25,68 @@ function fileToGenerativePart(imageFile) {
   };
 }
 
-/**
- * Phân tích món ăn bằng Gemini API.
- * @param {object} imageFile - Đối tượng file từ Multer
- * @param {string} prompt - Prompt để hướng dẫn AI
- * @returns {string} - Chuỗi JSON kết quả phân tích
- */
-const analyzeWithGemini = async (imageFile, prompt) => {
-  try {
-    const imagePart = fileToGenerativePart(imageFile); // Dòng 30
+// =======================================================================
 
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: [
-        { role: "user", parts: [imagePart, { text: prompt }] },
-      ],
-      // Cấu hình để yêu cầu JSON
-      config: {
-          responseMimeType: "application/json",
-          // ... (thêm responseSchema nếu cần)
-      }
-    });
+class GeminiService {
+    /**
+     * Khởi tạo service với cấu hình tùy chỉnh.
+     * @param {string} apiKey - Khóa API riêng biệt cho service này.
+     * @param {string} [defaultModel='gemini-2.5-flash'] - Mô hình mặc định.
+     */
+    constructor(apiKey, defaultModel = 'gemini-2.5-flash') {
+        if (!apiKey) {
+            throw new Error("Lỗi cấu hình: Gemini API Key phải được cung cấp.");
+        }
+        // Khởi tạo client riêng cho từng instance
+        this.aiClient = new GoogleGenAI({ apiKey }); 
+        this.defaultModel = defaultModel;
+    }
 
-    const resultText = response.text;
-    
-    // Đảm bảo không có code block Markdown
-    return resultText.replace(/```json|```/g, '').trim(); 
-    
-  } catch (error) {
-    console.error("Lỗi trong analyzeWithGemini:", error);
-    // Ném lỗi mới để controller xử lý
-    throw new Error(`[GEMINI Error] ${error.message || 'Lỗi không xác định khi gọi Gemini API'}`);
-  }
+    /**
+     * Phân tích nội dung (ảnh và/hoặc prompt) với các tùy chọn cấu hình.
+     * @param {object | null} imageFile - Đối tượng file (null nếu chỉ là prompt)
+     * @param {string} prompt - Prompt hướng dẫn AI
+     * @param {string} [model] - Ghi đè mô hình mặc định (nếu cần)
+     * @returns {string} - Chuỗi JSON kết quả phân tích
+     */
+    async analyze(imageFile, prompt, model = this.defaultModel) {
+        // Tùy chỉnh: Nếu không có imageFile (như các request công thức/dinh dưỡng), contents sẽ khác
+        const imagePart = imageFile ? fileToGenerativePart(imageFile) : null;
+        
+        const contents = imagePart
+            ? [{ role: "user", parts: [imagePart, { text: prompt }] }]
+            : [{ role: "user", parts: [{ text: prompt }] }]; // Trường hợp chỉ có text
+
+        try {
+            const response = await this.aiClient.models.generateContent({
+                model: model, 
+                contents: contents,
+                config: {
+                    responseMimeType: "application/json",
+                    // Thêm các cấu hình khác nếu cần
+                },
+            });
+
+            // Xử lý và làm sạch kết quả
+            const resultText = response.text;
+            return resultText.replace(/```json|```/g, '').trim(); 
+            
+        } catch (error) {
+            console.error("Lỗi trong analyzeWithGemini/analyze:", error);
+        
+        // ⚠️ BẮT BUỘC: Tạo đối tượng lỗi rõ ràng và JSON.stringify nó.
+        const errorObject = { 
+            foodName: "Lỗi API/Không xác định",
+            errorMessage: error.message || "Lỗi không xác định khi gọi AI",
+            statusCode: error.response?.status || 500
+        };
+
+        // Trả về CHUỖI JSON HỢP LỆ (string)
+        return JSON.stringify(errorObject);
+        }
+    }
+}
+
+module.exports = { 
+    GeminiService 
 };
-
-module.exports = { analyzeWithGemini };

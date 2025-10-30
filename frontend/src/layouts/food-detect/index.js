@@ -9,15 +9,17 @@ import {
   Divider,
   Typography,
 } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 import { Box, width } from "@mui/system";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
-import { analyzeFoodImage } from "../../services/recipeApi";
+import { detectFood } from "../../services/recipeApi";
 
 function DetectFood() {
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -46,11 +48,9 @@ function DetectFood() {
 
   const uploadAndAnalyze = async (file) => {
     try {
-      const result = await analyzeFoodImage(file);
+      const result = await detectFood(file);
       // Kiểm tra xem result có phải là JSON hợp lệ và có đủ trường không
-      console.log("hello result ne");
-      console.log(result);
-      if (result && result.name) {
+      if (result) {
         setAnalysisData(result);
       } else {
         // Xử lý trường hợp Gemini trả về JSON không đúng format
@@ -64,8 +64,8 @@ function DetectFood() {
     }
   };
 
-  const handleSave = () => {
-    alert(`Đã lưu món ${analysisData?.name} vào lịch sử ăn uống!`);
+  const handleMoveToRecipe = () => {
+    navigate("/analyze-recipe");
   };
   return (
     <DashboardLayout>
@@ -134,14 +134,19 @@ function DetectFood() {
                   <Typography variant="body2" mt={1}>
                     Đang xử lý ảnh...
                   </Typography>
-                  {console.log("hi")};
                 </Box>
               ) : analysisData ? (
                 <>
-                  <Typography variant="h5" mb={0}>
-                    Kết quả nhận diện: {analysisData.name}
-                  </Typography>
-                  <Divider sx={{ my: 2 }} />
+                  <Grid container spacing={1} alignItems="center" mb={5}>
+                    <Grid item xs={6} md={3} lg={2}>
+                      <MDTypography variant="h6" fontWeight="medium">
+                        Kết quả nhận diện:
+                      </MDTypography>
+                    </Grid>
+                    <Grid item xs={6} md={3} lg={3}>
+                      <Typography variant="body2">{analysisData}</Typography>
+                    </Grid>
+                  </Grid>
                   {/* <MDTypography variant="h6" fontWeight="medium">
                     Công thức nấu
                   </MDTypography>
@@ -163,8 +168,8 @@ function DetectFood() {
                   </Typography> */}
                   <Grid item xs={12} sm={6} lg={12}>
                     <MDBox display="flex" gap={2} flexWrap="wrap">
-                      <MDButton variant="contained" color="info" onClick={handleSave}>
-                        Lưu vào lịch sử ăn uống
+                      <MDButton variant="contained" color="info" onClick={handleMoveToRecipe}>
+                        Xem chi tiết
                       </MDButton>
                       <label htmlFor="upload-photo">
                         <Input
@@ -182,9 +187,7 @@ function DetectFood() {
                   </Grid>
                 </>
               ) : (
-                <Typography variant="body2" color="text.secondary">
-                  không tìm thấy món ăn
-                </Typography>
+                <Typography variant="body2" color="text.secondary"></Typography>
               )}
             </Card>
           </Grid>
