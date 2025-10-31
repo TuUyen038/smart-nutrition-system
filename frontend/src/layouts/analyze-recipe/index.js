@@ -4,18 +4,59 @@ import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
-
+import { useSearchParams } from "react-router-dom";
+import { useEffect } from "react";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDButton from "components/MDButton";
 import { Card } from "@mui/material";
-
+import { findRecipeByFoodName, getIngredientsAndInstructionsInAi } from "../../services/recipeApi";
 function AnalyzeRecipe() {
-  const [dishName, setDishName] = useState("");
-  const [recipe, setRecipe] = useState("");
+  const [searchParams] = useSearchParams();
+  const foodName = searchParams.get("dish");
+  const [recipe, setRecipe] = useState(null);
   const [result, setResult] = useState(null);
+  const [ingredients, setIngredients] = useState([]);
+  const [instructions, setInstructions] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchRecipe = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        console.log("foodName trong use effect:", foodName);
+        let recipeData = await findRecipeByFoodName(foodName);
+        console.log("recipeData:", recipeData);
+
+        if (!recipeData) {
+          console.log("Không tìm thấy trong CSDL. Chuyển sang tìm kiếm bằng AI.");
+          recipeData = await getIngredientsAndInstructionsInAi(foodName);
+
+          if (!recipeData || (!recipeData.ingredients && !recipeData.instructions)) {
+            throw new Error("Không thể tìm thấy công thức hợp lệ từ bất kỳ nguồn nào.");
+          }
+        }
+        console.log("recipeData:", recipeData);
+        setRecipe({ ...recipeData });
+        setIngredients(recipeData.ingredients || []);
+        setInstructions(recipeData.instructions || []);
+      } catch (err) {
+        console.error("Lỗi tìm kiếm công thức:", err);
+        setError(err.message || "Đã xảy ra lỗi khi tìm công thức.");
+        setIngredients([]);
+        setInstructions([]);
+        setRecipe(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRecipe();
+  }, [foodName]);
 
   const handleAnalyze = () => {
     setResult({
@@ -42,21 +83,36 @@ function AnalyzeRecipe() {
                 fullWidth
                 label="Tên món ăn"
                 variant="outlined"
-                value={dishName}
-                onChange={(e) => setDishName(e.target.value)}
+                value={foodName || ""}
+                // onChange={(e) => setDishName(e.target.value)}
                 sx={{ mb: 2 }}
               />
-              <TextField
-                fullWidth
-                label="Công thức món ăn"
-                variant="outlined"
-                multiline
-                rows={6}
-                value={recipe}
-                onChange={(e) => setRecipe(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              <Grid item xs={12} sm={6} lg={12}>
+              {ingredients.length > 0 && (
+                <MDBox mt={3}>
+                  <MDTypography variant="h6" fontWeight="medium" gutterBottom>
+                    Nguyên liệu
+                  </MDTypography>
+                  {ingredients.map((item, index) => (
+                    <Typography key={index} variant="body2">
+                      • {item.name} — <strong>{item.quantity}</strong>
+                    </Typography>
+                  ))}
+                </MDBox>
+              )}
+              {instructions.length > 0 && (
+                <MDBox mt={3}>
+                  <MDTypography variant="h6" fontWeight="medium" gutterBottom>
+                    Các bước thực hiện
+                  </MDTypography>
+                  {instructions.map((step, index) => (
+                    <Typography key={index} variant="body2">
+                      {index + 1}. {step}
+                    </Typography>
+                  ))}
+                </MDBox>
+              )}
+
+              <Grid item xs={12} sm={6} lg={12} mt={3}>
                 <MDBox display="flex" gap={2} flexWrap="wrap">
                   <MDButton variant="contained" color="info" onClick={handleAnalyze}>
                     Phân tích

@@ -57,7 +57,7 @@ function DetectFood() {
         throw new Error("Dữ liệu phân tích không đúng cấu trúc.");
       }
     } catch (err) {
-      setError(err.message || "Lỗi không xác định khi phân tích món ăn.");
+      setError(err.message || "Lỗi không xác định khi phân tích ảnh món ăn.");
       setAnalysisData(null);
     } finally {
       setLoading(false);
@@ -65,7 +65,7 @@ function DetectFood() {
   };
 
   const handleMoveToRecipe = () => {
-    navigate("/analyze-recipe");
+    navigate(`/analyze-recipe?dish=${encodeURIComponent(analysisData)}`);
   };
   return (
     <DashboardLayout>

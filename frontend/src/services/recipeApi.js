@@ -20,10 +20,59 @@ export const detectFood = async (imageFile) => {
     }
 
     const data = await response.json();
-    console.log("Phân tích món ăn:", data.foodName);
     return data.foodName;
   } catch (error) {
     console.error("Lỗi gọi API phân tích món ăn:", error.message);
+    throw error;
+  }
+};
+
+export const findRecipeByFoodName = async (foodName) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/${encodeURIComponent(foodName)}`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể đọc lỗi từ server.",
+      }));
+      throw new Error(
+        errorData.message || `Lỗi HTTP ${response.status} khi tìm nguyên liệu cho ${foodName}`
+      );
+    }
+
+    const data = await response.json();
+    console.log("📦 Dữ liệu từ backend:", data);
+
+    // 🔍 Kiểm tra dữ liệu rỗng
+    if (!data || Object.keys(data).length === 0) {
+      console.warn(`⚠️ Không tìm thấy công thức trong DB cho "${foodName}".`);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error(`🚨 Lỗi khi lấy công thức "${foodName}":`, error.message);
+    return null; // ✅ Trả null để FE chuyển sang AI
+  }
+};
+
+export const getIngredientsAndInstructionsInAi = async (foodName) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/rcm/${encodeURIComponent(foodName)}`);
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ message: "Không thể đọc lỗi từ server." }));
+      throw new Error(
+        errorData.message || `Lỗi HTTP: ${response.status} khi tìm nguyên liệu cho ${foodName}`
+      );
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error(`Lỗi khi lấy nguyên liệu cho món ăn by AI "${foodName}":`, error.message);
     throw error;
   }
 };
