@@ -40,3 +40,7 @@ coverage/
 # Optional
 tmp/
 temp/
+
+~$*.xlsx
+~$*.xls
+~$*.docx

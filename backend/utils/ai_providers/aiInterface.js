@@ -77,13 +77,13 @@ const getRecipe = async (foodName) => {
         * ],
         * }
     `;
-    // Gọi hàm analyze mà KHÔNG CÓ ảnh (tham số imageFile là null)
     return foodGeminiService.analyze(null, prompt, 'gemini-2.5-flash');
 };
 const getNutritionByAi = async (ingrs) => {
     const prompt = `
         Dựa trên danh sách tên nguyên liệu sau: ${ingrs},
-        Hãy trả về danh sách nutrition tính trên 100g theo thứ tự của danh sách nguyên liệu đó
+        Hãy trả về danh sách nutrition tính trên 100g nguyên liệu, liệt kê theo thứ tự của danh sách nguyên liệu đó
+        sugar và sodium đơn vị là mg, calories là kcal, còn lại là g
         trong đó mỗi object chứa thông tin của 1 nguyên liệu, ưu tiên dữ liệu lấy từ Bảng thành phần thực phẩm Việt Nam (Viện Dinh dưỡng, 2017), không có thì hãy lấy từ nguồn đáng tin cậy.
         Trả về 1 obj theo mẫu:
          * {
