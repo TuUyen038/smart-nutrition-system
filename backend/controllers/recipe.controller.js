@@ -1,16 +1,18 @@
 // analyzeController.js (Tối ưu hóa)
 const fs = require('fs');
+const Recipe = require('../models/Recipe');
+const { createRecipe, getRecipeById, saveRecipeToDB } = require('../services/recipe.service');
 // Sửa import: Lấy tất cả các hàm mới
 const { 
   identifyFoodName, 
   getRecipe, 
-  calculateNutrition, 
+  getNutritionByAi, 
   getSubstitutionsAndWarnings 
 } = require('../utils/ai_providers/aiInterface'); 
 const Analysis = require('../models/Analysis');
 
 // Hàm chính xử lý logic phân tích
-const findRecipe = async (req, res, next) => {
+const analyzeRecipe = async (req, res, next) => {
   const imageFile = req.file; 
   const modelToUse = req.body.model || 'gemini-2.5-flash'; // Đặt model mặc định rõ ràng hơn
   
@@ -190,4 +192,104 @@ const detectImage = async (req, res, next) => {
   }
 };
 
-module.exports = { findRecipe, detectImage };
+const findRecipeByName = async (req, res) => {
+  const { foodName } = req.params;
+
+  try {
+    const recipe = await Recipe.findOne({
+      name: { $regex: new RegExp(foodName, 'i') },
+      verified: true
+    })
+      .select('name ingredients instructions totalNutrition')
+      .populate('ingredients', 'name quantity unit')
+      .lean();
+    if (!recipe) {
+      console.log(`❌ Không tìm thấy trong DB: ${foodName}`);
+
+      return res.status(200).json(null);
+    }
+
+    console.log(`✅ Đã tìm thấy công thức trong DB: ${recipe.name}`);
+    return res.status(200).json(recipe);
+
+  } catch (error) {
+    console.error("Lỗi khi tìm mon an:", error);
+    return res.status(500).json({ message: "Lỗi server khi tìm công thức.", error: error.message });
+  }
+};
+
+const safeParse = (text, defaultVal = {}) => {
+  if (!text || typeof text !== 'string') return defaultVal;
+  try {
+    return JSON.parse(text.replace(/```json|```/g, '').trim());
+  } catch (e) {
+    console.warn(`Lỗi Parse JSON: ${e.message}. Trả về raw text.`);
+    return { error: e.message, rawText: text };
+  }
+};
+const createNewRecipe = async (req, res) => {
+  // Lấy dữ liệu từ req.body như cũ
+  const recipeData = req.body; 
+
+  try {
+    // Gọi hàm service để lưu
+    const savedRecipe = await saveRecipeToDB(recipeData); 
+    return res.status(201).json(savedRecipe);
+  } catch (error) {
+    console.error("🚨 Lỗi khi tạo công thức:", error);
+    // Trả về lỗi nếu service báo lỗi
+    return res.status(500).json({ message: "Lỗi server khi tạo công thức.", error: error.message });
+  }
+};
+
+const findIngrAndInstrByAi = async (req, res, next) => {
+  const foodName = req.params.foodName || req.body?.foodName;
+
+  if (!foodName) {
+    return res.status(400).json({ message: 'Thiếu foodName (params hoặc body).' });
+  }
+
+  try {
+    console.log('Bắt đầu tìm trong AI cho:', foodName);
+
+    const aiRaw = await getRecipe(foodName);
+    const aiData = typeof aiRaw === 'string' ? safeParse(aiRaw) : (aiRaw || {});
+    const result = {
+      name: foodName,
+      ingredients: aiData.ingredients || [],
+      instructions: aiData.instructions || [],
+    };
+    if ((result.ingredients && result.ingredients.length > 0) ||
+        (result.instructions && result.instructions.length > 0)) {
+
+      // Tạo object dữ liệu công thức hoàn chỉnh
+      const recipeDataToSave = {
+        name: result.name, // foodName
+        description: `Công thức gợi ý bởi AI cho món ${result.name}.`,
+        category: "main",
+        instructions: result.instructions,
+        ingredients: result.ingredients,
+        totalNutrition: null, 
+        createdBy: 'ai',
+        verified: false 
+      };
+      // saveRecipeToDB(recipeDataToSave)
+      //   .then(() => console.log('Đã lưu công thức mới vào DB'))
+      //   .catch((err) => console.error('Lỗi khi lưu công thức vào DB:', err));
+
+    }
+    return res.status(200).json(result);
+
+  } catch (error) {
+    console.error('Global Error:', error);
+    return next(error);
+  }
+};
+
+const getBackUpNutrition = async (req, res) => {
+  const {ingrs} = req.body;
+  const result = await getNutritionByAi(ingrs);
+  return res.status(200).json(result);
+}
+
+module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition };
