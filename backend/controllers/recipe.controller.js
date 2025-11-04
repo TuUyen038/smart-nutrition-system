@@ -1,7 +1,8 @@
 // analyzeController.js (Tối ưu hóa)
 const fs = require('fs');
 const Recipe = require('../models/Recipe');
-const { createRecipe, getRecipeById, saveRecipeToDB } = require('../services/recipe.service');
+const mongoose = require('mongoose');
+const { createRecipe, saveRecipeToDB } = require('../services/recipe.service');
 // Sửa import: Lấy tất cả các hàm mới
 const { 
   identifyFoodName, 
@@ -191,6 +192,24 @@ const detectImage = async (req, res, next) => {
     }
   }
 };
+const getRecipeById = async (req, res) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "Invalid recipe ID" });
+  }
+
+  try {
+    const recipe = await Recipe.findById(id);
+    if (!recipe) {
+      return res.status(404).json({ message: "Recipe not found" });
+    }
+    return res.status(200).json(recipe);
+  } catch (error) {
+    console.error("Lỗi khi tìm món ăn:", error);
+    return res.status(500).json({ message: "Lỗi server.", error: error.message });
+  }
+};
 
 const findRecipeByName = async (req, res) => {
   const { foodName } = req.params;
@@ -287,4 +306,4 @@ const getBackUpNutrition = async (req, res) => {
   return res.status(200).json(result);
 }
 
-module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe };
+module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById };

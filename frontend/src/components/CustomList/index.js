@@ -62,10 +62,10 @@ function CustomList({ items, renderItem }) {
         ref={scrollRef}
         sx={{
           display: "flex",
-          gap: 2, // ✅ khoảng cách giữa các item
+          gap: 1.5,
           overflowX: "auto",
           scrollBehavior: "smooth",
-          px: 1, // ✅ padding ngang để tránh item sát mép
+          px: 1,
           "&::-webkit-scrollbar": { display: "none" },
         }}
       >

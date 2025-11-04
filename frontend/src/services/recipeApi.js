@@ -48,6 +48,23 @@ export const findRecipeByFoodName = async (foodName) => {
   }
 };
 
+export const findRecipeById = async (recipeId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/id/${recipeId}`);
+
+    if (!response.ok) {
+      console.warn(`Không tìm thấy công thức trong DB cho "${recipeId}".`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.error(`Lỗi khi lấy chi tiet công thức "${recipeId}":`, error.message);
+    return null;
+  }
+}
 export const getBackUpNutrition = async (ingrs) => {
   try {
     // chỉ lấy mảng tên string

@@ -1,6 +1,6 @@
 const express = require('express');
 const multer = require('multer');
-const { findRecipeByName, detectImage, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe } = require('../controllers/recipe.controller');
+const { findRecipeByName, detectImage, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById } = require('../controllers/recipe.controller');
 
 const router = express.Router();
 
@@ -11,6 +11,7 @@ const upload = multer({ dest: 'uploads/' });
 router.post('/', createNewRecipe);
 router.post('/detect', upload.single('foodImage'), detectImage );
 router.get('/rcm/:foodName', findIngrAndInstrByAi);
+router.get('/id/:id', getRecipeById); // chỉ match ObjectId 24 ký tự
 router.get('/:foodName', findRecipeByName);
 router.post('/back-up-nutrition', getBackUpNutrition);
 

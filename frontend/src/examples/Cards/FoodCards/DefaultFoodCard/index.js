@@ -7,12 +7,14 @@ import CardActions from "@mui/material/CardActions";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
+import { Divider } from "@mui/material";
 
 function DefaultFoodCard({ image, label, title, description, action }) {
   return (
     <Card
+      onClick={action?.onClick}
       sx={{
-        width: 240, // hoặc "15rem"
+        width: 230, // hoặc "15rem"
         height: 290, // hoặc "22.5rem"
         display: "flex",
         flexDirection: "column",
@@ -21,10 +23,12 @@ function DefaultFoodCard({ image, label, title, description, action }) {
         boxShadow: 3,
         overflow: "hidden",
         transition: "0.3s",
+        cursor: action ? "pointer" : "default",
         "&:hover": {
           boxShadow: 6,
         },
       }}
+      
     >
       <CardMedia
         component="img"
@@ -32,11 +36,15 @@ function DefaultFoodCard({ image, label, title, description, action }) {
         alt={title}
         sx={{
           height: 130,
+          width: "195px",
           objectFit: "cover",
         }}
       />
-      <CardContent sx={{ flexGrow: 1 }}>
-        <MDBox mt={1} mx={0.5}>
+
+      <Divider sx={{ mb: 0 }} />
+
+      <CardContent sx={{ flexGrow: 1, pt: 0.1 }}>
+        <MDBox >
           <MDTypography
             variant="button"
             fontWeight="regular"
@@ -70,7 +78,7 @@ function DefaultFoodCard({ image, label, title, description, action }) {
             </MDTypography>
           </MDBox>
 
-          <MDBox mb={2} lineHeight={0}>
+          <MDBox mb={1}>
             <MDTypography
               variant="button"
               fontWeight="light"
@@ -79,14 +87,16 @@ function DefaultFoodCard({ image, label, title, description, action }) {
                 display: "-webkit-box",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                WebkitLineClamp: 3,
+                WebkitLineClamp: 2,
                 WebkitBoxOrient: "vertical",
-                height: "42px",
+                lineHeight: 1.4, 
+                maxHeight: "2.8em",
               }}
             >
               {description}
             </MDTypography>
           </MDBox>
+
         </MDBox>
       </CardContent>
 
@@ -129,8 +139,8 @@ DefaultFoodCard.propTypes = {
   title: PropTypes.string.isRequired,
   description: PropTypes.string.isRequired,
   action: PropTypes.shape({
-    type: PropTypes.oneOf(["external", "internal"]),
-    route: PropTypes.string,
+    type: PropTypes.oneOf(["external", "internal"]), // optional
+    route: PropTypes.string,                          // optional
     color: PropTypes.oneOf([
       "primary",
       "secondary",
@@ -143,8 +153,10 @@ DefaultFoodCard.propTypes = {
       "white",
     ]),
     label: PropTypes.string,
+    onClick: PropTypes.func,
   }),
 };
+
 DefaultFoodCard.defaultProps = {
   action: null,
 };
