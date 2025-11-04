@@ -35,6 +35,7 @@ const recipeSchema = new mongoose.Schema({
   },
 
   imageUrl: String,
+  public_id: String,
   createdBy: { type: String, enum: ["admin", "user", "ai"] },
   verified: { type: Boolean, default: false },
 

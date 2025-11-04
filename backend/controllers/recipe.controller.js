@@ -228,15 +228,13 @@ const safeParse = (text, defaultVal = {}) => {
   }
 };
 const createNewRecipe = async (req, res) => {
-  // Lấy dữ liệu từ req.body như cũ
   const recipeData = req.body; 
 
   try {
-    // Gọi hàm service để lưu
     const savedRecipe = await saveRecipeToDB(recipeData); 
     return res.status(201).json(savedRecipe);
   } catch (error) {
-    console.error("🚨 Lỗi khi tạo công thức:", error);
+    console.error(error);
     // Trả về lỗi nếu service báo lỗi
     return res.status(500).json({ message: "Lỗi server khi tạo công thức.", error: error.message });
   }
@@ -264,7 +262,7 @@ const findIngrAndInstrByAi = async (req, res, next) => {
 
       // Tạo object dữ liệu công thức hoàn chỉnh
       const recipeDataToSave = {
-        name: result.name, // foodName
+        name: result.name,
         description: `Công thức gợi ý bởi AI cho món ${result.name}.`,
         category: "main",
         instructions: result.instructions,
@@ -274,9 +272,6 @@ const findIngrAndInstrByAi = async (req, res, next) => {
         verified: false 
       };
       // saveRecipeToDB(recipeDataToSave)
-      //   .then(() => console.log('Đã lưu công thức mới vào DB'))
-      //   .catch((err) => console.error('Lỗi khi lưu công thức vào DB:', err));
-
     }
     return res.status(200).json(result);
 
