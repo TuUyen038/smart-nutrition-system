@@ -1,7 +1,7 @@
 // mealPlan.service.js
 
 // Đảm bảo import đúng các models và utility cần thiết
-const Meal = require('../models/Meal'); // Cần để tham chiếu (dù chưa dùng trong các hàm này)
+const Meal = require('../models/DailyMenu'); // Cần để tham chiếu (dù chưa dùng trong các hàm này)
 const MealPlan = require('../models/MealPlan'); 
 const { calculateEndDate } = require('../utils/mealPlan.util');
 const mongoose = require("mongoose");

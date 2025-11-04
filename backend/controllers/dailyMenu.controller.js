@@ -1,24 +1,50 @@
 // src/controllers/meal.controller.js
 
-const mealService = require('../services/meal.service');
+const dailyMenuService = require('../services/dailyMenu.service');
 const Recipe = require('../models/Recipe');
 
-exports.createMeal = async (req, res) => {
+const userId = '68f4394c4d4cc568e6bc5daa';
+exports.createDailyMenu = async (req, res) => {
   try {
-    const meal = await mealService.createMeal(req.body);
+    const meal = await dailyMenuService.createMeal(req.body);
     res.status(200).json(meal);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
-exports.getMeal = async (req, res) => {
+exports.getDailyMenuById = async (req, res) => {
     try {
-        const userId = req.user.id; // Lấy userId từ middleware xác thực
-        const detail = await mealService.getMealDetail(userId);
+        const { id } = req.params;
+        const detail = await dailyMenuService.getMealDetail(userId,id);
         res.status(200).json(detail);
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error retrieving meal detail' });
+    }
+}
+exports.getAllDailyMenu = async (req, res) => {
+    try {
+        const detail = await dailyMenuService.getAllMeal(userId);
+        res.status(200).json(detail);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error retrieving meal detail' });
+    }
+}
+
+exports.getRecipesByDateAndStatus = async (req, res) => {
+    try {
+        const { startDate, endDate, status } = req.query;
+
+        const data = await dailyMenuService.getRecipesByDateAndStatus({
+        userId,
+        startDate,
+        endDate,
+        status,
+        });
+        res.status(200).json(data);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 }
 // API: GET /api/meals/history
@@ -26,7 +52,7 @@ exports.getHistory = async (req, res) => {
     try {
         //const userId = req.user.id; // Lấy userId từ middleware xác thực
         const userId = req.body.id;
-        const history = await mealService.getMealHistory(userId);
+        const history = await dailyMenuService.getMealHistory(userId);
         res.status(200).json(history);
     } catch (error) {
         console.error(error);
@@ -46,7 +72,7 @@ exports.addRecipe = async (req, res) => {
         }
         
         // Gọi service để xử lý logic thêm/tạo và tính toán dinh dưỡng
-        const updatedMeal = await mealService.addRecipeToMeal(userId, req.body);
+        const updatedMeal = await dailyMenuService.addRecipeToMeal(userId, req.body);
         
         res.status(200).json(updatedMeal);
     } catch (error) {
@@ -65,7 +91,7 @@ exports.updateStatus = async (req, res) => {
         // const meal = await Meal.findById(mealId); 
         // if (meal.userId.toString() !== req.user.id) return res.status(403).send('Forbidden');
 
-        const updatedMeal = await mealService.updateMealStatus(mealId, newStatus);
+        const updatedMeal = await dailyMenuService.updateMealStatus(mealId, newStatus);
         res.status(200).json(updatedMeal);
     } catch (error) {
         console.error(error);
@@ -83,7 +109,7 @@ exports.updateMeal = async (req, res) => {
         const updateData = req.body;
         
         // Gọi service để thực hiện cập nhật và xử lý logic phức tạp
-        const updatedMeal = await mealService.updateMeal(mealId, updateData, userId);
+        const updatedMeal = await dailyMenuService.updateMeal(mealId, updateData, userId);
         
         res.status(200).json(updatedMeal);
     } catch (error) {

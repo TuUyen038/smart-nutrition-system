@@ -1,31 +1,49 @@
-// src/services/meal.service.js
-
-const Meal = require('../models/Meal');
+const DailyMenu = require('../models/DailyMenu');
 const MealPlan = require('../models/MealPlan');
 const { calculateTotalNutrition } = require('../utils/calTotalNutri');
 const mongoose = require('mongoose');
 
-exports.createMeal = async(data) => {
-    const { userId, mealType, date, recipes } = data;
+exports.createMeal = async (data) => {
+  try {
+    const { userId, date, recipes, status, feedback, ...rest } = data;
 
-    if (!userId || !mealType || !date || !recipes?.length) {
-      throw new Error("Missing required fields");
+    if (!userId || !date || !recipes?.length) {
+      throw new Error("Thiếu thông tin bắt buộc khi tạo bữa ăn.");
     }
 
-    const totalNutrition = await calculateTotalNutrition(recipes);
+    // Chuẩn hoá danh sách món ăn
+    const normalizedRecipes = recipes.map((r) => ({
+      recipeId: r.recipeId,
+      portion: r.portion || 1,
+      note: r.note || "",
+      status: r.status || "planned",
+    }));
 
-    const meal = await Meal.create({
-      ...data,
-      totalNutrition
+    const totalNutrition = await calculateTotalNutrition(normalizedRecipes);
+
+    const meal = await DailyMenu.create({
+      userId,
+      date,
+      recipes: normalizedRecipes,
+      totalNutrition,
+      status: status || "planned",
+      feedback: feedback || null,
     });
 
+    console.log(`Đã tạo DailyMenu cho ngày ${date}`);
     return meal;
+  } catch (error) {
+    console.error("Lỗi khi tạo DailyMenu:", error);
+    throw new Error("Không thể tạo bữa ăn: " + error.message);
   }
+};
+
+
 /**
- * Lấy lịch sử ăn uống (Các Meal đã 'done').
+ * Lấy lịch sử ăn uống (Các Meal đã 'completed').
  */
 exports.getMealHistory = async (userId) => {
-    return Meal.find({ userId, status: "completed" })
+    return DailyMenu.find({ userId, status: "completed" })
         .sort({ date: -1 })
         .populate({
             path: 'recipes._id',
@@ -34,34 +52,65 @@ exports.getMealHistory = async (userId) => {
         });
 };
 
-// src/services/meal.service.js
+exports.getRecipesByDateAndStatus = async (data) => {
+  try {
+    let { userId, startDate, endDate, status } = data;
+    if (!endDate) endDate = startDate;
+    if (!userId || !startDate ) {
+      throw new Error("Thiếu thời gian hoặc userId.");
+    }
 
-/**
- * Lấy chi tiết một Meal cụ thể, bao gồm thông tin chi tiết của các công thức (Recipe).
- * @param {ObjectId} userId - ID người dùng để kiểm tra quyền sở hữu.
- * @param {ObjectId} mealId - ID của Meal cần lấy chi tiết.
- * @returns {Meal} - Bản ghi Meal với các Recipe đã được populate.
- */
+    const dailyMenus = await DailyMenu.find({
+      userId,
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    })
+      .populate("recipes.recipeId", "name imageUrl totalNutrition description")
+      .lean();
+
+    if (!dailyMenus?.length) return [];
+
+    const history = dailyMenus.map((menu) => {
+      const recipes = menu.recipes
+        .filter((r) => (status ? r.status === status : true))
+        .map(({ recipeId, portion, note, status }) => ({
+          recipeId: recipeId._id,
+          name: recipeId.name,
+          imageUrl: recipeId.imageUrl,
+          totalNutrition: recipeId.totalNutrition,
+          description: recipeId.description,
+          portion,
+          status,
+        }));
+
+      return {
+        date: menu.date,
+        recipes,
+      };
+    });
+
+    return history;
+  } catch (error) {
+    console.error("Lỗi khi lấy lịch sử ăn uống:", error);
+    throw new Error("Không thể lấy lịch sử món ăn.");
+  }
+};
+
 exports.getMealDetail = async (userId, mealId) => {
-  // 1. Tìm Meal theo ID và xác minh quyền sở hữu
-  const meal = await Meal.findOne({ 
+  const meal = await DailyMenu.findOne({ 
     userId: userId, 
     _id: mealId 
   })
-  // 2. Sử dụng populate để thay thế recipeId bằng dữ liệu chi tiết của Recipe
   .populate({
     path: 'recipes.recipeId',
-    model: 'Recipe', // Tên Model của công thức
-    // Chỉ lấy các trường cần thiết để hiển thị (ví dụ: tên, ảnh, dinh dưỡng gốc)
+    model: 'Recipe',
     select: 'name description imageUrl totalNutrition' 
   })
-  // 3. (Tùy chọn) Populate tham chiếu ngược đến MealPlan
-  .populate({
-    path: 'mealPlanId',
-    model: 'MealPlan', // Tên Model MealPlan
-    select: 'status startDate'
-  })
-  .exec(); // Thực thi truy vấn
+  // .populate({
+  //   path: 'mealPlanId',
+  //   model: 'MealPlan',
+  //   select: 'status startDate'
+  // })
+  .exec();
 
   if (!meal) {
     throw new Error('Meal not found or access denied.');
@@ -74,6 +123,27 @@ exports.getMealDetail = async (userId, mealId) => {
 
   return meal;
 };
+exports.getAllMeal = async (userId) => {
+  const meal = await Meal.findAll({ 
+    userId: userId
+  })
+  .populate({
+    path: 'recipes.recipeId',
+    model: 'Recipe',
+    select: 'name description imageUrl totalNutrition' 
+  })
+  // .populate({
+  //   path: 'mealPlanId',
+  //   model: 'MealPlan',
+  //   select: 'status startDate'
+  // })
+  .exec();
+
+  if (!meal) {
+    throw new Error('Meal not found or access denied.');
+  }
+  return meal;
+};
 
 /**
  * Thêm một công thức vào bữa ăn cụ thể hoặc tạo Meal mới.
@@ -83,7 +153,7 @@ exports.addRecipeToMeal = async (userId, mealData) => {
 
     // 1. Tìm Meal hiện có cho ngày/loại bữa ăn này
     // Chú ý: Chỉ tìm các Meal đang "hoạt động" hoặc "gợi ý", không tìm các Meal đã "archived_suggestion"
-    let meal = await Meal.findOne({
+    let meal = await DailyMenu.findOne({
         userId,
         date: new Date(date),
         mealType,
@@ -120,7 +190,7 @@ exports.addRecipeToMeal = async (userId, mealData) => {
         delete clonedMealData.createdAt;
         delete clonedMealData.updatedAt;
         
-        meal = new Meal({
+        meal = new DailyMenu({
             ...clonedMealData,
             _id: new mongoose.Types.ObjectId(), // Gán ID mới
             source: 'user', // Nguồn là người dùng đã chỉnh sửa

@@ -287,4 +287,4 @@ const getBackUpNutrition = async (req, res) => {
   return res.status(200).json(result);
 }
 
-module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition };
+module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe };

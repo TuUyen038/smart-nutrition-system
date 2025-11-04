@@ -23,6 +23,6 @@ exports.saveRecipeToDB = async (recipeData) => {
     console.log(`Đã lưu công thức: ${savedRecipe.name}`);
     return savedRecipe;
   } catch (error) {
-    throw new Error("Lỗi khi lưu công thức vào cơ sở dữ liệu.");
+    throw new Error("Lỗi khi lưu công thức vào cơ sở dữ liệu: " + error.message);
   }
 };
