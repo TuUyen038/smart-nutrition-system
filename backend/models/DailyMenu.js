@@ -9,6 +9,11 @@ const dailyMenuSchema = new mongoose.Schema({
       recipeId: { type: mongoose.Schema.Types.ObjectId, ref: "Recipe" },
       portion: Number,
       note: String,
+      servingTime: {
+        type: String,
+        enum: ["breakfast", "lunch", "dinner", "other"],
+        default: "other",
+      },
       status: {
         type: String,
         enum: ["planned", "eaten", "deleted"],

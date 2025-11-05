@@ -43,7 +43,7 @@ const analyzeFoodImage = async (modelName, imageFile, prompt) => {
 const identifyFoodName = async (imageFile) => {
     const prompt = `
         Bạn là một chuyên gia ẩm thực. 
-        Hãy nhận dạng món ăn trong bức ảnh. Chỉ trả về một đối tượng JSON với 
+        Hãy nhận dạng món ăn trong bức ảnh. Nếu không tìm ra tên hãy trả về null. Chỉ trả về một đối tượng JSON với 
         tên món ăn bằng tiếng Việt, theo mẫu sau:
         * {
         * "foodName": "Bánh Mì Kẹp Thịt Nướng",
