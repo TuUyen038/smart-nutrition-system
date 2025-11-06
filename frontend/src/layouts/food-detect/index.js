@@ -33,6 +33,17 @@ function DetectFood() {
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
+    // Kiểm tra MIME type thật
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn đúng định dạng ảnh!");
+      return;
+    }
+
+    // (Tùy chọn) Kiểm tra kích thước tệp
+    if (file.size > 5 * 1024 * 1024) { // > 5MB
+      alert("Ảnh quá lớn, vui lòng chọn ảnh dưới 5MB!");
+      return;
+    }
     if (file) {
       // 1. Thiết lập trạng thái ban đầu
       setFileToUpload(file);
@@ -68,132 +79,150 @@ function DetectFood() {
     navigate(`/analyze-recipe?dish=${encodeURIComponent(analysisData)}`);
   };
   return (
-    <DashboardLayout>
-      <DashboardNavbar />
-      <MDBox py={3} sx={{ minHeight: "calc(100vh - 64px)" }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={12} lg={12}>
-            <Card sx={{ p: 3 }}>
-              {/* Chọn ảnh */}
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h5" mb={1}>
-                  Ảnh món ăn:
+  <DashboardLayout>
+    <DashboardNavbar />
+    <MDBox py={3} sx={{ minHeight: "calc(100vh - 64px)" }}>
+      <Grid container spacing={3}>
+        <Grid item xs={12}>
+          <Card sx={{ p: 3 }}>
+            {/* --- Khu vực chọn ảnh --- */}
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h5" mb={1}>
+                Ảnh món ăn:
+              </Typography>
+            </Box>
+
+            <label htmlFor="upload-photo">
+              <Input
+                id="upload-photo"
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                sx={{ display: "none" }}
+              />
+              <Box
+                sx={{
+                  height: 400,
+                  width: 'fit-content',
+                  minWidth: '40%',
+                  border: "1px dashed #ccc",
+                  borderRadius: 2,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#fafafa",
+                  margin: "0 auto",
+                  mb: 4,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease-in-out",
+                  "&:hover": {
+                    backgroundColor: "#f0f0f0",
+                  },
+                  pb: 2,
+                }}
+              >
+                {selectedImage ? (
+                  <CardMedia
+                    component="img"
+                    image={selectedImage}
+                    alt="Uploaded food"
+                    sx={{
+                      height: "100%",
+                      objectFit: "cover",
+                      borderRadius: 2,
+                    }}
+                  />
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    + Click vào đây để chọn ảnh
+                  </Typography>
+                )}
+              </Box>
+            </label>
+
+            {/* --- Hiển thị kết quả AI hoặc trạng thái --- */}
+            {loading ? (
+              <Box textAlign="center">
+                <CircularProgress color="info" />
+                <Typography variant="body2" mt={1}>
+                  Đang xử lý ảnh...
                 </Typography>
               </Box>
-
-              <label htmlFor="upload-photo">
-                <Input
-                  id="upload-photo"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  sx={{ display: "none" }}
-                />
-                <Box
-                  sx={{
-                    height: 300,
-                    width: "60%",
-                    border: "1px dashed #ccc",
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    backgroundColor: "#fafafa",
-                    margin: "0 auto",
-                    mb: 3,
-                    cursor: "pointer", // 👈 giúp người dùng biết có thể click
-                    transition: "all 0.2s ease-in-out",
-                    "&:hover": {
-                      backgroundColor: "#f0f0f0",
-                    },
-                  }}
-                >
-                  {selectedImage ? (
-                    <CardMedia
-                      component="img"
-                      image={selectedImage}
-                      alt="Uploaded food"
-                      sx={{
-                        height: "100%",
-                        objectFit: "cover",
-                        borderRadius: 2,
-                        margin: 0,
-                      }}
-                    />
-                  ) : (
-                    <Typography variant="body2" color="text.secondary">
-                      + Click vào đây để chọn ảnh
-                    </Typography>
-                  )}
-                </Box>
-              </label>
-
-              {loading ? (
-                <Box textAlign="center">
-                  <CircularProgress color="info" />
-                  <Typography variant="body2" mt={1}>
-                    Đang xử lý ảnh...
-                  </Typography>
-                </Box>
-              ) : analysisData ? (
-                <>
-                  <Grid container spacing={1} alignItems="center" mb={5}>
-                    <Grid item xs={6} md={3} lg={2}>
-                      <MDTypography variant="h6" fontWeight="medium">
-                        Kết quả nhận diện:
-                      </MDTypography>
+            ) : (
+              <>
+                {analysisData ? (
+                  <>
+                    <Grid container spacing={1} alignItems="center" mb={5}>
+                      <Grid item xs={6} md={3} lg={2}>
+                        <MDTypography variant="h6" fontWeight="medium">
+                          Kết quả nhận diện:
+                        </MDTypography>
+                      </Grid>
+                      <Grid item xs={6} md={3} lg={3}>
+                        <Typography variant="body2">{analysisData}</Typography>
+                      </Grid>
                     </Grid>
-                    <Grid item xs={6} md={3} lg={3}>
-                      <Typography variant="body2">{analysisData}</Typography>
-                    </Grid>
-                  </Grid>
-                  {/* <MDTypography variant="h6" fontWeight="medium">
-                    Công thức nấu
-                  </MDTypography>
-                  {console.log(result.recipe)}
-                  <Typography variant="body2">{result.recipe}</Typography>
-                  <Divider sx={{ my: 2 }} />
-                  <MDTypography variant="h6" fontWeight="medium">
-                    Thành phần dinh dưỡng
-                  </MDTypography>
-                  {console.log(result.totalNutrition)}
-                  <Typography variant="body2">{result.totalNutrition}</Typography>
-                  <Divider sx={{ my: 2 }} />
-                  <MDTypography variant="h6" fontWeight="medium">
-                    Cảnh báo
-                  </MDTypography>
-                  {console.log(result.Recommendation.phuHopVoi)}
-                  <Typography variant="body2" mb={3}>
-                    {result.Recommendation.phuHopVoi}
-                  </Typography> */}
-                  <Grid item xs={12} sm={6} lg={12}>
-                    <MDBox display="flex" gap={2} flexWrap="wrap">
-                      <MDButton variant="contained" color="info" onClick={handleMoveToRecipe}>
-                        Xem chi tiết
-                      </MDButton>
-                      <label htmlFor="upload-photo">
-                        <Input
-                          id="upload-photo"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageUpload}
-                          sx={{ display: "none" }}
-                        />
-                        <MDButton variant="contained" component="span" color="primary">
-                          Chọn ảnh khác
+
+                    <Grid item xs={12}>
+                      <MDBox display="flex" gap={2} flexWrap="wrap">
+                        <MDButton
+                          variant="contained"
+                          color="info"
+                          onClick={handleMoveToRecipe}
+                        >
+                          Xem chi tiết
                         </MDButton>
-                      </label>
-                    </MDBox>
-                  </Grid>
-                </>
-              ) : (
-                <Typography variant="body2" color="text.secondary"></Typography>
-              )}
-            </Card>
-          </Grid>
+                        <label htmlFor="upload-photo-alt">
+                          <Input
+                            id="upload-photo-alt"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            sx={{ display: "none" }}
+                          />
+                          <MDButton variant="contained" component="span" color="primary">
+                            Chọn ảnh khác
+                          </MDButton>
+                        </label>
+                      </MDBox>
+                    </Grid>
+                  </>
+                ) : (
+                  selectedImage && (
+                    <Grid container spacing={1} alignItems="center" mb={5}>
+                      <Grid item xs={12}>
+                        <Typography variant="body2">
+                          Không thể nhận diện được món ăn! Vui lòng thử lại với ảnh khác.
+                        </Typography>
+                      </Grid>
+
+                      <Grid item xs={12}>
+                        <MDBox display="flex" gap={2} flexWrap="wrap">
+                          <label htmlFor="upload-photo-alt">
+                            <Input
+                              id="upload-photo-alt"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageUpload}
+                              sx={{ display: "none" }}
+                            />
+                            <MDButton variant="contained" component="span" color="primary">
+                              Chọn ảnh khác
+                            </MDButton>
+                          </label>
+                        </MDBox>
+                      </Grid>
+                    </Grid>
+                  )
+                )}
+              </>
+            )}
+          </Card>
         </Grid>
-      </MDBox>
-    </DashboardLayout>
-  );
+      </Grid>
+    </MDBox>
+  </DashboardLayout>
+);
+
 }
 export default DetectFood;

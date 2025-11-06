@@ -1,6 +1,15 @@
 import typography from "assets/theme/base/typography";
 
-function configs(labels, datasets) {
+function configs(labels, datasets, fixedMin = 0, fixedMax = 3000) {
+  const allData = datasets.flatMap((ds) => ds.data || []);
+
+  const actualMin = Math.min(...allData);
+  const actualMax = Math.max(...allData);
+
+  // Nếu vượt qua fixed range thì mở rộng ra đúng giá trị vượt
+  const yMin = actualMin < fixedMin ? actualMin : fixedMin;
+  const yMax = actualMax > fixedMax ? actualMax : fixedMax;
+
   return {
     data: {
       labels,
@@ -11,6 +20,8 @@ function configs(labels, datasets) {
       maintainAspectRatio: false,
       plugins: {
         legend: { display: true },
+        tooltip: { enabled: true },
+
       },
       interaction: {
         intersect: false,
@@ -21,7 +32,7 @@ function configs(labels, datasets) {
           type: "category", // 👈 thêm rõ kiểu trục X
           grid: {
             drawBorder: false,
-            display: true,
+            display: false,
             drawOnChartArea: true,
             drawTicks: false,
             borderDash: [5, 5],
@@ -40,12 +51,16 @@ function configs(labels, datasets) {
         },
         y: {
           type: "linear", // 👈 thêm rõ kiểu trục Y
+          beginAtZero: false,
+          min: yMin,
+          max: yMax,
           grid: {
             drawBorder: false,
             display: true,
             drawOnChartArea: true,
             drawTicks: false,
             borderDash: [5, 5],
+            color: "rgba(0,0,0,0.05)" 
           },
           ticks: {
             display: true,
@@ -57,6 +72,8 @@ function configs(labels, datasets) {
               style: "normal",
               lineHeight: 2,
             },
+            stepSize: Math.round((yMax - yMin) / 5), // chia khoảng hợp lý
+            callback: (value) => `${value} kcal`,
           },
         },
       },

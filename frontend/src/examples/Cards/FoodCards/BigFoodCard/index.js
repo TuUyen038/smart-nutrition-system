@@ -7,19 +7,26 @@ import CardActions from "@mui/material/CardActions";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
-import { Divider } from "@mui/material";
+import { Chip, Divider, Grid, IconButton } from "@mui/material";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import { useState } from "react";
 
-function DefaultFoodCard({ image, label, title, description, action, children }) {
+function BigFoodCard({ image, label, title, description, category, action }) {
+  const [liked, setLiked] = useState(false);
+
+  const handleToggle = () => {
+    setLiked(!liked);
+  };
   return (
     <Card
-      onClick={action?.onClick}
       sx={{
-        width: 230,
-        minHeight: 290,
-        maxHeight:340,
+        width: '100%',
+        height: 'auto',
+        minHeight: 400,
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
+        alignItems: "center",
         borderRadius: 3,
         boxShadow: 3,
         overflow: "hidden",
@@ -36,15 +43,14 @@ function DefaultFoodCard({ image, label, title, description, action, children })
         image={image}
         alt={title}
         sx={{
-          height: 130,
-          width: "195px",
+          width: "90%",
           objectFit: "cover",
         }}
       />
 
       <Divider sx={{ mb: 0 }} />
 
-      <CardContent sx={{ flexGrow: 1, pt: 0.1, pb: 1, px:2 }}>
+      <CardContent sx={{ flexGrow: 1, pt: 0.1, width: '100%' }}>
         <MDBox >
           <MDTypography
             variant="button"
@@ -55,7 +61,7 @@ function DefaultFoodCard({ image, label, title, description, action, children })
             {label}
           </MDTypography>
 
-          <MDBox mb={0.5} mt={0.5}>
+          <MDBox mb={1}>
             <MDTypography
               component={
                 action?.type === "internal" ? Link : action?.type === "external" ? "a" : "div"
@@ -79,7 +85,7 @@ function DefaultFoodCard({ image, label, title, description, action, children })
             </MDTypography>
           </MDBox>
 
-          <MDBox mb={0}>
+          <MDBox mb={3}>
             <MDTypography
               variant="button"
               fontWeight="light"
@@ -88,61 +94,90 @@ function DefaultFoodCard({ image, label, title, description, action, children })
                 display: "-webkit-box",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                WebkitLineClamp: 2,
+                WebkitLineClamp: 6,
                 WebkitBoxOrient: "vertical",
                 lineHeight: 1.4, 
-                height: "2.7em",
+                maxHeight: "8.4em",
               }}
             >
               {description}
             </MDTypography>
           </MDBox>
 
+          {category && <Chip label={category} color="success" variant="outline" sx={{ mt: 2 }} />}
+          <Grid container spacing={1} sx={{ mt: 1 }} gap={1} flexDirection='row' justifyContent="space-between">
+            <Grid item>
+              <MDBox display="flex" gap={2}>
+                {/* <MDButton
+                  variant="outlined"
+                  color="info"
+                >
+                  Phân tích dinh dưỡng
+                </MDButton> */}
+                <MDButton
+                  variant="outlined"
+                  color="info"
+                >
+                  Thêm vào thực đơn
+                </MDButton>
+              </MDBox>
+              
+            </Grid>
+            <Grid item>
+              <IconButton onClick={handleToggle}>
+                <FavoriteIcon
+                  sx={{
+                    color: liked ? "red" : "gray",
+                    transition: "color 0.2s ease",
+                  }}
+                />
+              </IconButton>
+            </Grid>
+          </Grid>
+
         </MDBox>
       </CardContent>
 
-      {(action?.label || children) && (
+      {action?.label && (
         <CardActions sx={{ px: 2, pb: 2 }}>
-          {action?.label && (
-            action.type === "internal" ? (
-              <MDButton
-                component={Link}
-                to={action.route}
-                variant="outlined"
-                size="small"
-                color={action.color}
-                fullWidth
-              >
-                {action.label}
-              </MDButton>
-            ) : (
-              <MDButton
-                component="a"
-                href={action.route}
-                target="_blank"
-                rel="noreferrer"
-                variant="outlined"
-                size="small"
-                color={action.color}
-                fullWidth
-              >
-                {action.label}
-              </MDButton>
-            )
+          {action.type === "internal" ? (
+            <MDButton
+              component={Link}
+              to={action.route}
+              variant="outlined"
+              size="small"
+              color={action.color}
+              fullWidth
+            >
+              {action.label}
+            </MDButton>
+          ) : (
+            <MDButton
+              component="a"
+              href={action.route}
+              target="_blank"
+              rel="noreferrer"
+              variant="outlined"
+              size="small"
+              color={action.color}
+              fullWidth
+            >
+              {action.label}
+            </MDButton>
           )}
-          {children}
         </CardActions>
       )}
-
     </Card>
   );
 }
 
-DefaultFoodCard.propTypes = {
+BigFoodCard.propTypes = {
   image: PropTypes.string.isRequired,
   label: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   description: PropTypes.string.isRequired,
+  category: PropTypes.string,
+
   action: PropTypes.shape({
     type: PropTypes.oneOf(["external", "internal"]), // optional
     route: PropTypes.string,                          // optional
@@ -160,12 +195,10 @@ DefaultFoodCard.propTypes = {
     label: PropTypes.string,
     onClick: PropTypes.func,
   }),
-  children: PropTypes.node,
 };
 
-DefaultFoodCard.defaultProps = {
+BigFoodCard.defaultProps = {
   action: null,
-  children: null,
 };
 
-export default DefaultFoodCard;
+export default BigFoodCard;

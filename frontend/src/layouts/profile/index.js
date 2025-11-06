@@ -14,6 +14,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  IconButton,
+  Box,
 } from "@mui/material";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
@@ -21,10 +23,12 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import LineChart from "examples/Charts/LineChart";
 import MDButton from "components/MDButton";
+import EditIcon from "@mui/icons-material/Edit";
+
 function Profile() {
   const [avatar, setAvatar] = useState(null);
   const [filters, setFilters] = useState({ goal: "", duration: "" });
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(true);
 
   const [profile, setProfile] = useState({
     name: "Nguyễn Văn A",
@@ -153,13 +157,32 @@ function Profile() {
               </Card>
             ) : (
               <Card sx={{ p: 3 }}>
-                <MDBox display="flex" flexDirection="column" alignItems="center" mb={3}>
-                  <Avatar rc={avatar} alt="Avatar" sx={{ width: 120, height: 120, mb: 2 }} />
-                  <Button variant="outlined" component="label">
-                    Chọn ảnh
+                <MDBox display="flex" flexDirection="column" alignItems="center" mb={3} position="relative">
+                  {/* Ảnh đại diện */}
+                  <Avatar
+                    src={avatar}
+                    alt="Avatar"
+                    sx={{ width: 120, height: 120, border: "3px solid #eee" }}
+                  />
+
+                  {/* Icon chỉnh sửa */}
+                  <IconButton
+                    component="label"
+                    sx={{
+                      fontSize: 20,
+                      position: "absolute",
+                      top: 0,
+                      right: "calc(50% - 68px)", // căn góc phải theo avatar
+                      backgroundColor: "white",
+                      boxShadow: 2,
+                      "&:hover": { backgroundColor: "#f5f5f5" },
+                    }}
+                  >
+                    <EditIcon color="primary" />
                     <input hidden accept="image/*" type="file" onChange={handleAvatarChange} />
-                  </Button>
+                  </IconButton>
                 </MDBox>
+
 
                 {/* Thông tin cá nhân */}
                 <MDTypography variant="h6" mb={2}>
@@ -239,16 +262,7 @@ function Profile() {
               </Card>
             )}
           </Grid>
-          {/* Biểu đồ và nút hành động */}
-          <Grid item xs={12} md={8} lg={8}>
-            <Card sx={{ p: 3 }}>
-              <MDTypography variant="h6" mb={0}>
-                Biểu đồ theo dõi
-              </MDTypography>
-              <LineChart />
-              <Divider sx={{ my: 2 }} />
-            </Card>
-          </Grid>
+          
         </Grid>
       </MDBox>
     </DashboardLayout>

@@ -8,8 +8,13 @@ import DefaultFoodCard from "examples/Cards/FoodCards/DefaultFoodCard";
 import CustomList from "components/CustomList";
 import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
 import { findRecipeById } from "services/recipeApi";
+import { useNavigate } from "react-router-dom";
+import MDButton from "components/MDButton";
+
+
 
 function FoodHistory() {
+  const navigate = useNavigate();
   const [historyData, setHistoryData] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   useEffect(() => {
@@ -31,7 +36,9 @@ function FoodHistory() {
 
     fetchData();
   }, []);
-
+  const goToDetail = (id) => {
+    navigate(`/recipes/${id}`);
+  };
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -69,8 +76,11 @@ function FoodHistory() {
                       label={`${item.totalNutrition.calories} kcal`}
                       title={item.name}
                       description={item.description}
-                      action={{ onClick: () => findRecipeById(item.recipeId) }}
-                    />
+                      action={null}
+                      // action={{ onClick: () => goToDetail(item.recipeId) }}
+                    >
+                      <MDButton color="error" size="small">Xóa</MDButton>
+                    </DefaultFoodCard>
                   </Box>
                 )}
               />

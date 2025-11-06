@@ -8,6 +8,7 @@ import SignUp from "layouts/authentication/sign-up";
 import Analyze from "layouts/analyze-recipe";
 import MenuCreation from "layouts/menu";
 import MenuEditor from "layouts/menu/menu-editor";
+import RecipeDetail from "layouts/recipe-detail";
 // @mui icons
 import Icon from "@mui/material/Icon";
 
@@ -81,6 +82,11 @@ const routes = [
     icon: <Icon fontSize="small">assignment</Icon>,
     route: "/authentication/sign-up",
     component: <SignUp />,
+  },
+  {
+    key: "recipe-detail",
+    route: "/recipes/:id",
+    component: <RecipeDetail />,
   },
 ];
 

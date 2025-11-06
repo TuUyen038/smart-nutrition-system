@@ -9,76 +9,17 @@ import DefaultDoughnutChart from "examples/Charts/DoughnutCharts/DefaultDoughnut
 import donutChartData from "./data/donutChartData";
 import MDTypography from "components/MDTypography";
 import DefaultInfoCard from "examples/Cards/InfoCards/DefaultInfoCard";
-import { Card } from "@mui/material";
+import { Card, Divider } from "@mui/material";
 import MenuList from "./components/MenuList";
+import LineChart from "examples/Charts/LineChart";
+import lineChartData from "./data/lineChartData";
 function Dashboard() {
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox py={3}>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6} lg={3}>
-            <MDBox mb={1.5} style={{ cursor: "pointer" }}>
-              <DefaultInfoCard
-                color="primary"
-                icon="fastfood"
-                title="Nhận diện món ăn"
-                percentage={{
-                  color: "success",
-                  amount: "",
-                  label: "Just updated",
-                }}
-                onClick={() => navigate("/detect-food")}
-              />
-            </MDBox>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <MDBox mb={1.5} style={{ cursor: "pointer" }}>
-              <DefaultInfoCard
-                color="primary"
-                icon="receipt_long"
-                title="Phân tích công thức"
-                percentage={{
-                  color: "success",
-                  amount: "",
-                  label: "Just updated",
-                }}
-                onClick={() => navigate("/analyze-recipe")}
-              />
-            </MDBox>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <MDBox mb={1.5} style={{ cursor: "pointer" }}>
-              <DefaultInfoCard
-                color="primary"
-                icon="auto_awesome"
-                title="Gợi ý thực đơn"
-                percentage={{
-                  color: "success",
-                  amount: "",
-                  label: "Just updated",
-                }}
-                onClick={() => navigate("/recommendation")}
-              />
-            </MDBox>
-          </Grid>
-          <Grid item xs={12} md={6} lg={3}>
-            <MDBox mb={1.5} style={{ cursor: "pointer" }}>
-              <DefaultInfoCard
-                color="primary"
-                icon="history"
-                title="Lịch sử ăn uống"
-                percentage={{
-                  color: "success",
-                  amount: "",
-                  label: "Just updated",
-                }}
-                onClick={() => navigate("/history")}
-              />
-            </MDBox>
-          </Grid>
-        </Grid>
-        <MDBox mt={4.5}>
+        
+        <MDBox mt={0}>
           <Grid container spacing={3} alignItems="stretch">
             {/* Chart bên trái */}
             <Grid item xs={12} md={5} lg={4}>
@@ -103,6 +44,20 @@ function Dashboard() {
             </Grid>
           </Grid>
         </MDBox>
+
+        {/* Biểu đồ và nút hành động */}
+          <Grid item xs={12} md={8} lg={8}>
+            <Card sx={{ p: 3 }}>
+              <LineChart
+                icon={{ color: "primary", component: "show_chart" }}
+                title="Lượng calo tiêu thụ trong tuần trước"
+                description="Theo dõi năng lượng tiêu hao mỗi ngày trong một tuần qua"
+                chart={lineChartData}
+              />
+              <Divider sx={{ my: 2 }} />
+            </Card>
+          </Grid>
+
       </MDBox>
     </DashboardLayout>
   );

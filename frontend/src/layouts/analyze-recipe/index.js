@@ -34,7 +34,6 @@ function AnalyzeRecipe() {
   const [db, setBd] = useState(false);
   const [dishName, setDishName] = useState("");
   const [healthWarnings, setHealthWarnings] = useState([]);
-
   useEffect(() => {
     let active = true;
 
@@ -72,7 +71,7 @@ function AnalyzeRecipe() {
                   parsed = [];
                 }
               }
-
+              setIsBackupLoading(true);
               setBackUpNutrition(parsed);
               console.log("Nutrition backup da co");
             })
@@ -181,7 +180,6 @@ function AnalyzeRecipe() {
 
   const handleCalculate = async () => {
     console.log("db ne: ", db);
-
     setIsLoading2(true);
     let totalNutrition = {
       calories: 0,
@@ -209,35 +207,35 @@ function AnalyzeRecipe() {
           }
         }
       } else {
-        if (
-          !backUpNutrition ||
-          !Array.isArray(backUpNutrition.Nutrition) ||
-          backUpNutrition.Nutrition.length === 0
-        ) {
-          return;
-        }
+        // if (!backUpNutrition || !backUpNutrition.Nutrition) {
+        //   const kq = await getBackUpNutrition(names);
+        //   setBackUpNutrition(kq);
+        // } 
+        // console.log('da lay backup lan 2')
 
-        backUpNutrition.Nutrition.forEach((item) => {
-          const matched = ingredients.find((i) => i.name === item.name);
-          const amount = matched?.quantity?.amount || 0;
-          const unit = matched?.quantity?.unit || "g";
-          const amountInGram = convertToGram(amount, unit);
-          const ratio = amountInGram / 100;
+        // backUpNutrition.Nutrition.forEach((item) => {
+        //   const matched = ingredients.find((i) => i.name === item.name);
+        //   const amount = matched?.quantity?.amount || 0;
+        //   const unit = matched?.quantity?.unit || "g";
+        //   const amountInGram = convertToGram(amount, unit);
+        //   const ratio = amountInGram / 100;
 
-          totalNutrition.calories += (item.calories || 0) * ratio;
-          totalNutrition.protein += (item.protein || 0) * ratio;
-          totalNutrition.fat += (item.fat || 0) * ratio;
-          totalNutrition.carbs += (item.carbs || 0) * ratio;
-          totalNutrition.fiber += (item.fiber || 0) * ratio;
-          totalNutrition.sugar += (item.sugar || 0) * ratio;
-          totalNutrition.sodium += (item.sodium || 0) * ratio;
-        });
+        //   totalNutrition.calories += (item.calories || 0) * ratio;
+        //   totalNutrition.protein += (item.protein || 0) * ratio;
+        //   totalNutrition.fat += (item.fat || 0) * ratio;
+        //   totalNutrition.carbs += (item.carbs || 0) * ratio;
+        //   totalNutrition.fiber += (item.fiber || 0) * ratio;
+        //   totalNutrition.sugar += (item.sugar || 0) * ratio;
+        //   totalNutrition.sodium += (item.sodium || 0) * ratio;
+        // });
 
-        for (let key in totalNutrition) {
-          totalNutrition[key] = Math.round(totalNutrition[key] * 100) / 100;
-        }
+        // for (let key in totalNutrition) {
+        //   totalNutrition[key] = Math.round(totalNutrition[key] * 100) / 100;
+        // }
+
+        //truong hop nay goi ai tinh luon
       }
-
+        //Lam truong hop nguoi dung tu nhap cong thuc --> viet ai trich xuat nguuyen lieu roi tinh nutrition luon/ goi lai ai recommend song song
       setTotalNutrition(totalNutrition);
 
       const warnings = analyzeHealthWarnings(totalNutrition);
@@ -297,7 +295,7 @@ function AnalyzeRecipe() {
             <Grid item xs={12}>
               <Card sx={{ p: 3, borderRadius: 3, boxShadow: 3 }}>
                 <MDTypography variant="h6" gutterBottom>
-                  Các bước thực hiện
+                  Công thức nấu ăn
                 </MDTypography>
                 <TextField
                   fullWidth
@@ -308,7 +306,7 @@ function AnalyzeRecipe() {
                     const steps = e.target.value.split("\n").filter((s) => s.trim() !== "");
                     setInstructions(steps);
                   }}
-                  placeholder="VD:\n1. Ướp thịt với nước mắm và tiêu trong 15 phút\n2. Chiên vàng hai mặt...\n3. Dọn ra đĩa..."
+                  placeholder="Nhập công thức nấu ăn ở đây..."
                   sx={{ mb: 3 }}
                 />
 
@@ -330,12 +328,13 @@ function AnalyzeRecipe() {
                     Lưu công thức
                   </MDButton>
                 </MDBox>
+
               </Card>
             </Grid>
           )}
 
           <Grid item xs={12} ref={resultRef}>
-            {isLoading2 && (
+            {(isLoading2 ) && (
               <MDBox display="flex" justifyContent="center" alignItems="center" py={5}>
                 <CircularProgress color="info" />
               </MDBox>
@@ -355,7 +354,7 @@ function AnalyzeRecipe() {
                           display: "flex",
                           flexDirection: "column", // mỗi Chip 1 hàng
                           gap: 1,
-                          maxHeight: 350,
+                          minHeight: 350,
                           overflowY: "auto",
                           p: 1.5,
                           border: "1px solid #e0e0e0",
@@ -403,30 +402,23 @@ function AnalyzeRecipe() {
                   <Grid item xs={12} md={8}>
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                       <Card sx={{ p: 3, borderRadius: 3, boxShadow: 3 }}>
-                        <MDTypography variant="h6" fontWeight="medium" mb={2}>
-                          Thành phần dinh dưỡng
-                        </MDTypography>
                         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <NutritionProgress
-                            mealNutrition={{
-                              calories: 200,
-                              protein: 10,
-                              fat: 5,
-                              carbs: 30,
-                            }}
-                            totalNutrition={{
-                              calories: 400,
-                              protein: 20,
-                              fat: 10,
-                              carbs: 50,
-                            }}
-                            recommendedNutrition={{
-                              calories: 600,
-                              protein: 50,
-                              fat: 20,
-                              carbs: 60,
-                            }}
-                          />
+                          
+
+                          <MDBox mb={3} px={2} >
+                <MDTypography variant="h6">Thông tin dinh dưỡng</MDTypography>
+                <Divider sx={{ mb: 1 }} />
+                <Grid container spacing={1}>
+                  {totalNutrition && Object.entries(totalNutrition).map(([key, value]) => (
+                    <Grid item xs={6} sm={4} md={3} key={key}>
+                      <MDTypography variant="button" color="text">
+                        {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
+                      </MDTypography>
+                    </Grid>
+                  ))}
+                  
+                </Grid>
+              </MDBox>
                         </Box>
                       </Card>
 
