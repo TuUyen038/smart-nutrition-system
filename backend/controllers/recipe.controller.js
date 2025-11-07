@@ -8,7 +8,9 @@ const {
   identifyFoodName, 
   getRecipe, 
   getNutritionByAi, 
-  getSubstitutionsAndWarnings 
+  getSubstitutionsAndWarnings,
+  getRecipeStream,
+  getIngredients
 } = require('../utils/ai_providers/aiInterface'); 
 const Analysis = require('../models/Analysis');
 
@@ -299,6 +301,89 @@ const findIngrAndInstrByAi = async (req, res, next) => {
     return next(error);
   }
 };
+const findIngredientsByAi = async (req, res, next) => {
+  const {recipe} = req.body;
+
+  if (!recipe) {
+    return res.status(400).json({ message: 'Thiếu recipe' });
+  }
+
+  try {
+    console.log('Bắt đầu tìm nguyên liệu bởi AI');
+
+    const aiRaw = await getIngredients(recipe);
+    const aiData = typeof aiRaw === 'string' ? safeParse(aiRaw) : (aiRaw || {});
+    const result = {
+      ingredients: aiData.ingredients || [],
+    };
+    const dataToSave = {
+      ingredients: result.ingredients,
+    };
+    return res.status(200).json(dataToSave);
+
+  } catch (error) {
+    console.error('Global Error:', error);
+    return next(error);
+  }
+};
+// const findIngrAndInstrByAi = async (req, res, next) => {
+//   const foodName = req.params.foodName || req.body?.foodName;
+
+//   if (!foodName) {
+//     return res.status(400).json({ message: 'Thiếu foodName (params hoặc body).' });
+//   }
+
+//   try {
+//     console.log('🔹 Bắt đầu tìm công thức AI cho:', foodName);
+
+//     let aiRaw = '';
+
+//     // Stream token từ AI
+//     await getRecipeStream(foodName, (token) => {
+//       aiRaw += token;
+
+//       // 🔹 Log token ngay khi nhận
+//       process.stdout.write(token); // hiển thị trực tiếp từng token
+
+//       // Nếu muốn log dạng line: 
+//       // console.log(token); 
+//     });
+
+//     console.log('\n🔹 Stream AI hoàn tất, bắt đầu parse JSON');
+
+//     // Parse JSON sau khi stream xong
+//     const aiData = typeof aiRaw === 'string' ? safeParse(aiRaw) : (aiRaw || {});
+//     const result = {
+//       name: foodName,
+//       ingredients: aiData.ingredients || [],
+//       instructions: aiData.instructions || [],
+//     };
+
+//     if ((result.ingredients && result.ingredients.length > 0) ||
+//         (result.instructions && result.instructions.length > 0)) {
+
+//       const recipeDataToSave = {
+//         name: result.name,
+//         description: `Công thức gợi ý bởi AI cho món ${result.name}.`,
+//         category: "main",
+//         instructions: result.instructions,
+//         ingredients: result.ingredients,
+//         totalNutrition: null, // có thể tính sau
+//         createdBy: 'ai',
+//         verified: false,
+//       };
+
+//       // saveRecipeToDB(recipeDataToSave)
+//     }
+
+//     return res.status(200).json(result);
+
+//   } catch (error) {
+//     console.error('🔴 Lỗi trong controller findIngrAndInstrByAi:', error);
+//     return next(error);
+//   }
+// };
+
 
 const getBackUpNutrition = async (req, res) => {
   const {ingrs} = req.body;
@@ -306,4 +391,4 @@ const getBackUpNutrition = async (req, res) => {
   return res.status(200).json(result);
 }
 
-module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById };
+module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById, findIngredientsByAi };

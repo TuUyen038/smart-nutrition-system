@@ -71,7 +71,7 @@ function FoodHistory() {
                 items={day.recipes}
                 renderItem={(item) => (
                   <Box sx={{ mb:1 }} >
-                    <DefaultFoodCard
+                    {/* <DefaultFoodCard
                       image={item.imageUrl}
                       label={`${item.totalNutrition.calories} kcal`}
                       title={item.name}
@@ -80,6 +80,14 @@ function FoodHistory() {
                       // action={{ onClick: () => goToDetail(item.recipeId) }}
                     >
                       <MDButton color="error" size="small">Xóa</MDButton>
+                    </DefaultFoodCard> */}
+                    <DefaultFoodCard
+                      image={item.imageUrl}
+                      label={`${item.totalNutrition.calories} kcal`}
+                      title={item.name}
+                      description={item.description}
+                      action={{ onClick: () => goToDetail(item.recipeId) }}
+                    >
                     </DefaultFoodCard>
                   </Box>
                 )}

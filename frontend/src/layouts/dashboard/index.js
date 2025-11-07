@@ -13,12 +13,37 @@ import { Card, Divider } from "@mui/material";
 import MenuList from "./components/MenuList";
 import LineChart from "examples/Charts/LineChart";
 import lineChartData from "./data/lineChartData";
+import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
+import { useEffect, useState } from "react";
+import { normalizeDateVN } from "helpers/date";
 function Dashboard() {
+const myId = "68f4394c4d4cc568e6bc5daa"
+
+  const [foodData, setFoodData] = useState([]);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        console.log('to day:', new Date());
+        const data = await getRecipesByDateAndStatus(
+          myId,
+          new Date(),
+          new Date(),
+          undefined,
+        );
+        setFoodData(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        // setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox py={3}>
-        
+
         <MDBox mt={0}>
           <Grid container spacing={3} alignItems="stretch">
             {/* Chart bên trái */}
@@ -46,17 +71,17 @@ function Dashboard() {
         </MDBox>
 
         {/* Biểu đồ và nút hành động */}
-          <Grid item xs={12} md={8} lg={8}>
-            <Card sx={{ p: 3 }}>
-              <LineChart
-                icon={{ color: "primary", component: "show_chart" }}
-                title="Lượng calo tiêu thụ trong tuần trước"
-                description="Theo dõi năng lượng tiêu hao mỗi ngày trong một tuần qua"
-                chart={lineChartData}
-              />
-              <Divider sx={{ my: 2 }} />
-            </Card>
-          </Grid>
+        <Grid item xs={12} md={8} lg={8}>
+          <Card sx={{ p: 3 }}>
+            <LineChart
+              icon={{ color: "primary", component: "show_chart" }}
+              title="Lượng calo tiêu thụ trong tuần trước"
+              description="Theo dõi năng lượng tiêu hao mỗi ngày trong một tuần qua"
+              chart={lineChartData}
+            />
+            <Divider sx={{ my: 2 }} />
+          </Card>
+        </Grid>
 
       </MDBox>
     </DashboardLayout>

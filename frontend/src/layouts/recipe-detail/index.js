@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, Grid, Divider, Typography, Card, Chip } from "@mui/material";
+import { Box, Grid, Divider, Typography, Card, Chip, Breadcrumbs } from "@mui/material";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
@@ -38,6 +38,7 @@ function RecipeDetail() {
   return (
     <DashboardLayout>
       <DashboardNavbar />
+
       <Box pt={2} px={3}>
         {/* Tên + hình + mô tả */}
         <Grid container spacing={3} alignItems="flex-start">

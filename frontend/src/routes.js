@@ -45,20 +45,29 @@ const routes = [
   },
   {
     type: "collapse",
+    name: "Món ăn & thực đơn",
+    key: "recommendation",
+    icon: <Icon fontSize="small">auto_awesome</Icon>,
+    route: "/recommendation",
+    component: <Recommendation />,
+  },
+  {
+    type: "collapse",
+    name: "Kế hoạch",
+    key: "meal-plan",
+    icon: <Icon fontSize="small">event_note</Icon>,
+    route: "/meal-plan",
+    component: <Recommendation />,
+  },
+  {
+    type: "collapse",
     name: "Lịch sử ăn uống",
     key: "history",
     icon: <Icon fontSize="small">history</Icon>,
     route: "/history",
     component: <History />,
   },
-  {
-    type: "collapse",
-    name: "Gợi ý thực đơn",
-    key: "recommendation",
-    icon: <Icon fontSize="small">auto_awesome</Icon>,
-    route: "/recommendation",
-    component: <Recommendation />,
-  },
+  
   {
     type: "collapse",
     name: "Thông tin cá nhân",
@@ -85,7 +94,9 @@ const routes = [
   },
   {
     key: "recipe-detail",
+    name: "Chi tiết món ăn",
     route: "/recipes/:id",
+    breadcrumb: "Chi tiết món ăn",
     component: <RecipeDetail />,
   },
 ];

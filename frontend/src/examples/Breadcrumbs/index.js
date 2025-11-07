@@ -1,34 +1,41 @@
-import { Link } from "react-router-dom";
-
-// prop-types is a library for typechecking of props.
+import { Link, useLocation } from "react-router-dom";
 import PropTypes from "prop-types";
-
-// @mui material components
 import { Breadcrumbs as MuiBreadcrumbs } from "@mui/material";
 import Icon from "@mui/material/Icon";
-
-// Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
-
 import routesConfig from "routes";
 
-function Breadcrumbs({ icon, title, route, light }) {
-  const routes = route.slice(0, -1);
+function Breadcrumbs({ icon, light }) {
+  const location = useLocation();
+  const pathnames = location.pathname.split("/").filter((x) => x);
 
-  const getRouteName = (key) => {
-    const found = routesConfig.find((r) => r.key === key);
-    return found ? found.name : key; // nếu không tìm thấy, hiển thị key mặc định
+  const getRouteName = (segment, index) => {
+    // Nếu là id (MongoDB hoặc UUID)
+    if (/^[a-f0-9]{6,}$/i.test(segment) || !isNaN(segment)) {
+      const parent = pathnames[index - 1];
+      const match = routesConfig.find((r) => r.route.includes(`/${parent}/:id`));
+      return match ? match.name : "Chi tiết";
+    }
+
+    // Tìm trong routesConfig theo key hoặc route
+    const found = routesConfig.find(
+      (r) => r.key === segment || r.route.replace("/", "") === segment
+    );
+    return found ? found.name : segment;
   };
+
   return (
     <MDBox mr={{ xs: 0, xl: 8 }}>
       <MuiBreadcrumbs
         sx={{
           "& .MuiBreadcrumbs-separator": {
-            color: ({ palette: { white, grey } }) => (light ? white.main : grey[600]),
+            color: ({ palette: { white, grey } }) =>
+              light ? white.main : grey[600],
           },
         }}
       >
+        {/* Icon trang chủ */}
         <Link to="/">
           <MDTypography
             component="span"
@@ -40,54 +47,64 @@ function Breadcrumbs({ icon, title, route, light }) {
             <Icon>{icon}</Icon>
           </MDTypography>
         </Link>
-        {routes.map((el) => (
-          <Link to={`/${el}`} key={el}>
+
+        {/* Các phần của đường dẫn */}
+        {pathnames.map((value, index) => {
+          const isLast = index === pathnames.length - 1;
+          const name = getRouteName(value, index);
+          const to = `/${pathnames.slice(0, index + 1).join("/")}`;
+
+          return isLast ? (
             <MDTypography
-              component="span"
+              key={to}
               variant="button"
               fontWeight="regular"
               textTransform="capitalize"
               color={light ? "white" : "dark"}
-              opacity={light ? 0.8 : 0.5}
               sx={{ lineHeight: 0 }}
             >
-              {getRouteName(el)}
+              {name}
             </MDTypography>
-          </Link>
-        ))}
-        <MDTypography
-          variant="button"
-          fontWeight="regular"
-          textTransform="capitalize"
-          color={light ? "white" : "dark"}
-          sx={{ lineHeight: 0 }}
-        >
-          {getRouteName(title)}
-        </MDTypography>
+          ) : (
+            <Link to={to} key={to}>
+              <MDTypography
+                component="span"
+                variant="button"
+                fontWeight="regular"
+                textTransform="capitalize"
+                color={light ? "white" : "dark"}
+                opacity={light ? 0.8 : 0.5}
+                sx={{ lineHeight: 0 }}
+              >
+                {name}
+              </MDTypography>
+            </Link>
+          );
+        })}
       </MuiBreadcrumbs>
-      <MDTypography
-        fontWeight="bold"
-        textTransform="capitalize"
-        variant="h6"
-        color={light ? "white" : "dark"}
-        noWrap
-      >
-        {getRouteName(title)}
-      </MDTypography>
+
+      {/* Tiêu đề hiện tại */}
+      {pathnames.length > 0 && (
+        <MDTypography
+          fontWeight="bold"
+          textTransform="capitalize"
+          variant="h6"
+          color={light ? "white" : "dark"}
+          noWrap
+        >
+          {getRouteName(pathnames[pathnames.length - 1], pathnames.length - 1)}
+        </MDTypography>
+      )}
     </MDBox>
   );
 }
 
-// Setting default values for the props of Breadcrumbs
 Breadcrumbs.defaultProps = {
   light: false,
 };
 
-// Typechecking props for the Breadcrumbs
 Breadcrumbs.propTypes = {
   icon: PropTypes.node.isRequired,
-  title: PropTypes.string.isRequired,
-  route: PropTypes.oneOfType([PropTypes.string, PropTypes.array]).isRequired,
   light: PropTypes.bool,
 };
 

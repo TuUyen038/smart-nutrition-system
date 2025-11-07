@@ -2,6 +2,7 @@
 
 const dailyMenuService = require('../services/dailyMenu.service');
 const Recipe = require('../models/Recipe');
+const DailyMenu = require('../models/DailyMenu');
 
 const userId = '68f4394c4d4cc568e6bc5daa';
 exports.createDailyMenu = async (req, res) => {
@@ -122,4 +123,41 @@ exports.updateMeal = async (req, res) => {
         }
         res.status(500).json({ message: 'Error updating meal: ' + error.message });
     }
+};
+
+exports.addRecipeToDailyMenu = async (req, res) => {
+  try {
+    const { userId, date, recipeId, portion, note, servingTime } = req.body;
+
+    if (!userId || !date || !recipeId) {
+      return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
+    }
+
+    // Tìm dailyMenu của ngày đó
+    let dailyMenu = await DailyMenu.findOne({ userId, date: date });
+
+    if (!dailyMenu) {
+      // Nếu chưa có, tạo mới
+      dailyMenu = new DailyMenu({
+        userId,
+        date: date,
+        recipes: [],
+      });
+    }
+
+    // Thêm recipe mới vào array
+    dailyMenu.recipes.push({
+      recipeId,
+      portion: portion || 1,
+      note: note || "",
+      servingTime: servingTime || "other",
+    });
+
+    await dailyMenu.save();
+
+    res.status(200).json({ message: "Thêm món ăn thành công", dailyMenu });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Lỗi khi thêm món ăn" });
+  }
 };

@@ -1,71 +1,71 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Grid,
   Card,
   Box,
-  LinearProgress,
-  Typography,
   IconButton,
-  Button,
+  Typography,
   Divider,
 } from "@mui/material";
 import MDTypography from "components/MDTypography";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
+import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
+
+const myId = "68f4394c4d4cc568e6bc5daa";
 
 const MenuList = () => {
-  // ✅ Chuyển từ const meal sang state để có thể toggle
-  const [menu, setMenu] = useState([
-    {
-      id: 1,
-      name: "Cơm tấm sườn bì chả",
-      calories: 720,
-      protein: 40,
-      image: "",
-      eaten: false,
-    },
-    {
-      id: 2,
-      name: "Bún bò Huế",
-      calories: 550,
-      protein: 30,
-      image: "",
-      eaten: true,
-    },
-    {
-      id: 3,
-      name: "Gỏi cuốn tôm thịt",
-      calories: 300,
-      protein: 20,
-      image: "",
-      eaten: false,
-    },
-    {
-      id: 4,
-      name: "Cháo cá lóc",
-      calories: 400,
-      protein: 25,
-      image: "",
-      eaten: true,
-    },
-  ]);
+  const [foodData, setFoodData] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getRecipesByDateAndStatus(
+          myId,
+          new Date(),
+          new Date(),
+          undefined
+        );
+
+        // Flatten recipes và thêm property 'eaten'
+        const flatData = data.flatMap((dailyMenu) =>
+          dailyMenu.recipes.map((r) => ({
+            id: r.recipeId,
+            name: r.name,
+            calories: r.totalNutrition?.calories || 0,
+            protein: r.totalNutrition?.protein || 0,
+            eaten: r.status === "eaten" || false, // mặc định false
+            image: r.imageUrl || "",
+          }))
+        );
+
+        setFoodData(flatData);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchData();
+  }, []);
 
   const handleToggleEaten = (id) => {
-    setMenu((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, eaten: !item.eaten } : item))
+    setFoodData((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, eaten: !item.eaten } : item
+      )
     );
   };
 
-  // ✅ Tính toán tiến độ kcal
-  const totalCalories = menu.reduce((sum, m) => sum + m.calories, 0);
-  const eatenCalories = menu.filter((m) => m.eaten).reduce((sum, m) => sum + m.calories, 0);
-  const progress = Math.round((eatenCalories / totalCalories) * 100);
+  // Tính toán tiến độ kcal
+  const totalCalories = foodData.reduce((sum, m) => sum + m.calories, 0);
+  const eatenCalories = foodData
+    .filter((m) => m.eaten)
+    .reduce((sum, m) => sum + m.calories, 0);
+  const progress = totalCalories ? Math.round((eatenCalories / totalCalories) * 100) : 0;
 
   return (
     <Box>
       {/* Thanh tiến độ tổng */}
       <Box sx={{ position: "relative", mb: 1 }}>
-        {/* Thanh nền */}
         <Box
           sx={{
             height: 12,
@@ -75,7 +75,6 @@ const MenuList = () => {
             boxShadow: "inset 0 1px 3px rgba(0,0,0,0.15)",
           }}
         >
-          {/* Thanh màu tiến độ */}
           <Box
             sx={{
               width: `${progress}%`,
@@ -92,9 +91,9 @@ const MenuList = () => {
         Đã nạp {eatenCalories} / {totalCalories} kcal ({progress}%)
       </MDTypography>
 
-      {/* Danh sách món */}
+      {/* Danh sách món ăn đã được sửa lỗi tràn */}
       <Grid container spacing={1}>
-        {menu.map((meal) => (
+        {foodData.map((meal) => (
           <Grid item xs={12} md={6} lg={4} key={meal.id}>
             <Card
               sx={{
@@ -112,29 +111,57 @@ const MenuList = () => {
                 },
               }}
             >
-              {/* Nội dung món ăn */}
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  flexGrow: 1,
+              {/* Box 1: Container chứa nội dung (Text + Image/Icon nếu có) */}
+              <Box 
+                sx={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  flexGrow: 1, 
                   gap: 1.5,
+                  minWidth: 0 // Đảm bảo Box này co lại trong Card
                 }}
               >
-                <Box sx={{ minWidth: 0 }}>
-                  <MDTypography variant="h6" color="dark" mb={1}>
+                
+                {/* Box 2: Container chứa các dòng Typography. Đây là Flex Item quan trọng. */}
+                <Box 
+                  sx={{ 
+                    minWidth: 0, 
+                    flex: 1 // Cho phép Box co lại, giải quyết lỗi tràn text
+                  }}
+                >
+                  
+                  {/* Tên món: 1 dòng, overflow -> ... */}
+                  <MDTypography 
+                    variant="h6" 
+                    color="dark" 
+                    mb={0.5} 
+                    noWrap // Cách chuẩn của MUI/Component Typography
+                  >
                     {meal.name}
                   </MDTypography>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
+                  
+                  {/* Mô tả / bữa: 1 dòng, overflow -> ... */}
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ 
+                      fontSize: 13,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis", // CSS thủ công
+                    }}
+                  >
                     Bữa sáng
                   </Typography>
+
+                  {/* Thông tin dinh dưỡng */}
                   <Typography variant="body2" color="text.secondary" sx={{ fontSize: 13 }}>
                     {meal.calories} kcal • {meal.protein}g protein
                   </Typography>
                 </Box>
               </Box>
 
-              {/* Nút check */}
+              {/* IconButton luôn giữ nguyên kích thước */}
               <IconButton
                 onClick={() => handleToggleEaten(meal.id)}
                 color={meal.eaten ? "success" : "default"}

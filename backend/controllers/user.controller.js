@@ -16,11 +16,19 @@ exports.getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
+
+    // chuyển sang object thường để xóa trường
+    const data = user.toObject();
+    delete data.password;
+    delete data.tokens;
+    delete data.__v;
+
+    res.json(data);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
+
 
 // Tạo tài khoản user mới
 exports.createUser = async (req, res) => {

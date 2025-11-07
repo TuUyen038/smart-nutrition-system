@@ -1,19 +1,43 @@
+import { normalizeDateVN } from "../helpers/date";
 const API_BASE_URL = "http://localhost:3000/api/daily-menu";
-import { toUTCISOString } from "../helpers/date";
-export const getRecipesByDateAndStatus = async (startDate, endDate, status) => {
-  try {
-    if(!endDate) {
-      endDate = startDate;
-    }
-    const startUTC = encodeURIComponent(toUTCISOString(startDate));
-    const endUTC = encodeURIComponent(toUTCISOString(endDate));
-    const response = await fetch(`${API_BASE_URL}/recipes?startDate=${startUTC}&endDate=${endUTC}&status=${status}`);
-    const history = await response.json();
-    console.log("History:", history);
 
+export const getRecipesByDateAndStatus = async (userId, startDate, endDate, status) => {
+  try {
+    if (!endDate) endDate = startDate;
+    const startUTC = encodeURIComponent(normalizeDateVN(startDate));
+    const endUTC = encodeURIComponent(normalizeDateVN(endDate));
+    const params = new URLSearchParams({
+      userId,
+      startDate: startUTC,
+      endDate: endUTC,
+    });
+    if (status) params.append("status", status);
+
+    const response = await fetch(`${API_BASE_URL}/recipes?${params.toString()}`);
+    const history = await response.json();
+    console.log("daily menu:", history);
     return history;
   } catch (error) {
     console.error(error);
-    throw new Error('Error retrieving meal history');
+    throw new Error("Error retrieving meal history");
   }
 };
+
+export const addRecipeToDailyMenu = async ({ userId, date, recipeId, portion, note, servingTime }) => {
+  try {
+    const ndate = normalizeDateVN(date);
+    const res = await fetch(`${API_BASE_URL}/add-recipe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, date: normalizeDateVN(date), recipeId, portion, note, servingTime }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Thêm món ăn thất bại");
+    return data;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  }
+};
+
+

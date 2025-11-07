@@ -106,3 +106,113 @@ export const getIngredientsAndInstructionsInAi = async (foodName) => {
     throw error;
   }
 };
+export const getIngredientsInAi = async (recipe) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/ingredients`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipe }),
+    });
+
+    if (!response.ok) {
+      console.warn(`Không tìm thấy nguyên liệu cho món ăn by AI`);
+      return null;
+    }
+    const data = await response.json();
+    console.log('ingredients by ai: ', data);
+    return data;
+  } catch (error) {
+    console.error(`Lỗi khi lấy nguyên liệu cho món ăn by AI`, error.message);
+    throw error;
+  }
+};
+
+
+
+export async function createRecipe(recipeData, token) {
+  const res = await fetch(API_BASE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify(recipeData),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || "Không thể lưu công thức.");
+  }
+
+  return await res.json();
+}
+
+/**
+ * 🟡 Lấy danh sách công thức của người dùng
+ */
+export async function getUserRecipes(userId, token) {
+  const res = await fetch(`${API_BASE_URL}?ownerId=${userId}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || "Không thể tải danh sách công thức.");
+  }
+
+  return await res.json();
+}
+
+/**
+ * 🔵 Lấy chi tiết một công thức
+ */
+export async function getRecipeById(id) {
+  const res = await fetch(`${API_BASE_URL}/${id}`);
+  if (!res.ok) throw new Error("Không thể lấy chi tiết công thức.");
+  return await res.json();
+}
+
+/**
+ * 🟠 Cập nhật công thức
+ */
+export async function updateRecipe(id, data, token) {
+  const res = await fetch(`${API_BASE_URL}/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || "Không thể cập nhật công thức.");
+  }
+
+  return await res.json();
+}
+
+/**
+ * 🔴 Xóa công thức
+ */
+export async function deleteRecipe(id, token) {
+  const res = await fetch(`${API_BASE_URL}/${id}`, {
+    method: "DELETE",
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+  });
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.message || "Không thể xóa công thức.");
+  }
+
+  return await res.json();
+}

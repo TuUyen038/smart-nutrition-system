@@ -55,15 +55,17 @@ const identifyFoodName = async (imageFile) => {
 
 const getRecipe = async (foodName) => {
     const prompt = `
-        Hãy cung cấp công thức nấu ăn khẩu phần 1 người thật đơn giản và dễ nấu cho món "${foodName}". 
+        Hãy cung cấp công thức nấu ăn khẩu phần 1 người thật đơn giản và dễ nấu cho món "${foodName}". Trong công thức này, có nêu nguyên liệu và khối lượng tương ứng. Ví dụ "cho 200g thịt vào chảo".  
         Không thêm thông tin khác. 
         tên nguyên liệu theo Bảng thành phần thực phẩm Việt Nam (Viện Dinh dưỡng, 2017)
+        Tên nguyên liệu đơn giản dễ hiểu
+        Chuẩn hóa tên nguyên liệu sang tên chung
         Tất cả nguyên liệu lấy unit là g, còn nếu chất lỏng thì ml.
         Trả về 1 đối tượng JSON như mẫu sau: 
         * {
         * "ingredients": [
         * {
-        * "name": "Thịt heo",
+        * "name": "cá hồi",
         * "quantity": {
             * "amount": "300", //type: number
             * "unit": { type: String, enum: ['g', 'ml'],
@@ -79,6 +81,42 @@ const getRecipe = async (foodName) => {
     `;
     return foodGeminiService.analyze(null, prompt, 'gemini-2.5-flash');
 };
+const getRecipeStream = async (foodName, onToken) => {
+  const prompt = `
+    Hãy cung cấp công thức nấu ăn khẩu phần 1 người thật đơn giản và dễ nấu cho món "${foodName}". Trong công thức này, có nêu nguyên liệu và khối lượng tương ứng. Ví dụ "cho 200g thịt vào chảo".  
+    Không thêm thông tin khác. 
+    tên nguyên liệu theo Bảng thành phần thực phẩm Việt Nam (Viện Dinh dưỡng, 2017)
+    Tất cả nguyên liệu lấy unit là g, còn nếu chất lỏng thì ml.
+    Trả về 1 đối tượng JSON như mẫu sau: 
+    {
+      "ingredients": [
+        {
+          "name": "Thịt heo",
+          "quantity": {
+            "amount": 300,
+            "unit": "g"
+          }
+        }
+      ],
+      "instructions": [
+        "Ướp thịt với nước mắm, đường, tiêu...",
+        "Nướng thịt đến khi chín vàng..."
+      ]
+    }
+  `;
+
+  // Giả sử Gemini SDK có method streamAnalyze
+  const stream = await foodGeminiService.streamAnalyze(null, prompt, 'gemini-2.5-flash');
+
+  let result = '';
+  for await (const token of stream) {
+    result += token;       // lưu dần token vào result
+    if (onToken) onToken(token); // callback để UI hiển thị ngay
+  }
+
+  return result; // trả về toàn bộ JSON sau khi stream xong
+};
+
 const getNutritionByAi = async (ingrs) => {
     const prompt = `
         Dựa trên danh sách tên nguyên liệu sau: ${ingrs},
@@ -116,6 +154,30 @@ const getNutritionByAi = async (ingrs) => {
     return foodGeminiService.analyze(null, prompt, 'gemini-2.5-flash');
 };
 
+const getIngredients = async (recipe) => {
+    const joinedRecipe = recipe.join("\n");
+
+    const prompt = `
+        Dựa trên Công thức nấu ăn sau: ${joinedRecipe},
+        Hãy trả về danh sách ingredients đầy đủ, có quantity và unit đầy đủ (nếu công thức thiếu quantity thì tự ước lượng và sau đó gán thuộc tính estimate là true). Tên nguyên liệu đơn giản dễ hiểu, không bao gồm các từ đặc biệt như chiên, rán, nướng(ví dụ như hành khô chiên là sai),
+        Chuẩn hóa tên nguyên liệu sang tên chung, bỏ alias, lowercase, remove special characters.
+        Trả về 1 obj theo mẫu:
+        * {
+        * "ingredients": [
+        * {
+        * "name": "Thịt heo",
+        * "quantity": {
+            * "amount": "300", //type: number
+            * "unit": { type: String, enum: ['g', 'ml'],
+            * "estimate": false // nếu là ước lượng thì true
+        * },
+        * ...
+        * ],
+        *}
+    `;
+    return foodGeminiService.analyze(null, prompt, 'gemini-2.5-flash');
+};
+
 const getSubstitutionsAndWarnings = async (foodName, restrictions) => {
     const prompt = `
         Món ăn: "${foodName}". 
@@ -140,10 +202,13 @@ const getSubstitutionsAndWarnings = async (foodName, restrictions) => {
     */
 };
 
+
 module.exports = { 
     analyzeFoodImage, 
     identifyFoodName, 
-    getRecipe,        
+    getRecipe,
     getNutritionByAi, 
-    getSubstitutionsAndWarnings 
+    getSubstitutionsAndWarnings,
+    getRecipeStream,
+    getIngredients
 };

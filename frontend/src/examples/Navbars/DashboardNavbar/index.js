@@ -120,9 +120,9 @@ function DashboardNavbar({ absolute, light, isMini }) {
         </MDBox>
         {isMini ? null : (
           <MDBox sx={(theme) => navbarRow(theme, { isMini })}>
-            <MDBox pr={1} sx={{ width: "400px", borderRadius: "30px" }}>
+            {/* <MDBox pr={1} sx={{ width: "400px", borderRadius: "30px" }}>
               <MDInput label="Search here" fullWidth />
-            </MDBox>
+            </MDBox> */}
             <MDBox color={light ? "white" : "inherit"}>
               <Link to="/authentication/sign-in/basic">
                 <IconButton sx={navbarIconButton} size="small" disableRipple>
