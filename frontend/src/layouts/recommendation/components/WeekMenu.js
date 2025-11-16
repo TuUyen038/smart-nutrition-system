@@ -1,9 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { Box, Paper, Typography, Chip, Grid } from "@mui/material";
-import { Restaurant as RestaurantIcon } from "@mui/icons-material";
+import { Edit, Restaurant as RestaurantIcon } from "@mui/icons-material";
 import MDButton from "components/MDButton";
 import FoodCard from "./FoodCard";
+import MDTypography from "components/MDTypography";
+import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 
 const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName }) => {
   if (!weekStarts.length) return null; // fallback nếu không có tuần nào
@@ -29,12 +31,16 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
           >
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
               <Box>
-                <Typography variant="h5" fontWeight={700} gutterBottom>
+                <MDTypography variant="h5">
                   {label}
-                </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
+                </MDTypography>
+                <MDTypography
+                  fontWeight="light"
+                  color="text"
+                  fontSize="0.9rem"
+                >
                   {start} → {weekEnd}
-                </Typography>
+                </MDTypography>
                 {hasMenu && (
                   <Chip
                     icon={<RestaurantIcon />}
@@ -51,20 +57,14 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
 
               <Box display="flex" gap={1}>
                 {hasMenu ? (
-                  <MDButton
-                    variant="outlined"
-                    startIcon={<RestaurantIcon />}
-                    size="small"
-                    onClick={() => handleOpenModal({ mode: "week", date: start })}
-                  >
-                    Chỉnh sửa
-                  </MDButton>
+                  <></>
                 ) : (
                   <>
                     <MDButton
                       variant="contained"
                       startIcon={<RestaurantIcon />}
                       size="small"
+                      color="info"
                       onClick={() => handleOpenModal({ mode: "week", date: start })}
                     >
                       Tạo menu
@@ -73,6 +73,8 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                       variant="outlined"
                       startIcon={<RestaurantIcon />}
                       size="small"
+                      color="info"
+
                       onClick={() => handleOpenModal({ mode: "week", date: start })}
                     >
                       Gợi ý AI
@@ -92,25 +94,72 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
 
                   return (
                     <Box key={date} mb={2}>
-                      <Paper sx={{ p: 2, bgcolor: "rgba(255,255,255,0.95)" }}>
-                        <Box display="flex" alignItems="center" gap={1} mb={2}>
-                          <Typography variant="subtitle1" fontWeight={600} color="text.primary">
-                            {getDayName(date)} - {date}
-                          </Typography>
-                          <Chip label={`${dayCal} kcal`} size="small" color="warning" />
+                      <Paper
+                        component="div"
+                        sx={{
+                          p: 0,
+                          bgcolor: "white",
+                          borderRadius: 2,
+                          border: "1px solid rgba(0,0,0,0.05)",
+                          boxShadow: "0px 1px 4px rgba(0,0,0,0.04)",
+                          position: "relative",   // ★ fix quan trọng
+                        }}
+                      >
+
+                        <Box
+                          display="flex"
+                          justifyContent="space-between"
+                          alignItems="center"
+                          mb={0}
+                          sx={{
+                            backgroundColor: "#f5f5f5",
+                            p: 1,
+                            width: "100%",
+                            zIndex: 10    // ★ thêm dòng này
+                          }}
+                        >
+
+                          <Box display="flex" alignItems="center" gap={1} mb={0}>
+                            <MDTypography
+                              variant="h6"
+                              fontSize="0.9rem"
+                            >
+                              {getDayName(date)}
+                            </MDTypography>
+                            <MDTypography
+                              variant="body2"
+                              fontWeight="light"
+                              color="text"
+                              fontSize="0.8rem"
+                            >
+                              ( {date} )
+                            </MDTypography>
+                            <Chip icon={<LocalFireDepartmentIcon />} label={`${dayCal} kcal`} size="small" color="warning" />
+                          </Box>
+                          <Box alignItems="center">
+                            <MDButton
+                              variant="outlined"
+                              startIcon={<Edit />}
+                              size="small"
+                              color="info"
+                              onClick={() => handleOpenModal({ mode: "week", date: date })}
+                            >
+                              Chỉnh sửa
+                            </MDButton>
+                          </Box>
                         </Box>
-                        <Grid container spacing={2}>
+                        <Grid container spacing={2} p={2}>
                           {dayMenu.map((item) => (
                             <Grid item xs={12} sm={6} md={3} key={`${date}-${item.id}`}>
                               <FoodCard title={item.name} calories={item.calories} image={item.image}>
-                                <MDButton
+                                {/* <MDButton
                                   variant="outlined"
                                   size="small"
-                                  fullWidth
+                                  color="error"
                                   onClick={() => handleOpenModal({ mode: "day", date })}
                                 >
-                                  Chi tiết
-                                </MDButton>
+                                  Xoá
+                                </MDButton> */}
                               </FoodCard>
                             </Grid>
                           ))}

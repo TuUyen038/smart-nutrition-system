@@ -1,5 +1,22 @@
 const API_BASE_URL = "http://localhost:3000/api/recipes";
 
+export const getRecipes = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}`);
+
+    if (!response.ok) {
+      console.warn(`Khong lay duoc dan sach mon an`);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log(data);
+    return data;
+  } catch (error) {
+    console.error(error.message);
+    return null;
+  }
+}
 export const detectFood = async (imageFile) => {
   const formData = new FormData();
   // "foodImage" phải khớp với tên trường (field) mà Multer (Backend) đang lắng nghe
