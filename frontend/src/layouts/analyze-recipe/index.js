@@ -68,24 +68,6 @@ function AnalyzeRecipe() {
               ? `${ingr.quantity.amount || ""} ${ingr.quantity.unit || ""}`.trim()
               : "",
           }));
-          // getBackUpNutrition(names)
-          //   .then((nutritions) => {
-          //     if (!active) return;
-
-          //     let parsed = nutritions;
-          //     if (typeof nutritions === "string") {
-          //       try {
-          //         parsed = JSON.parse(nutritions);
-          //       } catch (e) {
-          //         console.error("Không parse được JSON:", e);
-          //         parsed = [];
-          //       }
-          //     }
-          //     setIsBackupLoading(true);
-          //     setBackUpNutrition(parsed);
-          //     console.log("Nutrition backup da co");
-          //   })
-          //   .catch((err) => console.error(err));
         } else {
           setBd(true);
           setTotalNutrition(recipeData.nutrition || {});
@@ -119,7 +101,7 @@ function AnalyzeRecipe() {
     try {
       const recipePayload = {
         ownerId: myId,
-        name: dishName || foodName || "Món ăn chưa đặt tên",
+        name: dishName || foodName || "Món ăn bạn thêm",
         imageUrl: "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
         public_id: "foodImages/ml4njluxyrvhthnvx0xr",
         description: `Công thức cho món ${dishName || foodName || "không tên"}`,
@@ -147,10 +129,8 @@ function AnalyzeRecipe() {
         servingTime: "other",
       });
 
-      console.log("Added to daily menu:", data);
       alert("Thêm thành công!");
     } catch (error) {
-      console.error("Lỗi khi lưu món ăn:", error);
       alert("Lưu công thức thất bại. Vui lòng thử lại.");
     }
   };
@@ -362,7 +342,7 @@ function AnalyzeRecipe() {
                   }}
                   label="Công thức nấu"
                   placeholder="Vui lòng nêu rõ định lượng các nguyên liệu để kết quả phân tích được chính xác nhất!"
-                  sx={{ mb: 3 }}
+                  sx={{ mb: 3, 'label': { pb: 0.2 } }}
                 />
 
                 <MDBox display="flex" gap={2}>
