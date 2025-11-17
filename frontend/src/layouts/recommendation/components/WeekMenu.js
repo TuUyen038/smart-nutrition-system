@@ -14,7 +14,8 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
     <Box>
       {weekStarts.map(({ start, label }) => {
         const week = weekMenus[start] || {}; // fallback {}
-        const weekDates = Object.keys(week);
+        // Sắp xếp tuần từ thứ 2 → CN
+        const weekDates = Object.keys(week).sort((a, b) => new Date(a) - new Date(b));
         const weekEnd = weekDates.length ? weekDates[weekDates.length - 1] : start;
 
         const hasMenu = Object.values(week).some((dayMenu) => (dayMenu || []).length > 0);
@@ -31,14 +32,8 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
           >
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
               <Box>
-                <MDTypography variant="h5">
-                  {label}
-                </MDTypography>
-                <MDTypography
-                  fontWeight="light"
-                  color="text"
-                  fontSize="0.9rem"
-                >
+                <MDTypography variant="h5">{label}</MDTypography>
+                <MDTypography fontWeight="light" color="text" fontSize="0.9rem">
                   {start} → {weekEnd}
                 </MDTypography>
                 {hasMenu && (
@@ -56,9 +51,7 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
               </Box>
 
               <Box display="flex" gap={1}>
-                {hasMenu ? (
-                  <></>
-                ) : (
+                {!hasMenu && (
                   <>
                     <MDButton
                       variant="contained"
@@ -74,7 +67,6 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                       startIcon={<RestaurantIcon />}
                       size="small"
                       color="info"
-
                       onClick={() => handleOpenModal({ mode: "week", date: start })}
                     >
                       Gợi ý AI
@@ -82,14 +74,12 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                   </>
                 )}
               </Box>
-
             </Box>
 
-            {hasMenu && weekDates.length > 0 && (
+            {weekDates.length > 0 && (
               <Box>
                 {weekDates.map((date) => {
                   const dayMenu = week[date] || [];
-                  if (!dayMenu.length) return null;
                   const dayCal = dayMenu.reduce((sum, item) => sum + item.calories, 0);
 
                   return (
@@ -102,10 +92,9 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                           borderRadius: 2,
                           border: "1px solid rgba(0,0,0,0.05)",
                           boxShadow: "0px 1px 4px rgba(0,0,0,0.04)",
-                          position: "relative",   // ★ fix quan trọng
+                          position: "relative",
                         }}
                       >
-
                         <Box
                           display="flex"
                           justifyContent="space-between"
@@ -115,15 +104,11 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                             backgroundColor: "#f5f5f5",
                             p: 1,
                             width: "100%",
-                            zIndex: 10    // ★ thêm dòng này
+                            zIndex: 10,
                           }}
                         >
-
                           <Box display="flex" alignItems="center" gap={1} mb={0}>
-                            <MDTypography
-                              variant="h6"
-                              fontSize="0.9rem"
-                            >
+                            <MDTypography variant="h6" fontSize="0.9rem">
                               {getDayName(date)}
                             </MDTypography>
                             <MDTypography
@@ -134,7 +119,12 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                             >
                               ( {date} )
                             </MDTypography>
-                            <Chip icon={<LocalFireDepartmentIcon />} label={`${dayCal} kcal`} size="small" color="warning" />
+                            <Chip
+                              icon={<LocalFireDepartmentIcon />}
+                              label={`${dayCal} kcal`}
+                              size="small"
+                              // color="warning"
+                            />
                           </Box>
                           <Box alignItems="center">
                             <MDButton
@@ -142,25 +132,17 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
                               startIcon={<Edit />}
                               size="small"
                               color="info"
-                              onClick={() => handleOpenModal({ mode: "week", date: date })}
+                              onClick={() => handleOpenModal({ weekStart: start, date })} 
                             >
                               Chỉnh sửa
                             </MDButton>
                           </Box>
                         </Box>
+
                         <Grid container spacing={2} p={2}>
                           {dayMenu.map((item) => (
                             <Grid item xs={12} sm={6} md={3} key={`${date}-${item.id}`}>
-                              <FoodCard title={item.name} calories={item.calories} image={item.image}>
-                                {/* <MDButton
-                                  variant="outlined"
-                                  size="small"
-                                  color="error"
-                                  onClick={() => handleOpenModal({ mode: "day", date })}
-                                >
-                                  Xoá
-                                </MDButton> */}
-                              </FoodCard>
+                              <FoodCard title={item.name} calories={item.calories} image={item.image} />
                             </Grid>
                           ))}
                         </Grid>

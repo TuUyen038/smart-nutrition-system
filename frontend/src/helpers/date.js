@@ -14,3 +14,8 @@ export function normalizeDateVN(date) {
   if (!date) return null;
   return dayjs(date).tz("Asia/Ho_Chi_Minh").format("YYYY-MM-DD");
 }
+export function formatDateVN(date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().split("T")[0];
+
+}

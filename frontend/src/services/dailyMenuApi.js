@@ -40,4 +40,25 @@ export const addRecipeToDailyMenu = async ({ userId, date, recipeId, portion, no
   }
 };
 
+export const createDailyMenu = async ({ userId, date, recipes }) => {
+  try {
+      const res = await fetch(`${API_BASE_URL}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId,
+        date: normalizeDateVN(date),
+        recipes,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Tạo thực đơn thất bại");
+
+    return data; // data.data chứa DailyMenu mới tạo
+  } catch (err) {
+    console.error("createDailyMenu error:", err);
+    throw err;
+  }
+};
 

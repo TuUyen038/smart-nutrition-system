@@ -10,26 +10,72 @@ import WeekMenu from "./components/WeekMenu";
 import MenuModal from "./components/MenuModal";
 
 import { getRecipes } from "services/recipeApi";
+import { formatDateVN } from "helpers/date";
+
+import { createDailyMenu } from "services/dailyMenuApi";
+import { createMealPlan } from "services/mealPlanApi";
 
 function MealPlannerTabs() {
+  const userId = '68f4394c4d4cc568e6bc5daa';
+
   const [recipes, setRecipes] = useState([]);
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
 
-  // Tabs
   const [tabValue, setTabValue] = useState("day");
   const handleSetTabValue = (_, v) => setTabValue(v);
 
-  // Dates
-  const today = "2025-11-16";
-  const tomorrow = "2025-11-17";
-  const weekThisStart = "2025-11-16";
-  const weekNextStart = "2025-11-23";
+  // =====================
+  // DYNAMIC DATES
+  // =====================
+  const todayDate = new Date();
+  const today = formatDateVN(todayDate);
 
-  // Menus (init EMPTY, sẽ fill khi recipes load xong)
-  const [menus, setMenus] = useState({});
-  const [weekMenus, setWeekMenus] = useState({});
+  const tomorrowDate = new Date(todayDate);
+  tomorrowDate.setDate(todayDate.getDate() + 1);
+  const tomorrow = formatDateVN(tomorrowDate);
 
-  // Modal
+  const getWeekStart = (date = new Date()) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    return formatDateVN(d);
+  };
+
+  const weekThisStart = getWeekStart(todayDate);
+  const nextWeekDate = new Date(new Date(weekThisStart).setDate(new Date(weekThisStart).getDate() + 7));
+  const weekNextStart = formatDateVN(nextWeekDate);
+
+  const createWeekDates = (weekStartStr) => {
+    if (!weekStartStr) weekStartStr = formatDateVN(new Date());
+    const parts = weekStartStr.split("-");
+    const startDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    const weekObj = {};
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startDate);
+      d.setDate(startDate.getDate() + i);
+      const str = formatDateVN(d);
+      weekObj[str] = [];
+    }
+    return weekObj;
+  };
+
+  // =====================
+  // STATE MENUS
+  // =====================
+  const [menus, setMenus] = useState({
+    [today]: [],
+    [tomorrow]: [],
+  });
+
+  const [weekMenus, setWeekMenus] = useState({
+    [weekThisStart]: createWeekDates(weekThisStart),
+    [weekNextStart]: createWeekDates(weekNextStart),
+  });
+
+  // =====================
+  // MODAL
+  // =====================
   const [openModal, setOpenModal] = useState(false);
   const [currentMenu, setCurrentMenu] = useState([]);
   const [currentMode, setCurrentMode] = useState(null);
@@ -47,13 +93,15 @@ function MealPlannerTabs() {
     return 0;
   }, [currentMenu, currentMode]);
 
-  // Fetch Recipes Once
+  // =====================
+  // FETCH RECIPES
+  // =====================
   useEffect(() => {
     const fetchRecipes = async () => {
       try {
         const res = await getRecipes();
         if (res.success && Array.isArray(res.data)) {
-          const formatted = res.data.map((r) => ({
+          const formatted = res.data.map(r => ({
             id: r._id,
             name: r.name,
             calories: r.totalNutrition?.calories || 0,
@@ -62,35 +110,20 @@ function MealPlannerTabs() {
 
           setRecipes(formatted);
 
-          // --- Default Menus ---
-          setMenus({
+          setMenus(prev => ({
+            ...prev,
             [today]: [formatted[0], formatted[1]].filter(Boolean),
             [tomorrow]: [formatted[2]].filter(Boolean),
-          });
+          }));
 
-          setWeekMenus({
-            [weekThisStart]: {
-              "2025-11-16": [formatted[0], formatted[2]].filter(Boolean),
-              "2025-11-17": [formatted[1], formatted[3]].filter(Boolean),
-              "2025-11-18": [],
-              "2025-11-19": [formatted[4]].filter(Boolean),
-              "2025-11-20": [],
-              "2025-11-21": [],
-              "2025-11-22": [],
-            },
-            [weekNextStart]: {
-              "2025-11-23": [],
-              "2025-11-24": [],
-              "2025-11-25": [],
-              "2025-11-26": [],
-              "2025-11-27": [],
-              "2025-11-28": [],
-              "2025-11-29": [],
-            },
-          });
+          setWeekMenus(prev => ({
+            ...prev,
+            [weekThisStart]: createWeekDates(weekThisStart),
+            [weekNextStart]: createWeekDates(weekNextStart),
+          }));
         }
-      } catch (error) {
-        console.error("Lỗi khi lấy recipe:", error);
+      } catch (err) {
+        console.error("Lỗi khi lấy recipe:", err);
       } finally {
         setIsLoadingRecipes(false);
       }
@@ -98,83 +131,212 @@ function MealPlannerTabs() {
     fetchRecipes();
   }, []);
 
-  // ---- Modal ----
-  const handleOpenModal = ({ mode, date }) => {
+  const handleOpenModal = ({ mode, date, weekStart }) => {
     setCurrentMode(mode);
-    setEditingDate(date);
 
     if (mode === "day") {
+      setEditingDate(date);
       setCurrentMenu(menus[date] || []);
-    } else {
-      setCurrentMenu({ ...(weekMenus[date] || {}) }); // clone tuần
+      setEditingWeekStart(weekStart || null); // Lưu weekStart nếu edit từ week view
+    } else if (mode === "week") {
+      setEditingDate(weekStart);
+      setEditingWeekStart(weekStart);
+      const week = weekMenus[weekStart] || createWeekDates(weekStart);
+      setCurrentMenu({ ...week });
     }
+
     setOpenModal(true);
   };
 
-  const handleCloseModal = () => setOpenModal(false);
+  const handleOpenModalForWeekDay = ({ date, weekStart }) => {
+    setEditingDate(date);
+    setEditingWeekStart(weekStart); // Lưu weekStart
+    setCurrentMenu(weekMenus[weekStart]?.[date] || []); // Lấy menu của ngày đó
+    setOpenModal(true);
+  };
 
+  // Toggle recipe
   const toggleSelectRecipe = (recipe, targetDate = null) => {
     if (currentMode === "day") {
-      setCurrentMenu((prev) =>
-        prev.some((m) => m.id === recipe.id)
-          ? prev.filter((m) => m.id !== recipe.id)
+      setCurrentMenu(prev =>
+        prev.some(m => m.id === recipe.id)
+          ? prev.filter(m => m.id !== recipe.id)
           : [...prev, recipe]
       );
-    } else {
-      if (!targetDate) return;
-      setCurrentMenu((prev) => {
+    } else if (currentMode === "week" && targetDate) {
+      setCurrentMenu(prev => {
         const dayArr = prev[targetDate] || [];
-        const updated = dayArr.some((m) => m.id === recipe.id)
-          ? dayArr.filter((m) => m.id !== recipe.id)
+        const updated = dayArr.some(m => m.id === recipe.id)
+          ? dayArr.filter(m => m.id !== recipe.id)
           : [...dayArr, recipe];
         return { ...prev, [targetDate]: updated };
       });
     }
   };
 
+  const handleSave = async (updatedItems, date) => {
+    if (!updatedItems) return;
+
+    if (currentMode === "day") {
+      setMenus(prev => ({ ...prev, [date]: updatedItems }));
+
+      if (editingWeekStart) {
+        setWeekMenus(prev => ({
+          ...prev,
+          [editingWeekStart]: {
+            ...prev[editingWeekStart],
+            [date]: updatedItems,
+          },
+        }));
+      }
+
+      await saveDayMenus(date, updatedItems);  // 👈 TRUYỀN updatedItems XUỐNG
+    }
+
+    if (currentMode === "week") {
+      setWeekMenus(prev => ({
+        ...prev,
+        [editingWeekStart]: updatedItems,
+      }));
+      await saveWeekMenus(editingWeekStart);
+    }
+
+    setOpenModal(false);
+  };
+
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setEditingWeekStart(null);
+  };
+
   const handleDelete = (date, recipeId) => {
-    setMenus((prev) => {
-      const updated = (prev[date] || []).filter((item) => item.id !== recipeId);
+    setMenus(prev => {
+      const updated = (prev[date] || []).filter(item => item.id !== recipeId);
       return { ...prev, [date]: updated };
     });
   };
 
-  const handleSave = () => {
-    if (currentMode === "day") {
-      setMenus({ ...menus, [editingDate]: currentMenu });
-      // Sync to week if exists
-      const updatedWeekMenus = { ...weekMenus };
-      Object.keys(updatedWeekMenus).forEach((week) => {
-        if (updatedWeekMenus[week][editingDate]) {
-          updatedWeekMenus[week][editingDate] = currentMenu;
-        }
-      });
-      setWeekMenus(updatedWeekMenus);
-    } else {
-      setWeekMenus((prev) => ({
-        ...prev,
-        [editingDate]: currentMenu, // object { day: [recipes] }
-      }));
-    }
-    handleCloseModal();
-  };
-
-  const getDayName = (dateString) => {
-    const days = ["Chủ nhật","Thứ 2","Thứ 3","Thứ 4","Thứ 5","Thứ 6","Thứ 7"];
+  const getDayName = dateString => {
+    if (!dateString) return "";
+    const days = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
     return days[new Date(dateString).getDay()];
   };
 
+  // =====================
+  // HELPER: map menus → payload DailyMenu
+  // =====================
+  const mapMenusToDailyMenuPayload = (menusObj) => {
+    return Object.keys(menusObj)
+      .filter(date => menusObj[date].length > 0)
+      .map(date => ({
+        userId,
+        date,
+        recipes: menusObj[date].map(r => ({
+          recipeId: r.id,
+          portion: r.portion || 1,
+          note: r.note || "",
+          servingTime: r.servingTime || "other",
+          status: "planned"
+        }))
+      }));
+  };
+
+  const saveDayMenus = async (date, updatedItems) => {
+    try {
+      const menu = updatedItems || [];
+
+      if (menu.length === 0) {
+        alert("Không có món nào để lưu!");
+        return;
+      }
+
+      const payload = {
+        userId,
+        date,
+        recipes: menu.map(r => ({
+          recipeId: r.id,
+          portion: r.portion || 1,
+          note: r.note || "",
+          servingTime: r.servingTime || "other",
+          status: "planned"
+        }))
+      };
+
+      await createDailyMenu(payload);
+      alert("Đã lưu menu ngày thành công!");
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi khi lưu menu ngày.");
+    }
+  };
+
+
+  const saveWeekMenus = async (weekStart) => {
+    try {
+      const weekObj = weekMenus[weekStart];
+      if (!weekObj) {
+        alert("Không tìm thấy dữ liệu tuần!");
+        return;
+      }
+
+      const dailyPayloads = mapMenusToDailyMenuPayload(weekObj);
+
+      if (dailyPayloads.length === 0) {
+        alert("Không có món nào trong tuần để lưu!");
+        return;
+      }
+
+      const mealPlanPayload = {
+        userId,
+        period: "week",
+        startDate: weekStart,
+        endDate: formatDateVN(new Date(new Date(weekStart).setDate(new Date(weekStart).getDate() + 6))),
+        meals: [],
+        source: "user",
+        generatedBy: "user",
+      };
+
+      console.log("📅 Đang lưu tuần:", weekStart);
+      console.log("📋 Daily payloads:", dailyPayloads);
+
+      for (const dayMenu of dailyPayloads) {
+        const response = await createDailyMenu(dayMenu);
+
+        const dailyMenuId = response?._id || response?.data?._id;
+
+        if (dailyMenuId) {
+          mealPlanPayload.meals.push(dailyMenuId);
+        } else {
+          console.error("❌ Không lấy được ID từ response:", response);
+        }
+      }
+
+      console.log("🎯 MealPlan payload final:", mealPlanPayload);
+
+      if (mealPlanPayload.meals.length === 0) {
+        alert("Không thể tạo MealPlan vì không có DailyMenu ID!");
+        return;
+      }
+
+      // Tạo MealPlan
+      await createMealPlan(mealPlanPayload);
+      alert("Đã lưu menu tuần và MealPlan thành công!");
+    } catch (err) {
+      console.error("❌ Lỗi saveWeekMenus:", err);
+      alert("Lỗi khi lưu menu tuần hoặc MealPlan.");
+    }
+  };
+
+  // =====================
+  // RENDER
+  // =====================
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <Box py={3} px={2}>
         <Paper elevation={2} sx={{ mb: 3, borderRadius: 2 }}>
-          <Tabs
-            value={tabValue}
-            onChange={handleSetTabValue}
-            indicatorColor="primary"
-            textColor="primary"
-          >
+          <Tabs value={tabValue} onChange={handleSetTabValue} indicatorColor="primary" textColor="primary">
             <Tab label="Theo ngày" icon={<CalendarToday fontSize="small" />} iconPosition="start" value="day" />
             <Tab label="Theo tuần" icon={<DateRange fontSize="small" />} iconPosition="start" value="week" />
           </Tabs>
@@ -198,23 +360,16 @@ function MealPlannerTabs() {
             )}
 
             {tabValue === "week" && (
-  <WeekMenu
-    weekMenus={weekMenus}
-    weekStarts={[
-      { start: weekThisStart, label: "Tuần này" },
-      { start: weekNextStart, label: "Tuần sau" },
-    ]}
-    handleOpenModal={({ date }) => {
-      // Mỗi ngày là riêng lẻ → mở modal giống day
-      setCurrentMode("day");
-      setEditingDate(date);
-      setCurrentMenu(weekMenus[weekThisStart][date] || []); // hoặc tuần tương ứng
-      setOpenModal(true);
-    }}
-    getDayName={getDayName}
-  />
-)}
-
+              <WeekMenu
+                weekMenus={weekMenus}
+                weekStarts={[
+                  { start: weekThisStart, label: "Tuần này" },
+                  { start: weekNextStart, label: "Tuần sau" },
+                ]}
+                handleOpenModal={handleOpenModalForWeekDay}
+                getDayName={getDayName}
+              />
+            )}
           </>
         )}
       </Box>
@@ -225,12 +380,12 @@ function MealPlannerTabs() {
         mode={currentMode}
         date={editingDate}
         currentMenu={currentMenu}
-        toggleSelectRecipe={toggleSelectRecipe}
-        handleSave={handleSave}
+        onSave={handleSave}
         recipes={recipes}
         totalCalories={totalCalories}
         getDayName={getDayName}
       />
+
     </DashboardLayout>
   );
 }

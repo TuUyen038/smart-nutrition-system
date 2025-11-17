@@ -10,9 +10,9 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
   return (
     <Box>
       {days.map(({ date, label }) => {
-        const menu = menus[date] || []; // fallback []
+        const menu = Array.isArray(menus[date]) ? menus[date] : []; // fallback []
         const hasMenu = menu.length > 0;
-        const totalCal = menu.reduce((sum, item) => sum + item.calories, 0);
+        const totalCal = menu.reduce((sum, item) => sum + (item?.calories || 0), 0);
 
         return (
           <Paper
@@ -30,7 +30,6 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
                   fontWeight="light"
                   color="text"
                   fontSize="0.9rem"
-
                 >
                   {getDayName(date)} - {date}
                 </MDTypography>
@@ -66,7 +65,6 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
                       startIcon={<RestaurantIcon />}
                       size="small"
                       color="info"
-
                       onClick={() => handleOpenModal({ mode: "day", date })}
                     >
                       Tạo menu
@@ -86,18 +84,18 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
 
             {hasMenu && (
               <Grid container spacing={2}>
-                {menu.map((item) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={item.id}>
+                {menu.map((item, idx) => (
+                  <Grid item xs={12} sm={6} md={4} lg={3} key={item.id || item.recipeId || idx}>
                     <FoodCard title={item.name} calories={item.calories} image={item.image}>
-                      {/* <MDButton
+                      <MDButton
                         variant="outlined"
                         startIcon={<Delete />}
                         size="small"
                         color="error"
-                        onClick={() => handleDelete(date, item.id)}
+                        onClick={() => handleDelete(date, item.id || item.recipeId)}
                       >
                         Xoá
-                      </MDButton> */}
+                      </MDButton>
                     </FoodCard>
                   </Grid>
                 ))}
