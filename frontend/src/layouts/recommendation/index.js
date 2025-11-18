@@ -131,21 +131,22 @@ function MealPlannerTabs() {
       }
 
       const saved = await saveDayMenus(date, updatedItems); // giả sử trả về DailyMenu mới
-console.log("Saved data from API:", saved);
-  setMenus((prev) => {
-      const prevArray = Array.isArray(prev) ? prev : [];
+      setMenus((prev) => {
+      // ✅ Filter out null/undefined trước khi xử lý
+      const prevArray = Array.isArray(prev) 
+        ? prev.filter(m => m && m.date) // Loại bỏ null/undefined
+        : [];
+      
       const existIdx = prevArray.findIndex(
         (m) => new Date(m.date).toDateString() === new Date(date).toDateString()
       );
 
       if (existIdx >= 0) {
-        // Tạo array mới với phần tử được replace
         return prevArray.map((menu, idx) => 
           idx === existIdx ? saved : menu
         );
       }
 
-      // Thêm mới vào cuối array
       return [...prevArray, saved];
     });
 
@@ -164,15 +165,14 @@ console.log("Saved data from API:", saved);
   };
 
   const handleDelete = (date, recipeId) => {
-    setMenus(prev => {
-  const prevArray = Array.isArray(prev) ? prev : [];
-  return prevArray.map(menu =>
-    menu.date === date
-      ? { ...menu, recipes: menu.recipes.filter(r => r.id !== recipeId) }
-      : menu
-  );
-});
-
+    setMenus((prev) => {
+      const prevArray = Array.isArray(prev) ? prev : [];
+      return prevArray.map((menu) =>
+        menu.date === date
+          ? { ...menu, recipes: menu.recipes.filter((r) => r.id !== recipeId) }
+          : menu
+      );
+    });
   };
 
   return (
