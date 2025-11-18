@@ -25,7 +25,7 @@ export default function MenuModal({
   getDayName,
 }) {
   // selectedItems luôn là MẢNG: các món của ngày đang edit
-  const [selectedItems, setSelectedItems] = useState([]);
+  const [selectedItems, setSelectedItems] = useState(currentMenu);
 
   // Khi mở modal hoặc currentMenu/date thay đổi => đồng bộ state local
   useEffect(() => {
@@ -136,7 +136,7 @@ export default function MenuModal({
               <Grid container spacing={2} mb={3}>
                 {selectedItems.map(item => (
                   <Grid item xs={12} sm={6} md={4} key={item.id || item.recipeId}>
-                    <FoodCard title={item.name} calories={item.calories} image={item.image}>
+                    <FoodCard title={item.name} calories={item.calories} image={item.image || "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"}>
                       <Button
                         fullWidth
                         size="small"

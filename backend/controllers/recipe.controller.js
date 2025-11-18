@@ -2,7 +2,7 @@
 const fs = require('fs');
 const Recipe = require('../models/Recipe');
 const mongoose = require('mongoose');
-const { createRecipe, saveRecipeToDB } = require('../services/recipe.service');
+const { createRecipe, saveRecipeToDB, getVerifiedRecipes } = require('../services/recipe.service');
 // Sửa import: Lấy tất cả các hàm mới
 const { 
   identifyFoodName, 
@@ -13,6 +13,22 @@ const {
   getIngredients
 } = require('../utils/ai_providers/aiInterface'); 
 const Analysis = require('../models/Analysis');
+
+//lay danh sach mon an
+const getAllRecipe = async (req, res) => {
+  try {
+    const recipes = await getVerifiedRecipes();
+    return res.status(200).json({
+      success: true,
+      data: recipes,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 
 // Hàm chính xử lý logic phân tích
 const analyzeRecipe = async (req, res, next) => {
@@ -391,4 +407,4 @@ const getBackUpNutrition = async (req, res) => {
   return res.status(200).json(result);
 }
 
-module.exports = { detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById, findIngredientsByAi };
+module.exports = {getAllRecipe, detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById, findIngredientsByAi };

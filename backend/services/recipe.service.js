@@ -26,3 +26,20 @@ exports.saveRecipeToDB = async (recipeData) => {
     throw new Error("Lỗi khi lưu công thức vào cơ sở dữ liệu: " + error.message);
   }
 };
+//danh sach mon an
+exports.getVerifiedRecipes = async () => {
+  try {
+    const recipes = await Recipe.find(
+      { verified: true },
+      { name: 1, "totalNutrition.calories": 1, imageUrl: 1, public_id: 1 } // projection
+    );
+    return recipes;
+  } catch (error) {
+    throw new Error(
+      "Lỗi khi lấy danh sách công thức đã xác minh: " + error.message
+    );
+  }
+};
+
+
+

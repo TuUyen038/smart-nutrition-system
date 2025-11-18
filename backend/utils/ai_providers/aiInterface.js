@@ -160,7 +160,6 @@ const getIngredients = async (recipe) => {
     const prompt = `
         Dựa trên Công thức nấu ăn sau: ${joinedRecipe},
         Hãy trả về danh sách ingredients đầy đủ, có quantity và unit đầy đủ (nếu công thức thiếu quantity thì tự ước lượng và sau đó gán thuộc tính estimate là true). Tên nguyên liệu đơn giản dễ hiểu, không bao gồm các từ đặc biệt như chiên, rán, nướng(ví dụ như hành khô chiên là sai),
-        Chuẩn hóa tên nguyên liệu sang tên chung, bỏ alias, lowercase, remove special characters.
         Trả về 1 obj theo mẫu:
         * {
         * "ingredients": [

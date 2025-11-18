@@ -5,14 +5,16 @@ const mongoose = require('mongoose');
 
 exports.createMeal = async (data) => {
   try {
-    const { userId, date, recipes, status, feedback, ...rest } = data;
+    const { userId, date, recipes, status, feedback } = data;
 
-    if (!userId || !date || !recipes?.length) {
-      throw new Error("Thiếu thông tin bắt buộc khi tạo bữa ăn.");
+    if (!userId || !date) {
+      throw new Error("Thiếu userId hoặc date.");
     }
 
-    // Chuẩn hoá danh sách món ăn
-    const normalizedRecipes = recipes.map((r) => ({
+    let existing = await DailyMenu.findOne({ userId, date });
+
+    // Chuẩn hoá món ăn
+    const normalizedRecipes = (recipes || []).map((r) => ({
       recipeId: r.recipeId,
       portion: r.portion || 1,
       note: r.note || "",
@@ -21,21 +23,37 @@ exports.createMeal = async (data) => {
 
     const totalNutrition = await calculateTotalNutrition(normalizedRecipes);
 
-    const meal = await DailyMenu.create({
-      userId,
-      date,
-      recipes: normalizedRecipes,
-      totalNutrition,
-      status: status || "planned",
-      feedback: feedback || null,
-    });
+    if (!existing) {
+      // Tạo mới
+      const created = await DailyMenu.create({
+        userId,
+        date,
+        recipes: normalizedRecipes,
+        totalNutrition,
+        status: status || "planned",
+        feedback: feedback || null,
+      });
 
-    console.log(`Đã tạo DailyMenu cho ngày ${date}`);
-    return meal;
+      console.log(`Tạo menu mới cho ngày ${date}`);
+      return { type: "created", data: created };
+    }
+
+    // Cập nhật
+    existing.recipes = normalizedRecipes;
+    existing.totalNutrition = totalNutrition;
+    if (status) existing.status = status;
+    if (feedback !== undefined) existing.feedback = feedback;
+
+    await existing.save();
+    console.log(`Cập nhật menu cho ngày ${date}`);
+
+    return { type: "updated", data: existing };
+
   } catch (error) {
-    console.error("Lỗi khi tạo DailyMenu:", error);
-    throw new Error("Không thể tạo bữa ăn: " + error.message);
+    console.error("Lỗi upsert DailyMenu:", error);
+    throw new Error("Không thể lưu thực đơn: " + error.message);
   }
+
 };
 
 

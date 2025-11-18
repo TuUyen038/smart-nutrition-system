@@ -15,7 +15,7 @@ export const getRecipesByDateAndStatus = async (userId, startDate, endDate, stat
 
     const response = await fetch(`${API_BASE_URL}/recipes?${params.toString()}`);
     const history = await response.json();
-    console.log("daily menu:", history);
+    // console.log("daily menu:", history);
     return history;
   } catch (error) {
     console.error(error);

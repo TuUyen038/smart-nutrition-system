@@ -1,101 +1,117 @@
 const mealPlanService = require('../services/mealPlan.service');
 
-class MealPlanController {
+const getMealPlanByStartDate = async (req, res) => {
+    try {
+        const userId = req.userId; // lấy từ middleware auth
+        const { startDate } = req.query; // ?startDate=2025-11-17
 
-    /** POST /mealplans - Tạo Plan mới */
-    async createMealPlan(req, res) {
-        try {
-            // Lấy userId từ middleware xác thực (Auth)
-            //const userId = req.userId; 
-            const userId = req.body.id;
-            const planData = req.body;
-
-            // Kiểm tra các trường bắt buộc cơ bản (có thể dùng middleware validator riêng)
-            if (!planData.period || !planData.startDate) {
-                return res.status(400).json({ error: "period và startDate là bắt buộc." });
-            }
-
-            const newPlan = await mealPlanService.createPlan(userId, planData);
-            res.status(201).json({ message: "MealPlan đã được tạo thành công.", data: newPlan });
-
-        } catch (error) {
-            console.error("Lỗi khi tạo MealPlan:", error.message);
-            res.status(500).json({ error: error.message || "Lỗi server nội bộ." });
+        if (!startDate) {
+            return res.status(400).json({ error: "startDate là bắt buộc." });
         }
-    }
 
-    /** GET /mealplans - Lấy danh sách Plan */
-    async getMealPlans(req, res) {
-        try {
-            const userId = req.userId; 
-            const plans = await mealPlanService.getPlansByUserId(userId, req.query); // Cho phép lọc qua query params
+        const plan = await mealPlanService.getPlanByStartDate(userId, startDate);
 
-            res.status(200).json({ data: plans });
-        } catch (error) {
-            console.error("Lỗi khi lấy danh sách MealPlan:", error.message);
-            res.status(500).json({ error: "Lỗi server nội bộ." });
+        if (!plan) {
+            return res.status(404).json({ error: "Không tìm thấy MealPlan cho ngày bắt đầu này." });
         }
+
+        return res.status(200).json({ data: plan });
+    } catch (error) {
+        console.error("Lỗi khi lấy MealPlan theo startDate:", error);
+        return res.status(500).json({ error: "Lỗi server nội bộ." });
     }
+};
 
-    /** GET /mealplans/:planId - Lấy chi tiết Plan */
-    async getMealPlanDetail(req, res) {
-        try {
-            const { planId } = req.params;
-            const plan = await mealPlanService.getPlanById(planId);
+const createMealPlan = async (req, res) => {
+    try {
+        const userId = req.body.userId; // Hoặc lấy từ middleware Auth
+        const planData = req.body;
 
-            if (!plan || plan.userId.toString() !== req.userId) {
-                return res.status(404).json({ error: "Không tìm thấy MealPlan." });
-            }
-
-            res.status(200).json({ data: plan });
-        } catch (error) {
-            console.error("Lỗi khi lấy chi tiết MealPlan:", error.message);
-            res.status(500).json({ error: error.message || "Lỗi server nội bộ." });
+        if ( !planData.startDate) {
+            return res.status(400).json({ error: "startDate là bắt buộc." });
         }
+
+        const newPlan = await mealPlanService.createPlan(userId, planData);
+        return res.status(201).json({
+            message: "MealPlan đã được tạo thành công.",
+            data: newPlan,
+        });
+    } catch (error) {
+        console.error("Lỗi khi tạo MealPlan:", error.message);
+        return res.status(500).json({ error: error.message || "Lỗi server nội bộ." });
     }
+};
 
-    /** PATCH /mealplans/:planId/status - Cập nhật trạng thái Plan */
-    async updatePlanStatus(req, res) {
-        try {
-            const { planId } = req.params;
-            const { newStatus } = req.body;
-            const userId = req.userId;
+const getMealPlans = async (req, res) => {
+    try {
+        const userId = req.userId;
+        const plans = await mealPlanService.getPlansByUserId(userId, req.query);
+        return res.status(200).json({ data: plans });
+    } catch (error) {
+        console.error("Lỗi khi lấy danh sách MealPlan:", error.message);
+        return res.status(500).json({ error: "Lỗi server nội bộ." });
+    }
+};
 
-            if (!newStatus) {
-                return res.status(400).json({ error: "newStatus là bắt buộc." });
-            }
+const getMealPlanDetail = async (req, res) => {
+    try {
+        const { planId } = req.params;
+        const plan = await mealPlanService.getPlanById(planId);
 
-            const updatedPlan = await mealPlanService.updatePlanStatus(userId, planId, newStatus);
-            res.status(200).json({ message: `Đã cập nhật trạng thái Plan thành ${newStatus}.`, data: updatedPlan });
-
-        } catch (error) {
-            console.error("Lỗi khi cập nhật trạng thái Plan:", error.message);
-            // Bắt lỗi nghiệp vụ từ Service để trả về status 400
-            if (error.message.includes("không hợp lệ") || error.message.includes("Không thể cập nhật")) {
-                return res.status(400).json({ error: error.message });
-            }
-            res.status(500).json({ error: "Lỗi server nội bộ." });
+        if (!plan || plan.userId.toString() !== req.userId) {
+            return res.status(404).json({ error: "Không tìm thấy MealPlan." });
         }
+
+        return res.status(200).json({ data: plan });
+    } catch (error) {
+        console.error("Lỗi khi lấy chi tiết MealPlan:", error.message);
+        return res.status(500).json({ error: error.message || "Lỗi server nội bộ." });
     }
+};
 
-    /** DELETE /mealplans/:planId - Xóa Plan */
-    async deleteMealPlan(req, res) {
-        try {
-            const { planId } = req.params;
-            const userId = req.userId;
+const updatePlanStatus = async (req, res) => {
+    try {
+        const { planId } = req.params;
+        const { newStatus } = req.body;
+        const userId = req.userId;
 
-            await mealPlanService.deletePlan(userId, planId);
-            res.status(200).json({ message: "MealPlan đã được xóa thành công." });
-            
-        } catch (error) {
-            console.error("Lỗi khi xóa MealPlan:", error.message);
-            // Trả về 400 nếu không được phép xóa (ví dụ: đã selected)
-            if (error.message.includes("Không thể xóa Plan đã được chọn")) {
-                return res.status(400).json({ error: error.message });
-            }
-            res.status(500).json({ error: "Lỗi server nội bộ." });
+        if (!newStatus) return res.status(400).json({ error: "newStatus là bắt buộc." });
+
+        const updatedPlan = await mealPlanService.updatePlanStatus(userId, planId, newStatus);
+        return res.status(200).json({
+            message: `Đã cập nhật trạng thái Plan thành ${newStatus}.`,
+            data: updatedPlan,
+        });
+    } catch (error) {
+        console.error("Lỗi khi cập nhật trạng thái Plan:", error.message);
+        if (error.message.includes("không hợp lệ") || error.message.includes("Không thể cập nhật")) {
+            return res.status(400).json({ error: error.message });
         }
+        return res.status(500).json({ error: "Lỗi server nội bộ." });
     }
-}
+};
 
-module.exports = new MealPlanController();
+const deleteMealPlan = async (req, res) => {
+    try {
+        const { planId } = req.params;
+        const userId = req.userId;
+
+        await mealPlanService.deletePlan(userId, planId);
+        return res.status(200).json({ message: "MealPlan đã được xóa thành công." });
+    } catch (error) {
+        console.error("Lỗi khi xóa MealPlan:", error.message);
+        if (error.message.includes("Không thể xóa Plan đã được chọn")) {
+            return res.status(400).json({ error: error.message });
+        }
+        return res.status(500).json({ error: "Lỗi server nội bộ." });
+    }
+};
+
+module.exports = {
+    getMealPlanByStartDate,
+    createMealPlan,
+    getMealPlans,
+    getMealPlanDetail,
+    updatePlanStatus,
+    deleteMealPlan,
+};

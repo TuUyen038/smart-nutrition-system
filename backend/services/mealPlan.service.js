@@ -1,22 +1,11 @@
-// mealPlan.service.js
-
-// Đảm bảo import đúng các models và utility cần thiết
 const Meal = require('../models/DailyMenu'); // Cần để tham chiếu (dù chưa dùng trong các hàm này)
 const MealPlan = require('../models/MealPlan'); 
 const { calculateEndDate } = require('../utils/mealPlan.util');
 const mongoose = require("mongoose");
-
+const DailyMenuService = require('../services/dailyMenu.service');
 
 class MealPlanService {
     
-    /**
-     * Cập nhật MealPlan sau khi một Meal (gợi ý AI) được nhân bản/chỉnh sửa.
-     * Sử dụng $pull và $push atomic operators để đảm bảo tính toàn vẹn và hiệu suất.
-     * @param {ObjectId} mealPlanId - ID của MealPlan cần cập nhật.
-     * @param {ObjectId} oldMealId - ID của Meal gốc (A) bị thay thế.
-     * @param {ObjectId} newMealId - ID của Meal mới (B) đã chỉnh sửa.
-     * @returns {Promise<object | null>} MealPlan đã cập nhật hoặc null nếu không tìm thấy.
-     */
     async updateMealPlanOnMealClone(mealPlanId, oldMealId, newMealId) {
         if (!mealPlanId) return null; 
 
@@ -47,37 +36,64 @@ class MealPlanService {
         }
     }
 
-
-    /**
-     * Tạo một MealPlan mới, tự động tính endDate.
-     * @param {string} userId - ID người dùng.
-     * @param {object} planData - Dữ liệu plan.
-     * @returns {Promise<object>} MealPlan đã được tạo.
-     */
+    generateDateList(startDate, period) {
+        const start = new Date(startDate);
+        const days = period === "week" ? 7 : 1;
+        const dates = [];
+        for (let i = 0; i < days; i++) {
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
+            dates.push(d);
+        }
+        return dates;
+    }
+    /** Tạo Plan + DailyMenus */
     async createPlan(userId, planData) {
-        const { period, startDate } = planData;
+        const { startDate, period="week", aiMeals } = planData;
 
-        // 1. Tính toán endDate dựa trên period
         const endDate = calculateEndDate(startDate, period);
 
+        const dates = this.generateDateList(startDate, period);
+
+        const dailyMenuIds = [];
+
+        for (let i = 0; i < dates.length; i++) {
+            const date = dates[i];
+
+            const recipes = aiMeals?.[i] || []; // AI generate thì có món, user tự tạo thì []
+
+            const dailyMenu = await DailyMenuService.createMeal({
+                userId,
+                date,
+                recipes,
+                status: "planned",
+            });
+
+            dailyMenuIds.push(dailyMenu._id);
+        }
+
+        // Tạo MealPlan
         const newPlan = new MealPlan({
             ...planData,
             userId,
+            startDate,
             endDate,
-            // Mặc định status: suggested, source: ai
+            dailyMenuIds, // <--- Lưu danh sách DailyMenu
+            status: aiMeals ? "suggested" : "planned",
+            source: aiMeals ? "ai" : "user",
         });
 
-        // 2. Lưu Plan
         await newPlan.save();
+
         return newPlan;
     }
 
-    /**
-     * Lấy danh sách MealPlan của người dùng.
-     * @param {string} userId - ID người dùng.
-     * @param {object} filter - Các điều kiện lọc bổ sung.
-     * @returns {Promise<array>} Danh sách MealPlan.
-     */
+    async getPlanByStartDate(userId, startDate) {
+        return MealPlan.findOne({ userId, startDate })
+            .populate("dailyMenuIds");  
+    }
+
+
     async getPlansByUserId(userId, filter = {}) {
         // Lấy tất cả Plan của người dùng, sắp xếp theo startDate mới nhất
         return MealPlan.find({ userId, ...filter })
@@ -86,11 +102,6 @@ class MealPlanService {
             .lean();
     }
 
-    /**
-     * Lấy chi tiết một MealPlan theo ID.
-     * @param {string} planId - ID của Plan.
-     * @returns {Promise<object>} MealPlan chi tiết.
-     */
     async getPlanById(planId) {
         if (!mongoose.Types.ObjectId.isValid(planId)) {
             throw new Error("ID Plan không hợp lệ.");
@@ -98,14 +109,6 @@ class MealPlanService {
         return MealPlan.findById(planId).populate("meals").lean();
     }
 
-    /**
-     * Cập nhật trạng thái của MealPlan và xử lý các ràng buộc.
-     * Đặc biệt quan trọng khi chuyển từ "suggested" sang "selected" (active).
-     * @param {string} userId - ID người dùng.
-     * @param {string} planId - ID của Plan cần cập nhật.
-     * @param {string} newStatus - Trạng thái mới.
-     * @returns {Promise<object>} MealPlan đã cập nhật.
-     */
     async updatePlanStatus(userId, planId, newStatus) {
         const validStatuses = ["suggested", "selected", "completed", "cancelled"];
         if (!validStatuses.includes(newStatus)) {
@@ -123,7 +126,7 @@ class MealPlanService {
         }
 
         // Ràng buộc 2: Xử lý logic khi chuyển trạng thái sang "selected"
-        if (newStatus === "selected") {
+        if (newStatus === "planned") {
             // Hủy (cancelled) tất cả các MealPlan "suggested" khác đang bị chồng lấn thời gian
             await MealPlan.updateMany(
                 {
@@ -140,12 +143,6 @@ class MealPlanService {
         return plan;
     }
 
-    /**
-     * Xóa MealPlan.
-     * @param {string} userId - ID người dùng.
-     * @param {string} planId - ID của Plan.
-     * @returns {Promise<void>} 
-     */
     async deletePlan(userId, planId) {
         const result = await MealPlan.deleteOne({ _id: planId, userId, status: "suggested" });
         if (result.deletedCount === 0) {

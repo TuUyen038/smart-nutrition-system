@@ -7,42 +7,42 @@ import FoodCard from "./FoodCard";
 import MDTypography from "components/MDTypography";
 
 const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => {
+  console.log("menus: ", menus);
+  console.log("days: ", days);
+  const menusArray = Array.isArray(menus)
+  ? menus
+  : (menus && typeof menus === "object")
+    ? Object.values(menus).flat()
+    : [];
+
   return (
     <Box>
       {days.map(({ date, label }) => {
-        const menu = Array.isArray(menus[date]) ? menus[date] : []; // fallback []
+        let menu = (menusArray || []).filter(
+  (m) => m && new Date(m.date).toDateString() === new Date(date).toDateString()
+);
+        console.log("cai menu:", menu);
         const hasMenu = menu.length > 0;
-        const totalCal = menu.reduce((sum, item) => sum + (item?.calories || 0), 0);
+        console.log("has menu koooooooooo: ", hasMenu);
+        const totalCal = hasMenu
+          ? menu.reduce((sum, item) => sum + (item?.totalNutrition?.calories || 0), 0)
+          : 0;
+const totalDishes = menu.reduce((sum, m) => sum + (m.recipes?.length || 0), 0);
 
         return (
-          <Paper
-            key={date}
-            elevation={3}
-            sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}
-          >
-            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+          <Paper key={date} elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
+            <Box display="flex" justifyContent="space-between" mb={2}>
               <Box>
-                <MDTypography variant="h5">
-                  {label}
-                </MDTypography>
-                <MDTypography
-                  variant="body2"
-                  fontWeight="light"
-                  color="text"
-                  fontSize="0.9rem"
-                >
+                <MDTypography variant="h5">{label}</MDTypography>
+                <MDTypography variant="body2" color="text" fontSize="0.9rem">
                   {getDayName(date)} - {date}
                 </MDTypography>
+
                 {hasMenu && (
                   <Chip
                     icon={<RestaurantIcon />}
-                    label={`${menu.length} món - ${totalCal} kcal`}
-                    sx={{
-                      mt: 1,
-                      bgcolor: "rgba(0,0,0,0.05)",
-                      color: "text.primary",
-                      fontWeight: 600,
-                    }}
+                    label={`${totalDishes} món - ${totalCal} kcal`}
+                    sx={{ mt: 1 }}
                   />
                 )}
               </Box>
@@ -54,7 +54,7 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
                     color="info"
                     startIcon={<Edit />}
                     size="small"
-                    onClick={() => handleOpenModal({ mode: "day", date })}
+                    onClick={() => handleOpenModal({ mode: "day", date, menu, isEdit: true })}
                   >
                     Chỉnh sửa
                   </MDButton>
@@ -62,9 +62,9 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
                   <>
                     <MDButton
                       variant="contained"
+                      color="info"
                       startIcon={<RestaurantIcon />}
                       size="small"
-                      color="info"
                       onClick={() => handleOpenModal({ mode: "day", date })}
                     >
                       Tạo menu
@@ -84,21 +84,30 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
 
             {hasMenu && (
               <Grid container spacing={2}>
-                {menu.map((item, idx) => (
-                  <Grid item xs={12} sm={6} md={4} lg={3} key={item.id || item.recipeId || idx}>
-                    <FoodCard title={item.name} calories={item.calories} image={item.image}>
-                      <MDButton
-                        variant="outlined"
-                        startIcon={<Delete />}
-                        size="small"
-                        color="error"
-                        onClick={() => handleDelete(date, item.id || item.recipeId)}
-                      >
-                        Xoá
-                      </MDButton>
-                    </FoodCard>
-                  </Grid>
-                ))}
+                {menu.map((m, idx) =>
+                  m.recipes?.map((item, rIdx) => (
+                    <Grid
+                      item
+                      xs={12}
+                      sm={6}
+                      md={4}
+                      lg={3}
+                      key={item._id || item.recipeId || `${idx}-${rIdx}`}
+                    >
+                      <FoodCard title={item.name} calories={item.totalNutrition?.calories} image={item.imageUrl || "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"}>
+                        <MDButton
+                          variant="outlined"
+                          startIcon={<Delete />}
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(date, item._id || item.recipeId)}
+                        >
+                          Xoá
+                        </MDButton>
+                      </FoodCard>
+                    </Grid>
+                  ))
+                )}
               </Grid>
             )}
           </Paper>
@@ -109,7 +118,7 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
 };
 
 DayMenu.propTypes = {
-  menus: PropTypes.object.isRequired,
+  menus: PropTypes.array.isRequired,
   days: PropTypes.arrayOf(
     PropTypes.shape({
       date: PropTypes.string.isRequired,

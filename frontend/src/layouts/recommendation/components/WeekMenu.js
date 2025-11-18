@@ -1,157 +1,211 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { Box, Paper, Typography, Chip, Grid } from "@mui/material";
+import { Box, Paper, Chip, Grid } from "@mui/material";
 import { Edit, Restaurant as RestaurantIcon } from "@mui/icons-material";
 import MDButton from "components/MDButton";
 import FoodCard from "./FoodCard";
 import MDTypography from "components/MDTypography";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
+import { createMealPlan } from "services/mealPlanApi";
 
-const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName }) => {
-  if (!weekStarts.length) return null; // fallback nếu không có tuần nào
+const WeekMenu = ({ weekMenus = {}, setWeekMenus, weekStarts = [], handleOpenModal, getDayName, userId }) => {
+  if (!weekStarts.length) return null;
 
   return (
     <Box>
       {weekStarts.map(({ start, label }) => {
-        const week = weekMenus[start] || {}; // fallback {}
-        // Sắp xếp tuần từ thứ 2 → CN
-        const weekDates = Object.keys(week).sort((a, b) => new Date(a) - new Date(b));
-        const weekEnd = weekDates.length ? weekDates[weekDates.length - 1] : start;
+        const week = weekMenus[start] || {};
+        
+        // Tạo danh sách 7 ngày trong tuần
+        const weekDates = Array.from({ length: 7 }).map((_, i) => {
+          const d = new Date(start);
+          d.setDate(d.getDate() + i);
+          return d.toISOString().split("T")[0];
+        });
+        const weekEnd = weekDates[weekDates.length - 1];
 
-        const hasMenu = Object.values(week).some((dayMenu) => (dayMenu || []).length > 0);
-        const totalWeekCal = Object.values(week)
-          .flatMap((dayMenu) => dayMenu || [])
-          .reduce((sum, item) => sum + item.calories, 0);
-        const totalDishes = Object.values(week).flatMap((dayMenu) => dayMenu || []).length;
+        // Kiểm tra xem tuần này đã có meal plan chưa
+        const hasMealPlan = Object.keys(week).length > 0;
+        
+        // Tính tổng calories và số món ăn của tuần (chỉ tính món hợp lệ)
+        const allMeals = Object.values(week)
+          .flatMap(dayMenu => dayMenu || [])
+          .filter(item => item && item.name); // Lọc các món hợp lệ
+        
+        const totalWeekCal = allMeals.reduce((sum, item) => sum + (item.calories || 0), 0);
+        const totalDishes = allMeals.length;
+
+        // Trạng thái chỉnh sửa cho toàn bộ tuần
+        const [isEditingWeek, setIsEditingWeek] = React.useState(false);
+
+        const handleCreateMealPlan = async () => {
+          try {
+            await createMealPlan({
+              userId,
+              period: "week",
+              startDate: start,
+              source: "user",
+              generatedBy: "user",
+              meals: [],
+            });
+            
+            // Khởi tạo object rỗng cho 7 ngày
+            const emptyWeek = {};
+            weekDates.forEach(date => {
+              emptyWeek[date] = [];
+            });
+            
+            setWeekMenus(prev => ({ 
+              ...prev, 
+              [start]: emptyWeek 
+            }));
+            
+            alert("Đã tạo thực đơn trống cho tuần!");
+          } catch (err) {
+            console.error(err);
+            alert("Không thể tạo thực đơn");
+          }
+        };
 
         return (
-          <Paper
-            key={start}
-            elevation={3}
-            sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}
-          >
+          <Paper key={start} elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
               <Box>
                 <MDTypography variant="h5">{label}</MDTypography>
                 <MDTypography fontWeight="light" color="text" fontSize="0.9rem">
                   {start} → {weekEnd}
                 </MDTypography>
-                {hasMenu && (
+                {totalDishes > 0 && (
                   <Chip
                     icon={<RestaurantIcon />}
                     label={`${totalDishes} món - ${totalWeekCal} kcal`}
-                    sx={{
-                      mt: 1,
-                      bgcolor: "rgba(0,0,0,0.05)",
-                      color: "text.primary",
-                      fontWeight: 600,
-                    }}
+                    sx={{ mt: 1, bgcolor: "rgba(0,0,0,0.05)", color: "text.primary", fontWeight: 600 }}
                   />
                 )}
               </Box>
 
               <Box display="flex" gap={1}>
-                {!hasMenu && (
+                {!hasMealPlan ? (
+                  // Chưa có meal plan - hiện 2 nút tạo
                   <>
                     <MDButton
                       variant="contained"
                       startIcon={<RestaurantIcon />}
                       size="small"
                       color="info"
-                      onClick={() => handleOpenModal({ mode: "week", date: start })}
+                      onClick={handleCreateMealPlan}
                     >
-                      Tạo menu
+                      Tạo thực đơn
                     </MDButton>
                     <MDButton
                       variant="outlined"
                       startIcon={<RestaurantIcon />}
                       size="small"
                       color="info"
-                      onClick={() => handleOpenModal({ mode: "week", date: start })}
+                      onClick={() => handleOpenModal({ mode: "week", weekStart: start, useAI: true })}
                     >
                       Gợi ý AI
                     </MDButton>
                   </>
+                ) : (
+                  // Đã có meal plan - hiện nút chỉnh sửa
+                  <MDButton
+                    variant={isEditingWeek ? "contained" : "outlined"}
+                    startIcon={<Edit />}
+                    size="small"
+                    color="info"
+                    onClick={() => setIsEditingWeek(!isEditingWeek)}
+                  >
+                    {isEditingWeek ? "Đang chỉnh sửa" : "Chỉnh sửa"}
+                  </MDButton>
                 )}
               </Box>
             </Box>
 
-            {weekDates.length > 0 && (
-              <Box>
-                {weekDates.map((date) => {
-                  const dayMenu = week[date] || [];
-                  const dayCal = dayMenu.reduce((sum, item) => sum + item.calories, 0);
+            {/* Hiển thị các ngày trong tuần */}
+            {hasMealPlan && weekDates.map(date => {
+              const dayMenu = week[date] || [];
+              const validItems = dayMenu.filter(item => item && item.name);
+              const dayCal = validItems.reduce((sum, item) => sum + (item.calories || 0), 0);
 
-                  return (
-                    <Box key={date} mb={2}>
-                      <Paper
-                        component="div"
-                        sx={{
-                          p: 0,
-                          bgcolor: "white",
-                          borderRadius: 2,
-                          border: "1px solid rgba(0,0,0,0.05)",
-                          boxShadow: "0px 1px 4px rgba(0,0,0,0.04)",
-                          position: "relative",
-                        }}
-                      >
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          mb={0}
-                          sx={{
-                            backgroundColor: "#f5f5f5",
-                            p: 1,
-                            width: "100%",
-                            zIndex: 10,
-                          }}
-                        >
-                          <Box display="flex" alignItems="center" gap={1} mb={0}>
-                            <MDTypography variant="h6" fontSize="0.9rem">
-                              {getDayName(date)}
-                            </MDTypography>
-                            <MDTypography
-                              variant="body2"
-                              fontWeight="light"
-                              color="text"
-                              fontSize="0.8rem"
-                            >
-                              ( {date} )
-                            </MDTypography>
-                            <Chip
-                              icon={<LocalFireDepartmentIcon />}
-                              label={`${dayCal} kcal`}
-                              size="small"
-                              // color="warning"
-                            />
-                          </Box>
-                          <Box alignItems="center">
-                            <MDButton
-                              variant="outlined"
-                              startIcon={<Edit />}
-                              size="small"
-                              color="info"
-                              onClick={() => handleOpenModal({ weekStart: start, date })} 
-                            >
-                              Chỉnh sửa
-                            </MDButton>
-                          </Box>
+              return (
+                <Box key={date} mb={2}>
+                  <Paper
+                    sx={{
+                      p: 0,
+                      bgcolor: "white",
+                      borderRadius: 2,
+                      border: "1px solid rgba(0,0,0,0.05)",
+                      boxShadow: "0px 1px 4px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <Box
+                      display="flex"
+                      justifyContent="space-between"
+                      alignItems="center"
+                      mb={0}
+                      sx={{ backgroundColor: "#f5f5f5", p: 1, width: "100%" }}
+                    >
+                      <Box display="flex" alignItems="center" gap={1} mb={0}>
+                        <MDTypography variant="h6" fontSize="0.9rem">
+                          {getDayName(date)}
+                        </MDTypography>
+                        <MDTypography variant="body2" fontWeight="light" color="text" fontSize="0.8rem">
+                          ({date})
+                        </MDTypography>
+                        {validItems.length > 0 && (
+                          <Chip
+                            icon={<LocalFireDepartmentIcon />}
+                            label={`${validItems.length} món - ${dayCal} kcal`}
+                            size="small"
+                          />
+                        )}
+                      </Box>
+
+                      {/* Chỉ hiện nút chỉnh sửa ngày khi đang ở chế độ chỉnh sửa tuần */}
+                      {isEditingWeek && (
+                        <Box alignItems="center">
+                          <MDButton
+                            variant="outlined"
+                            startIcon={<Edit />}
+                            size="small"
+                            color="info"
+                            onClick={() => handleOpenModal({ 
+                              weekStart: start, 
+                              date,
+                              mode: "day" 
+                            })}
+                          >
+                            Chỉnh sửa ngày
+                          </MDButton>
                         </Box>
-
-                        <Grid container spacing={2} p={2}>
-                          {dayMenu.map((item) => (
-                            <Grid item xs={12} sm={6} md={3} key={`${date}-${item.id}`}>
-                              <FoodCard title={item.name} calories={item.calories} image={item.image} />
-                            </Grid>
-                          ))}
-                        </Grid>
-                      </Paper>
+                      )}
                     </Box>
-                  );
-                })}
-              </Box>
-            )}
+
+                    {/* Hiện danh sách món ăn nếu có */}
+                    {validItems.length > 0 ? (
+                      <Grid container spacing={2} p={2}>
+                        {validItems.map((item, idx) => (
+                          <Grid item xs={12} sm={6} md={3} key={`${date}-${item.id || idx}`}>
+                            <FoodCard
+                              title={item.name}
+                              calories={item.calories || 0}
+                              image={item.image || "https://via.placeholder.com/150"}
+                            />
+                          </Grid>
+                        ))}
+                      </Grid>
+                    ) : (
+                      <Box p={2} textAlign="center">
+                        <MDTypography variant="body2" color="text" fontWeight="light">
+                          Chưa có món ăn cho ngày này
+                        </MDTypography>
+                      </Box>
+                    )}
+                  </Paper>
+                </Box>
+              );
+            })}
           </Paper>
         );
       })}
@@ -160,10 +214,12 @@ const WeekMenu = ({ weekMenus = {}, weekStarts = [], handleOpenModal, getDayName
 };
 
 WeekMenu.propTypes = {
-  weekMenus: PropTypes.object, // fallback {}
-  weekStarts: PropTypes.array, // fallback []
+  weekMenus: PropTypes.object.isRequired,
+  setWeekMenus: PropTypes.func.isRequired,
+  weekStarts: PropTypes.array.isRequired,
   handleOpenModal: PropTypes.func.isRequired,
   getDayName: PropTypes.func.isRequired,
+  userId: PropTypes.string.isRequired,
 };
 
 export default WeekMenu;

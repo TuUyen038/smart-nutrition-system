@@ -7,18 +7,18 @@ const mealPlanSchema = new mongoose.Schema({
     required: true 
   },
 
-  // "day" hoặc "week"
-  period: { 
-    type: String, 
-    enum: ["day", "week"], 
-    default: "day" 
-  },
+  // // "day" hoặc "week"
+  // period: { 
+  //   type: String, 
+  //   enum: ["day", "week"], 
+  //   default: "week" 
+  // },
 
   startDate: { type: Date, required: true },
   endDate: { type: Date},
 
   // Các meal cụ thể trong giai đoạn này
-  meals: [{ type: mongoose.Schema.Types.ObjectId, ref: "Meal" }],
+  dailyMenuIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Meal" }],
 
   // Nguồn tạo ra plan
   source: { 
@@ -31,7 +31,7 @@ const mealPlanSchema = new mongoose.Schema({
 
   status: { 
     type: String, 
-    enum: ["suggested", "selected", "completed", "cancelled"], 
+    enum: ["suggested", "planned", "completed", "cancelled"], 
     default: "suggested" 
   },
 

@@ -1,4 +1,4 @@
-function calculateEndDate(startDate, period) {
+function calculateEndDate(startDate, period = "week") {
     const start = new Date(startDate);
     const end = new Date(start);
 
