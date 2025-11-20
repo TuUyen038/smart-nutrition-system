@@ -45,7 +45,7 @@ exports.createMeal = async (data) => {
     if (feedback !== undefined) existing.feedback = feedback;
 
     await existing.save();
-    console.log(`Cập nhật menu cho ngày ${date}`);
+    // console.log(`Cập nhật menu cho ngày ${date}`);
 
     return { type: "updated", data: existing };
 

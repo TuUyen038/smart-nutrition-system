@@ -18,7 +18,7 @@ const mealPlanSchema = new mongoose.Schema({
   endDate: { type: Date},
 
   // Các meal cụ thể trong giai đoạn này
-  dailyMenuIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Meal" }],
+  dailyMenuIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "DailyMenu" }],
 
   // Nguồn tạo ra plan
   source: { 

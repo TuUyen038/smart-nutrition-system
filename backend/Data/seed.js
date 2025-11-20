@@ -4,6 +4,7 @@ const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 const MONGO_URI = process.env.MONGO_URI;
 const DailyMenu = require("../models/DailyMenu");
+const MealPlan = require("../models/MealPlan");
 
 async function seed() {
   await mongoose.connect(MONGO_URI);
@@ -510,6 +511,8 @@ async function seed() {
 
 // //xoa het du lieu cu
   await DailyMenu.deleteMany({});
+  await MealPlan.deleteMany({});
+
 
 
   process.exit();

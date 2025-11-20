@@ -2,15 +2,13 @@ const mealPlanService = require('../services/mealPlan.service');
 
 const getMealPlanByStartDate = async (req, res) => {
     try {
-        const userId = req.userId; // lấy từ middleware auth
-        const { startDate } = req.query; // ?startDate=2025-11-17
-
+        const userId = "68f4394c4d4cc568e6bc5daa" // lấy từ middleware auth
+        const { startDate } = req.query;
         if (!startDate) {
             return res.status(400).json({ error: "startDate là bắt buộc." });
         }
 
         const plan = await mealPlanService.getPlanByStartDate(userId, startDate);
-
         if (!plan) {
             return res.status(404).json({ error: "Không tìm thấy MealPlan cho ngày bắt đầu này." });
         }
