@@ -23,7 +23,6 @@ function MealPlannerTabs() {
   const [editingDate, setEditingDate] = useState(null);
   const [editingWeekStart, setEditingWeekStart] = useState(null);
 
-  // Sử dụng hook
   const {
     recipes,
     isLoadingRecipes,
@@ -31,8 +30,10 @@ function MealPlannerTabs() {
     setMenus,
     weekMenus,
     setWeekMenus,
+    mealPlanIds,
     saveDayMenus,
     saveWeekMenus,
+    createEmptyMealPlan,
     today,
     tomorrow,
     weekThisStart,
@@ -77,6 +78,13 @@ function MealPlannerTabs() {
     } else {
       setCurrentMenu([]);
     }
+    setOpenModal(true);
+  };
+
+  const handleOpenModalForWeekDay = ({ date, weekStart }) => {
+    setEditingDate(date);
+    setEditingWeekStart(weekStart);
+    setCurrentMenu(weekMenus[weekStart]?.[date] || []);
 
     // else if (mode === "week") {
     //   setEditingDate(weekStart);
@@ -104,13 +112,6 @@ function MealPlannerTabs() {
     setOpenModal(true);
   };
 
-  const handleOpenModalForWeekDay = ({ date, weekStart }) => {
-    setEditingDate(date);
-    setEditingWeekStart(weekStart);
-    setCurrentMenu(weekMenus[weekStart]?.[date] || []);
-    setOpenModal(true);
-  };
-
   const handleCloseModal = () => {
     setOpenModal(false);
     setEditingWeekStart(null);
@@ -132,33 +133,45 @@ function MealPlannerTabs() {
 
       const saved = await saveDayMenus(date, updatedItems); // giả sử trả về DailyMenu mới
       setMenus((prev) => {
-      // ✅ Filter out null/undefined trước khi xử lý
-      const prevArray = Array.isArray(prev) 
-        ? prev.filter(m => m && m.date) // Loại bỏ null/undefined
-        : [];
-      
-      const existIdx = prevArray.findIndex(
-        (m) => new Date(m.date).toDateString() === new Date(date).toDateString()
-      );
+        // ✅ Filter out null/undefined trước khi xử lý
+        const prevArray = Array.isArray(prev)
+          ? prev.filter((m) => m && m.date) // Loại bỏ null/undefined
+          : [];
 
-      if (existIdx >= 0) {
-        return prevArray.map((menu, idx) => 
-          idx === existIdx ? saved : menu
+        const existIdx = prevArray.findIndex(
+          (m) => new Date(m.date).toDateString() === new Date(date).toDateString()
         );
-      }
 
-      return [...prevArray, saved];
-    });
+        if (existIdx >= 0) {
+          return prevArray.map((menu, idx) => (idx === existIdx ? saved : menu));
+        }
 
+        return [...prevArray, saved];
+      });
     }
 
     if (currentMode === "week") {
       setWeekMenus((prev) => ({
         ...prev,
-        [editingWeekStart]: updatedItems,
+        [editingWeekStart]: {
+          ...prev[editingWeekStart],
+          [date]: updatedItems, // Update ngày cụ thể
+        },
       }));
 
-      await saveWeekMenus(editingWeekStart);
+      // ✅ Save và nhận data đã transform
+      const transformedData = await saveWeekMenus(editingWeekStart);
+
+      // ✅ Update lại state với data từ API
+      if (transformedData) {
+        setWeekMenus((prev) => ({
+          ...prev,
+          [editingWeekStart]: {
+            ...prev[editingWeekStart],
+            ...transformedData, // Merge data từ API
+          },
+        }));
+      }
     }
 
     setOpenModal(false);
@@ -222,6 +235,8 @@ function MealPlannerTabs() {
               <WeekMenu
                 weekMenus={weekMenus}
                 setWeekMenus={setWeekMenus}
+                mealPlanIds={mealPlanIds}
+                createEmptyMealPlan={createEmptyMealPlan}
                 weekStarts={[
                   { start: weekThisStart, label: "Tuần này" },
                   { start: weekNextStart, label: "Tuần sau" },

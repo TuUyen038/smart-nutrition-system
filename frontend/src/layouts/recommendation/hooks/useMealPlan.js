@@ -12,6 +12,7 @@ export function useMealPlanner(userId, currentMode) {
   const [isLoadingRecipes, setIsLoadingRecipes] = useState(true);
   const [menus, setMenus] = useState([]);
   const [weekMenus, setWeekMenus] = useState({});
+  const [mealPlanIds, setMealPlanIds] = useState({}); // ✅ Track MealPlan IDs
 
   // DYNAMIC DATES
   const todayDate = new Date();
@@ -28,6 +29,33 @@ export function useMealPlanner(userId, currentMode) {
     d.setDate(diff);
     return formatDateVN(d);
   };
+  const getWeekRange = (inputDate = new Date()) => {
+  const d = new Date(inputDate);
+
+  // Xác định thứ trong tuần (0: CN, 1: T2, ..., 6: T7)
+  const day = d.getDay();
+
+  // Tính ngày đầu tuần (Thứ Hai)
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  const monday = new Date(d);
+  monday.setDate(d.getDate() + diffToMonday);
+
+  // Ngày cuối tuần = Monday + 6 ngày
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+
+  // Format YYYY-MM-DD theo local
+  const toLocalDateStr = (dt) => {
+    const y = dt.getFullYear();
+    const m = String(dt.getMonth() + 1).padStart(2, "0");
+    const day = String(dt.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  return [toLocalDateStr(monday), toLocalDateStr(sunday)];
+};
+
 
   const weekThisStart = getWeekStart(todayDate);
   const nextWeekDate = new Date(
@@ -84,7 +112,6 @@ export function useMealPlanner(userId, currentMode) {
     };
 
     const saved = await createDailyMenu(payload);
-    console.log("Raw API response:", saved.data);
 
     const transformedData = {
       ...saved.data,
@@ -109,34 +136,116 @@ export function useMealPlanner(userId, currentMode) {
     return transformedData;
   };
 
-  const saveWeekMenus = async (editingWeekStart) => {
-    const weekObj = weekMenus[editingWeekStart];
-    if (!weekObj) return;
+  const createEmptyMealPlan = async (weekStart) => {
+    try {
+      // ✅ CHECK: Đã có MealPlan chưa?
+      if (mealPlanIds[weekStart]) {
+        console.log("⚠️ MealPlan đã tồn tại:", mealPlanIds[weekStart]);
+        return mealPlanIds[weekStart];
+      }
 
-    const dailyPayloads = mapMenusToDailyMenuPayload(weekObj);
-    const mealPlanPayload = {
-      userId,
-      period: "week",
-      startDate: editingWeekStart,
-      endDate: formatDateVN(
-        new Date(new Date(editingWeekStart).setDate(new Date(weekStart).getDate() + 6))
-      ),
-      meals: [],
-      source: "user",
-      generatedBy: "user",
-    };
+      // ✅ Tạo MealPlan trống (backend sẽ tự tạo DailyMenu nếu cần)
+      const newMealPlan = await createMealPlan({
+        userId,
+        period: "week",
+        startDate: weekStart,
+        dailyMenuIds: [], // ✅ Backend sẽ xử lý logic tạo DailyMenu
+        source: "user",
+        generatedBy: "user",
+      });
 
-    for (const dayMenu of dailyPayloads) {
-      const response = await createDailyMenu(dayMenu);
-      const dailyMenuId = response?._id || response?.data?._id;
-      if (dailyMenuId) mealPlanPayload.meals.push(dailyMenuId);
-    }
+      const newMealPlanId = newMealPlan?._id || newMealPlan?.data?._id;
+      if (newMealPlanId) {
+        setMealPlanIds((prev) => ({
+          ...prev,
+          [weekStart]: newMealPlanId,
+        }));
+        console.log("✅ Created empty MealPlan:", newMealPlanId);
+      }
 
-    if (mealPlanPayload.meals.length > 0) {
-      await createMealPlan(mealPlanPayload);
+      // ✅ Khởi tạo weekMenus (7 ngày trống)
+      // const emptyWeek = createWeekDates(weekStart);
+      // setWeekMenus(prev => ({
+      //   ...prev,
+      //   [weekStart]: emptyWeek
+      // }));
+
+      return newMealPlanId;
+    } catch (err) {
+      console.error("❌ Error creating empty MealPlan:", err);
+      throw err;
     }
   };
 
+  const saveWeekMenus = async (editingWeekStart) => {
+  try {
+    const weekObj = weekMenus[editingWeekStart];
+    
+    if (!weekObj || !weekObj.dailyMenuIds) {
+      console.log("⚠️ Không có dữ liệu tuần để lưu");
+      return;
+    }
+
+    console.log("💾 Saving week menus for:", editingWeekStart);
+
+    // ✅ Loop qua từng DailyMenu và upsert
+    const updatePromises = weekObj.dailyMenuIds.map(async (dayMenu, index) => {
+      // Tính date từ startDate + index
+      const date = new Date(editingWeekStart);
+      date.setDate(date.getDate() + index);
+      const dateStr = date.toISOString().split("T")[0]; // "YYYY-MM-DD"
+
+      // Lấy recipes từ dayMenu
+      const recipes = (dayMenu.recipes || []).filter(r => r && (r._id || r.recipeId || r.id));
+      
+      if (recipes.length === 0) {
+        console.log(`ℹ️ No recipes for ${dateStr}, skipping...`);
+        return null;
+      }
+
+      // ✅ Chuẩn bị payload cho API upsert
+      const payload = {
+        userId,
+        date: dateStr,
+        recipes: recipes.map((r) => ({
+          recipeId: r._id || r.recipeId || r.id,
+          portion: r.portion || 1,
+          note: r.note || "",
+          servingTime: r.servingTime || "other",
+          status: r.status || "planned",
+        })),
+        status: "planned",
+      };
+
+      console.log(`📝 Upserting DailyMenu for ${dateStr}`);
+
+      // ✅ GỌI API UPSERT (createMeal)
+      const response = await createDailyMenu(payload);
+      
+      console.log(`✅ ${response.type} DailyMenu for ${dateStr}`);
+      
+      return response.data;
+    });
+
+    // Chờ tất cả upserts hoàn thành
+    const results = await Promise.all(updatePromises);
+    const validResults = results.filter(r => r !== null);
+
+    console.log(`✅ Saved ${validResults.length} DailyMenus`);
+
+    // ✅ KHÔNG CẦN update MealPlan
+    // MealPlan.dailyMenuIds vẫn giữ nguyên
+    // Khi populate sẽ tự động lấy data mới từ DailyMenu
+
+    // ✅ Refresh lại data từ server để UI update
+    // await fetchMealPlans();
+
+    return validResults;
+  } catch (error) {
+    console.error("❌ Error saving week menus:", error);
+    throw error;
+  }
+};
   // =====================
   // FETCH DATA ON LOAD
   // =====================
@@ -163,42 +272,36 @@ export function useMealPlanner(userId, currentMode) {
     };
 
     const fetchWeeklyData = async () => {
-      console.log("vao fetchWeeklyData");
-      // Init tuần trống
-      const weekObj = createWeekDates(weekThisStart);
-      setWeekMenus((prev) => ({ ...prev, [weekThisStart]: weekObj }));
+      const [startDate1, endDate1] = getWeekRange(new Date());
 
-      // Load DailyMenu từng ngày
-      const dayKeys = Object.keys(weekObj);
-      await Promise.all(
-        dayKeys.map(async (date) => {
-          const daily = await getRecipesByDateAndStatus(userId, date); // fetch riêng từng ngày
-          if (daily)
-            weekObj[date] = daily.map((r) => ({
-              id: r.recipeId,
-              portion: r.portion,
-              note: r.note,
-            }));
-        })
-      );
+      const nextWeekDate = new Date(startDate1);
+      nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+      const [startDate2, endDate2] = getWeekRange(nextWeekDate);
+      console.log("startDate1: ", startDate1);
+      console.log("startDate2: ", startDate2);
+      console.log("📅 Fetching weekly data...");
+      const weekObj = [];
 
-      // Cập nhật weekMenus sau khi fetch DailyMenu
-      setWeekMenus((prev) => ({ ...prev, [weekThisStart]: { ...weekObj } }));
+      try {
+        const plan1 = await getPlanByStartDate(userId, startDate1);
+        const plan2 = await getPlanByStartDate(userId, startDate2);
 
-      // Nếu có MealPlan, merge dữ liệu (optional)
-      const plan = await getPlanByStartDate(weekThisStart);
-      if (plan) {
-        plan.dailyMenuIds.forEach((d) => {
-          const date = formatDateVN(new Date(d.date));
-          weekObj[date] = (d.recipes || []).map((r) => ({
-            id: r.recipeId,
-            portion: r.portion,
-            note: r.note,
-          }));
+        // Khi set dữ liệu từ 2 plan
+        setWeekMenus({
+          [startDate1]: plan1,
+          [startDate2]: plan2,
         });
-        setWeekMenus((prev) => ({ ...prev, [weekThisStart]: { ...weekObj } }));
+
+        console.log("weekMenus neeeeeeee:", weekMenus);
+      } catch (error) {
+        console.error("❌ Error fetching weekly data:", error);
+        setWeekMenus((prev) => ({
+          ...prev,
+          [weekThisStart]: { ...weekObj },
+        }));
       }
     };
+
     const fetchDailyData = async () => {
       console.log("vao fetchDailyData");
       try {
@@ -218,7 +321,7 @@ export function useMealPlanner(userId, currentMode) {
     fetchRecipes();
     if (currentMode === "day") fetchDailyData();
     if (currentMode === "week") fetchWeeklyData();
-  }, [userId]);
+  }, [currentMode]);
 
   return {
     recipes,
@@ -227,8 +330,10 @@ export function useMealPlanner(userId, currentMode) {
     setMenus,
     weekMenus,
     setWeekMenus,
+    mealPlanIds,
     saveDayMenus,
     saveWeekMenus,
+    createEmptyMealPlan,
     today,
     tomorrow,
     weekThisStart,

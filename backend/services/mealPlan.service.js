@@ -121,7 +121,13 @@ async getPlanByStartDate(userId, startDateStr) {
   return MealPlan.findOne({
     userId,
     startDate: { $gte: start, $lte: end }
-  }).populate("dailyMenuIds");
+  })
+  .populate({
+    path: "dailyMenuIds",
+    populate: {
+      path: "recipes",
+    }
+  });
 }
 
 

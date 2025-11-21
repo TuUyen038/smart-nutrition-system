@@ -12,13 +12,14 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
     : menus && typeof menus === "object"
     ? Object.values(menus).flat()
     : [];
-
+  console.log("menusArray: ", menusArray);
   return (
     <Box>
       {days.map(({ date, label }) => {
         let menu = (menusArray || []).filter(
           (m) => m && new Date(m.date).toDateString() === new Date(date).toDateString()
         );
+        console.log("menu: ", menu);
         const hasMenu = menu.length > 0;
         const totalCal = hasMenu
           ? menu.reduce((sum, item) => sum + (item?.totalNutrition?.calories || 0), 0)

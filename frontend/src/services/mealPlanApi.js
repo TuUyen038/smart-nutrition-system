@@ -20,13 +20,13 @@ export const createMealPlan = async (payload) => {
 };
 
 //get by startDate
-export const getPlanByStartDate = async (startDate) => {
+export const getPlanByStartDate = async (userId, startDate) => {
   try {
     const res = await fetch(`${API_BASE_URL}/by-startdate?startDate=${startDate}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        // 'Authorization': `Bearer ${localStorage.getItem('token')}`
       }
     });
 
