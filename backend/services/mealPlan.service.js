@@ -4,7 +4,7 @@ const { calculateEndDate } = require("../utils/mealPlan.util");
 const mongoose = require("mongoose");
 const DailyMenuService = require("../services/dailyMenu.service");
 const DailyMenu = require("../models/DailyMenu");
-
+const { normalizeDate } = require("../utils/date");
 class MealPlanService {
   async updateMealPlanOnMealClone(mealPlanId, oldMealId, newMealId) {
     if (!mealPlanId) return null;
@@ -38,21 +38,28 @@ class MealPlanService {
   }
 
   generateDateList(startDate, period) {
-    const start = new Date(startDate);
-    const days = period === "week" ? 7 : 1;
-    const dates = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      dates.push(d);
+    startDate = normalizeDate(startDate);
+
+    let total = period === "week" ? 7 : 1; // ví dụ custom thì bạn mở rộng
+
+    const list = [];
+    let d = new Date(startDate + "T00:00:00+07:00");
+
+    for (let i = 0; i < total; i++) {
+      list.push(normalizeDate(d));
+      d.setDate(d.getDate() + 1);
     }
-    return dates;
+
+    return list;
   }
+
   /** Tạo Plan + DailyMenus */
   async createPlan(userId, planData) {
     const { startDate, period = "week", aiMeals } = planData;
-    const endDate = calculateEndDate(startDate, period);
-    const dates = this.generateDateList(startDate, period);
+    const startDateNorm = normalizeDate(startDate);
+    const endDate = calculateEndDate(startDateNorm, period);
+    const dates = this.generateDateList(startDateNorm, period);
+
     //existingMenus, dailyMenuIds,
     const existingMenus = await DailyMenu.find({
       userId,
@@ -69,17 +76,17 @@ class MealPlanService {
 
     for (let i = 0; i < dates.length; i++) {
       const val = new Date(dates[i]);
-      const date = `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;
+      const date = normalizeDate(dates[i]);
 
       let dailyMenu;
-        console.log('date: ', date);
+      console.log("date: ", date);
 
       if (existingMap[date]) {
         // Nếu đã có DailyMenu → dùng lại
         // console.log("dailyMenuId ne: ", existingMap[date]);
         dailyMenu = existingMap[date];
       } else {
-        console.log('ngay nay chua co dailymenu')
+        console.log("ngay nay chua co dailymenu");
         // Nếu chưa có → tạo mới
         const recipes = aiMeals?.[i] || [];
         dailyMenu = await DailyMenuService.createMeal({
@@ -98,7 +105,7 @@ class MealPlanService {
     const newPlan = new MealPlan({
       ...planData,
       userId,
-      startDate,
+      startDate: startDateNorm,
       endDate,
       dailyMenuIds,
       status: aiMeals ? "suggested" : "planned",
@@ -109,27 +116,14 @@ class MealPlanService {
     return newPlan;
   }
 
-async getPlanByStartDate(userId, startDateStr) {
-  // startDateStr: "YYYY-MM-DD"
-  
-  // đầu ngày UTC
-  const start = new Date(`${startDateStr}T00:00:00.000Z`);
-  // cuối ngày UTC
-  const end   = new Date(`${startDateStr}T23:59:59.999Z`);
+  async getPlanByStartDate(userId, startDateStr) {
+    const startDate = normalizeDate(startDateStr);
 
-  
-  return MealPlan.findOne({
-    userId,
-    startDate: { $gte: start, $lte: end }
-  })
-  .populate({
-    path: "dailyMenuIds",
-    populate: {
-      path: "recipes",
-    }
-  });
-}
-
+    return MealPlan.findOne({
+      userId,
+      startDate,
+    }).populate("dailyMenuIds");
+  }
 
   async getPlansByUserId(userId, filter = {}) {
     // Lấy tất cả Plan của người dùng, sắp xếp theo startDate mới nhất

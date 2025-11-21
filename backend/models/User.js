@@ -13,11 +13,6 @@ const userSchema = new mongoose.Schema({
   allergies: [String],
 }, { timestamps: true });
 
-/**
- * 🧩 Middleware:
- * - Khi user được tạo mới hoặc cập nhật thông tin dinh dưỡng,
- *   tự động tính toán lại NutritionGoal tương ứng.
- */
 userSchema.post("save", async function (doc, next) {
   try {
     // ⚠️ Chỉ chạy khi đủ thông tin để tính
