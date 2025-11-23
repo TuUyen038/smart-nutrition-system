@@ -6,7 +6,7 @@ const { normalizeDate } = require("../utils/date");
 
 exports.createMeal = async (data) => {
   try {
-    const { userId, date, recipes, status, feedback } = data;
+    let { userId, date, recipes, status, feedback } = data;
 
     if (!userId || !date) {
       throw new Error("Thiếu userId hoặc date.");

@@ -8,6 +8,12 @@ import MDTypography from "components/MDTypography";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import { createMealPlan } from "services/mealPlanApi";
 
+const formatDate = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
+    2,
+    "0"
+  )}`;
+
 const WeekMenu = ({
   weekMenus = {},
   setWeekMenus,
@@ -24,30 +30,26 @@ const WeekMenu = ({
     <Box>
       {weekStarts.map(({ start, label }) => {
         const week = weekMenus[start] || {};
-        console.log("2. week for", start, ":", week);
-        console.log("3. week.dailyMenuIds:", week.dailyMenuIds);
-        console.log("4. Has dailyMenuIds?", Array.isArray(week.dailyMenuIds));
-
-        // Tạo danh sách 7 ngày trong tuần
+        const [year, month, day] = start.split("-").map(Number);
+        const startDate = new Date(year, month - 1, day);
         const weekDates = Array.from({ length: 7 }).map((_, i) => {
-          const d = new Date(start);
+          const d = new Date(startDate);
           d.setDate(d.getDate() + i);
-          return d.toISOString().split("T")[0];
+          return formatDate(d);
         });
-        const weekEnd = weekDates[weekDates.length - 1];
+        const weekEnd = weekDates[6];
 
-        // Kiểm tra xem tuần này đã có meal plan chưa
-        const hasMealPlan = week.dailyMenuIds && week.dailyMenuIds.length > 0;
+        const hasMealPlan = Object.keys(week).length > 0;
 
-        // ✅ Tính tổng calories và số món ăn của tuần
         const allMeals = (week.dailyMenuIds || [])
           .flatMap((dayMenu) => dayMenu.recipes || [])
-          .filter((item) => item && item.name);
+          .filter((item) => item && item.recipeId.name);
 
-        const totalWeekCal = allMeals.reduce(
-          (sum, item) => sum + (item.totalNutrition?.calories || 0), 
+        const totalWeekCal = (week.dailyMenuIds || []).reduce(
+          (sum, dayMenu) => sum + (dayMenu.totalNutrition?.calories || 0),
           0
         );
+
         const totalDishes = allMeals.length;
 
         const [isEditingWeek, setIsEditingWeek] = React.useState(false);
@@ -126,16 +128,13 @@ const WeekMenu = ({
               </Box>
             </Box>
 
-            {/* ✅ Hiển thị các ngày trong tuần */}
+            {/* Hiển thị các ngày trong tuần */}
             {hasMealPlan &&
               (week.dailyMenuIds || []).map((dayMenu, index) => {
                 const date = weekDates[index];
-                const validItems = (dayMenu.recipes || [])
-                console.log('validItems', validItems);
-                const dayCal = validItems.reduce(
-                  (sum, item) => sum + (item.totalNutrition?.calories || 0),
-                  0
-                );
+                const validItems = (dayMenu.recipes || []).filter(Boolean);
+
+                const dayCal = dayMenu.totalNutrition?.calories || 0;
 
                 return (
                   <Box key={date} mb={2}>
@@ -188,7 +187,7 @@ const WeekMenu = ({
                                   weekStart: start,
                                   date,
                                   mode: "day",
-                                  dailyMenuId: dayMenu._id, // ✅ Truyền dailyMenuId để edit
+                                  dailyMenuId: dayMenu._id,
                                 })
                               }
                             >
@@ -203,9 +202,9 @@ const WeekMenu = ({
                           {validItems.map((item, idx) => (
                             <Grid item xs={12} sm={6} md={3} key={item._id || idx}>
                               <FoodCard
-                                title={item.name}
-                                calories={item.totalNutrition?.calories || 0}
-                                image={item.image || "https://via.placeholder.com/150"}
+                                title={item.recipeId?.name}
+                                calories={item.recipeId.totalNutrition?.calories || 0}
+                                image={item.recipeId?.image || "https://via.placeholder.com/150"}
                               />
                             </Grid>
                           ))}
@@ -227,6 +226,7 @@ const WeekMenu = ({
     </Box>
   );
 };
+
 WeekMenu.propTypes = {
   weekMenus: PropTypes.object.isRequired,
   setWeekMenus: PropTypes.func.isRequired,

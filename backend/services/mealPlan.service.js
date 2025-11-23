@@ -46,8 +46,10 @@ class MealPlanService {
     let d = new Date(startDate + "T00:00:00+07:00");
 
     for (let i = 0; i < total; i++) {
-      list.push(normalizeDate(d));
-      d.setDate(d.getDate() + 1);
+      const current = new Date(d);
+      current.setDate(d.getDate() + i);
+      list.push(normalizeDate(current));
+      console.log("current: ", current);
     }
 
     return list;
@@ -56,6 +58,7 @@ class MealPlanService {
   /** Tạo Plan + DailyMenus */
   async createPlan(userId, planData) {
     const { startDate, period = "week", aiMeals } = planData;
+    console.log("startDate: ", startDate);
     const startDateNorm = normalizeDate(startDate);
     const endDate = calculateEndDate(startDateNorm, period);
     const dates = this.generateDateList(startDateNorm, period);
@@ -68,36 +71,32 @@ class MealPlanService {
 
     const existingMap = {};
     existingMenus.forEach((dm) => {
-      existingMap[dm.date.toISOString().slice(0, 10)] = dm;
+      existingMap[normalizeDate(dm.date)] = dm;
     });
     // console.log("existingMap: ", existingMap);
 
     const dailyMenuIds = [];
 
     for (let i = 0; i < dates.length; i++) {
-      const val = new Date(dates[i]);
-      const date = normalizeDate(dates[i]);
+      const date = dates[i]; // string chuẩn
 
-      let dailyMenu;
-      console.log("date: ", date);
+      let dailyMenu = existingMap[date];
 
-      if (existingMap[date]) {
-        // Nếu đã có DailyMenu → dùng lại
-        // console.log("dailyMenuId ne: ", existingMap[date]);
-        dailyMenu = existingMap[date];
-      } else {
-        console.log("ngay nay chua co dailymenu");
-        // Nếu chưa có → tạo mới
-        const recipes = aiMeals?.[i] || [];
-        dailyMenu = await DailyMenuService.createMeal({
+      if (!dailyMenu) {
+        const result = await DailyMenuService.createMeal({
           userId,
           date,
-          recipes,
+          recipes: aiMeals?.[i] || [],
           status: "planned",
         });
-        // console.log("dailyMenu neeeeeeeeeeeeee: ", dailyMenu);
+
+        if (!result?.data) {
+          throw new Error(`Cannot create DailyMenu for ${date}`);
+        }
+
+        dailyMenu = result.data;
       }
-      dailyMenuIds.push(dailyMenu.data._id.toString());
+      dailyMenuIds.push(dailyMenu);
     }
 
     console.log("dailyMenuIds: ", dailyMenuIds);
@@ -117,13 +116,20 @@ class MealPlanService {
   }
 
   async getPlanByStartDate(userId, startDateStr) {
-    const startDate = normalizeDate(startDateStr);
+  const startDate = normalizeDate(startDateStr);
 
-    return MealPlan.findOne({
-      userId,
-      startDate,
-    }).populate("dailyMenuIds");
-  }
+  return MealPlan.findOne({
+    userId,
+    startDate,
+  })
+    .populate({
+      path: "dailyMenuIds",
+      populate: {
+        path: "recipes.recipeId",   // ✔ populate đúng trường
+        model: "Recipe",
+      },
+    });
+}
 
   async getPlansByUserId(userId, filter = {}) {
     // Lấy tất cả Plan của người dùng, sắp xếp theo startDate mới nhất
