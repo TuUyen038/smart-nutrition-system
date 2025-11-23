@@ -38,24 +38,17 @@ const WeekMenu = ({
           return formatDate(d);
         });
         const weekEnd = weekDates[6];
-
         const hasMealPlan = Object.keys(week).length > 0;
+        // const allMeals = Object.values(week)
+        //   .flatMap((dayMeals) => dayMeals || [])
+        //   .filter((item) => item && item.name);
+        const totalWeekCal = Object.values(week)
+          .flatMap((dayMeals) => dayMeals || [])
+          .reduce((sum, meal) => sum + (meal?.calories || 0), 0);
 
-        const allMeals = (week.dailyMenuIds || [])
-          .flatMap((dayMenu) => dayMenu.recipes || [])
-          .filter((item) => item && item.recipeId?.name);
-
-        const dailyMenus = week.dailyMenuIds || [];
-
-        const totalWeekCal = dailyMenus.reduce(
-          (sum, dayMenu) => sum + (dayMenu?.totalNutrition?.calories || 0),
-          0
-        );
-
-        const totalDishes = dailyMenus.reduce(
-          (sum, dayMenu) => sum + (dayMenu?.recipes?.filter((r) => r?.recipeId)?.length || 0),
-          0
-        );
+        const totalDishes = Object.values(week)
+          .flatMap((dayMeals) => dayMeals || [])
+          .filter((meal) => meal?.id).length;
 
         const [isEditingWeek, setIsEditingWeek] = React.useState(false);
 
@@ -135,10 +128,16 @@ const WeekMenu = ({
 
             {/* Hiển thị các ngày trong tuần */}
             {hasMealPlan &&
-              (week.dailyMenuIds || []).map((dayMenu, index) => {
-                const date = weekDates[index];
-                const validItems = (dayMenu?.recipes || []).filter(Boolean);
-                const dayCal = dayMenu?.totalNutrition?.calories || 0;
+              weekDates.map((date, index) => {
+                const dayMenu = week[date] || [];
+                const validItems = (dayMenu || []).filter(Boolean); // lọc những item hợp lệ
+
+                const dayCal = validItems.reduce((sum, item) => {
+                  return (
+                    sum +
+                    (item.calories || 0)
+                  );
+                }, 0);
 
                 return (
                   <Box key={date} mb={2}>
@@ -188,10 +187,8 @@ const WeekMenu = ({
                               color="info"
                               onClick={() =>
                                 handleOpenModal({
-                                  weekStart: start,
                                   date,
-                                  mode: "day",
-                                  dailyMenuId: dayMenu._id,
+                                  weekStart: start,
                                 })
                               }
                             >
@@ -204,12 +201,11 @@ const WeekMenu = ({
                       {validItems.length > 0 ? (
                         <Grid container spacing={2} p={2}>
                           {validItems.map((item, idx) => {
-                            const recipe = item.recipeId || {};
-                            const calories = recipe.totalNutrition?.calories || 0;
+                            const calories = item.calories || 0;
                             const imageUrl =
-                              recipe.imageUrl ||
+                              item.image ||
                               "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg";
-                            const name = recipe.name || "Unknown";
+                            const name = item.name || "Unknown";
 
                             return (
                               <Grid item xs={12} sm={6} md={3} key={item._id || idx}>

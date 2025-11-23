@@ -13,6 +13,7 @@ export function useMealPlanner(userId, currentMode) {
   const [menus, setMenus] = useState([]);
   const [weekMenus, setWeekMenus] = useState({});
   const [mealPlanIds, setMealPlanIds] = useState({});
+const [reloadWeek, setReloadWeek] = useState(false);
 
   // DYNAMIC DATES
   const todayDate = new Date();
@@ -105,7 +106,6 @@ export function useMealPlanner(userId, currentMode) {
     const transformedData = {
       ...saved.data,
       recipes: saved.data.recipes.map((recipe) => {
-        // Tìm recipe gốc từ updatedItems để lấy name, calories, image
         const originalRecipe = updatedItems.find((item) => item.id === recipe.recipeId);
 
         return {
@@ -133,113 +133,61 @@ export function useMealPlanner(userId, currentMode) {
         return mealPlanIds[weekStart];
       }
 
-      // ✅ Tạo MealPlan trống (backend sẽ tự tạo DailyMenu nếu cần)
       const newMealPlan = await createMealPlan({
         userId,
         period: "week",
         startDate: weekStart,
-        dailyMenuIds: [], // ✅ Backend sẽ xử lý logic tạo DailyMenu
+        dailyMenuIds: [],
         source: "user",
         generatedBy: "user",
       });
 
-      const newMealPlanId = newMealPlan?._id || newMealPlan?.data?._id;
-      if (newMealPlanId) {
-        setMealPlanIds((prev) => ({
-          ...prev,
-          [weekStart]: newMealPlanId,
-        }));
-        console.log("✅ Created empty MealPlan:", newMealPlanId);
-      }
-
-      // ✅ Khởi tạo weekMenus (7 ngày trống)
-      // const emptyWeek = createWeekDates(weekStart);
-      // setWeekMenus(prev => ({
+      // setWeekMenus((prev) => ({
       //   ...prev,
-      //   [weekStart]: emptyWeek
+      //   [weekStart]: {},
       // }));
-
-      return newMealPlanId;
+      setReloadWeek(true)
+      // const newMealPlanId = newMealPlan?._id || newMealPlan?.data?._id;
+      // if (newMealPlanId) {
+      //   setMealPlanIds((prev) => ({
+      //     ...prev,
+      //     [weekStart]: newMealPlanId,
+      //   }));
+      //   console.log("✅ Created empty MealPlan:", newMealPlanId);
+      // }
+      // return newMealPlanId;
     } catch (err) {
       console.error("❌ Error creating empty MealPlan:", err);
       throw err;
     }
   };
 
-  const saveWeekMenus = async (editingWeekStart) => {
+  const saveWeekMenus = async (date, updatedItems) => {
     try {
-      const weekObj = weekMenus[editingWeekStart];
-      if (!weekObj || !weekObj.dailyMenuIds) {
-        console.log("⚠️ Không có dữ liệu tuần để lưu");
-        return;
-      }
+      const [editingWeekStart, endDate1] = getWeekRange(date);
+      const currentData = weekMenus[editingWeekStart]?.[date] || [];
+      const newData = [...updatedItems];
 
       console.log("💾 Saving week menus for:", editingWeekStart);
-
-      // Loop qua từng DailyMenu và upsert
-      const updatePromises = weekObj.dailyMenuIds.map(async (dayMenu, index) => {
-        const date = new Date(editingWeekStart);
-        date.setDate(date.getDate() + index);
-        const dateStr = date.toISOString().split("T")[0]; // "YYYY-MM-DD"
-
-        const recipes = (dayMenu.recipes || []).filter((r) => r && (r._id || r.recipeId || r.id));
-
-        if (recipes.length === 0) {
-          console.log(`ℹ️ No recipes for ${dateStr}, skipping...`);
-          return null;
-        }
-
-        const payload = {
-          userId,
-          date: dateStr,
-          recipes: recipes.map((r) => ({
-            recipeId: r._id || r.recipeId || r.id,
-            portion: r.portion || 1,
-            note: r.note || "",
-            servingTime: r.servingTime || "other",
-            status: r.status || "planned",
-          })),
+      const payload = {
+        userId,
+        date: date,
+        recipes: newData.map((r) => ({
+          recipeId: r.id || r._id || r.recipeId,
+          portion: r.portion || 1,
+          note: r.note || "",
+          servingTime: r.servingTime || "other",
           status: "planned",
-        };
-
-        console.log(`📝 Upserting DailyMenu for ${dateStr}`);
-        const response = await createDailyMenu(payload);
-
-        return {
-          ...response.data,
-          recipes: response.data.recipes.map((r) => {
-            const original = recipes.find(
-              (item) => item.id === r.recipeId || item._id === r.recipeId
-            );
-            return {
-              ...r,
-              name: original?.name || r.name || "Unknown",
-              totalNutrition: {
-                calories: original?.calories || r.totalNutrition?.calories || 0,
-              },
-              imageUrl:
-                original?.image ||
-                r.imageUrl ||
-                "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
-            };
-          }),
-        };
-      });
-
-      const results = await Promise.all(updatePromises);
-      const validResults = results.filter((r) => r !== null);
-
-      // ✅ Cập nhật state weekMenus với dữ liệu mới
+        })),
+      };
+      await createDailyMenu(payload);
       setWeekMenus((prev) => ({
         ...prev,
         [editingWeekStart]: {
-          ...weekObj,
-          dailyMenuIds: validResults,
+          ...prev[editingWeekStart],
+          [date]: updatedItems,
         },
       }));
-
-      console.log(`✅ Saved and updated ${validResults.length} DailyMenus`);
-      return validResults;
     } catch (error) {
       console.error("❌ Error saving week menus:", error);
       throw error;
@@ -251,7 +199,7 @@ export function useMealPlanner(userId, currentMode) {
   // =====================
   function parseDate(str) {
     const [y, m, d] = str.split("-").map(Number);
-    return new Date(y, m - 1, d); // local time
+    return new Date(y, m - 1, d);
   }
 
   useEffect(() => {
@@ -273,6 +221,7 @@ export function useMealPlanner(userId, currentMode) {
         console.error("Lỗi fetchRecipes:", err);
       } finally {
         setIsLoadingRecipes(false);
+        setReloadWeek(false)
       }
     };
 
@@ -284,20 +233,38 @@ export function useMealPlanner(userId, currentMode) {
 
       const [startDate2, endDate2] = getWeekRange(nextWeekDate);
 
-      console.log("startDate1:", startDate1);
-      console.log("endDate1:  ", endDate1);
-      console.log("startDate2:", startDate2);
-      console.log("endDate2:  ", endDate2);
-
       console.log("📅 Fetching weekly data...");
       const weekObj = [];
-      console.log("date:", startDate1, endDate1, startDate2, endDate2);
       try {
         const plan1 = await getPlanByStartDate(userId, startDate1);
         const plan2 = await getPlanByStartDate(userId, startDate2);
+        const formattedMenus1 = {};
+        const formattedMenus2 = {};
+        plan1.dailyMenuIds.forEach((d) => {
+          const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
+          formattedMenus1[dateKey] = (d.recipes || []).map((r) => ({
+            id: r.recipeId._id,
+            name: r.recipeId.name,
+            calories: r.recipeId.totalNutrition?.calories || 0,
+            image:
+              r.recipeId.imageUrl ||
+              "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
+          }));
+        });
+        plan2?.dailyMenuIds.forEach((d) => {
+          const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
+          formattedMenus2[dateKey] = (d.recipes?.recipeId || []).map((r) => ({
+            id: r.recipeId,
+            name: r.name,
+            calories: r.totalNutrition?.calories || 0,
+            image:
+              r.imageUrl ||
+              "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
+          }));
+        });
         setWeekMenus({
-          [startDate1]: plan1,
-          [startDate2]: plan2,
+          [startDate1]: formattedMenus1,
+          [startDate2]: formattedMenus2,
         });
       } catch (error) {
         console.error("❌ Error fetching weekly data:", error);
@@ -307,39 +274,41 @@ export function useMealPlanner(userId, currentMode) {
         }));
       }
     };
-const fetchDailyData = async () => {
-  try {
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(today.getDate() + 1);
+    const fetchDailyData = async () => {
+      try {
+        const today = new Date();
+        const tomorrow = new Date();
+        tomorrow.setDate(today.getDate() + 1);
 
-    const data = await getRecipesByDateAndStatus(userId, today, tomorrow, undefined);
+        const data = await getRecipesByDateAndStatus(userId, today, tomorrow, undefined);
 
-    // Khởi tạo object theo ngày
-    const formattedMenus = {};
+        // Khởi tạo object theo ngày
+        const formattedMenus = {};
 
-    data.forEach(d => {
-      const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
-      formattedMenus[dateKey] = (d.recipes || []).map(r => ({
-        id: r.recipeId?._id,
-        name: r.recipeId?.name || r.name,
-        calories: r.recipeId?.totalNutrition?.calories || 0,
-        image: r.recipeId?.imageUrl || "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
-      }));
-    });
+        data.forEach((d) => {
+          const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
+          formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
+            id: r.recipeId?._id,
+            name: r.recipeId?.name || r.name,
+            calories: r.recipeId?.totalNutrition?.calories || 0,
+            image:
+              r.recipeId?.imageUrl ||
+              "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
+          }));
+        });
 
-    setMenus(formattedMenus);
+        setMenus(formattedMenus);
 
-    console.log("formattedMenus:", formattedMenus);
-  } catch (err) {
-    console.error(err);
-  }
-};
+        console.log("formattedMenus:", formattedMenus);
+      } catch (err) {
+        console.error(err);
+      }
+    };
 
     fetchRecipes();
     if (currentMode === "day") fetchDailyData();
     if (currentMode === "week") fetchWeeklyData();
-  }, [currentMode]);
+  }, [currentMode, reloadWeek]);
 
   return {
     recipes,

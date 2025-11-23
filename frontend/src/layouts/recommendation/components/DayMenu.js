@@ -7,17 +7,10 @@ import FoodCard from "./FoodCard";
 import MDTypography from "components/MDTypography";
 
 const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => {
-  const menusArray = Array.isArray(menus)
-    ? menus
-    : menus && typeof menus === "object"
-    ? Object.values(menus).flat()
-    : [];
-  console.log("menusArray: ", menusArray);
   return (
     <Box>
       {days.map(({ date, label }) => {
         let menu = menus[date] || [];
-        console.log("menu: ", menu);
         const hasMenu = menu.length > 0;
         const totalCal = hasMenu
           ? menu.reduce((sum, item) => sum + (item?.calories || 0), 0)

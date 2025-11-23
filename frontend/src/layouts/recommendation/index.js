@@ -77,33 +77,10 @@ function MealPlannerTabs() {
   const handleOpenModalForWeekDay = ({ date, weekStart }) => {
     setEditingDate(date);
     setEditingWeekStart(weekStart);
+
     const dayMenu = weekMenus[weekStart]?.[date];
-    const recipesArr = Array.isArray(dayMenu?.recipes) ? dayMenu.recipes : [];
-    setCurrentMenu(recipesArr);
-
-    // else if (mode === "week") {
-    //   setEditingDate(weekStart);
-    //   setEditingWeekStart(weekStart);
-
-    //   const week = weekMenus[weekStart] || createWeekDates(weekStart);
-    //   setCurrentMenu({ ...week });
-
-    // if (createEmptyPlan) {
-    //   // Tạo MealPlan trống trên BE
-    //   await createMealPlan({
-    //     userId,
-    //     period: "week",
-    //     startDate: weekStart,
-    //     endDate: formatDateVN(
-    //       new Date(new Date(weekStart).setDate(new Date(weekStart).getDate() + 6))
-    //     ),
-    //     dailyMenuIds: [],
-    //     source: "user",
-    //     generatedBy: "user",
-    //   });
-    // }
-    // }
-
+    console.log("dayMenu", dayMenu);
+    setCurrentMenu(dayMenu?.length > 0 ? dayMenu : []);
     setOpenModal(true);
   };
 
@@ -115,12 +92,13 @@ function MealPlannerTabs() {
   // SAVE
   const handleSave = async (updatedItems, date) => {
     if (!updatedItems) return;
+
     const formattedItems = updatedItems.map((r) => ({
-        id: r.id || r._id || r.recipeId,
-        name: r.name,
-        calories: r.calories || 0,
-        image: r.image || "default_url",
-      }));
+      id: r.id || r._id || r.recipeId,
+      name: r.name,
+      calories: r.calories || 0,
+      image: r.image || "default_url",
+    }));
 
     if (currentMode === "day") {
       await saveDayMenus(date, formattedItems);
@@ -141,31 +119,15 @@ function MealPlannerTabs() {
     }
 
     if (currentMode === "week") {
+      await saveWeekMenus(date, formattedItems);
       setWeekMenus((prev) => ({
         ...prev,
         [editingWeekStart]: {
           ...prev[editingWeekStart],
-          [date]: updatedItems, // Update ngày cụ thể
-        },
-      }));
-
-      const transformedData = await saveWeekMenus(editingWeekStart);
-      const transformedObj = {};
-      transformedData.forEach((d) => {
-        const dateStr = new Date(d.date).toISOString().split("T")[0];
-        transformedObj[dateStr] = d.recipes;
-      });
-
-      setWeekMenus((prev) => ({
-        ...prev,
-        [editingWeekStart]: {
-          ...prev[editingWeekStart],
-          ...transformedObj, // merge recipes từng ngày
+          [date]: formattedItems,
         },
       }));
     }
-
-  setTimeout(() => setOpenModal(false), 0);
   };
 
   const handleDelete = (date, recipeId) => {

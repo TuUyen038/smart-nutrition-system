@@ -27,69 +27,58 @@ export default function MenuModal({
   open,
   onClose,
   mode,
-  date, // nếu mode === "week", date thường là weekStart; nếu mode === "day", date là ngày đang edit
+  date,
   currentMenu = [],
-  onSave, // (updatedItems, date) => void
+  onSave,
   recipes = [],
   getDayName,
 }) {
-  console.log("currentMenu in modal: ", currentMenu);
-  // selectedItems luôn là MẢNG: các món của ngày đang edit
-  const [selectedItems, setSelectedItems] = useState(currentMenu);
-
-  // Khi mở modal hoặc currentMenu/date thay đổi => đồng bộ state local
+  const [selectedItems, setSelectedItems] = useState([]);
   useEffect(() => {
     if (!open) return;
-
-    // Nếu currentMenu là mảng => dùng trực tiếp (mode "day" thông thường)
-    if (Array.isArray(currentMenu)) {
-      setSelectedItems(currentMenu);
-      return;
-    }
-
-    // Nếu currentMenu là object (ở mode "week") => lấy mảng tại key = date (nếu có)
-    if (mode === "week" && currentMenu && date) {
-      const dayArr = Array.isArray(currentMenu[date]) ? currentMenu[date] : [];
-      console.log("dayArr: ", dayArr);
-      setSelectedItems(dayArr);
-      return;
-    }
-    console.log("selectedItems updated: ", selectedItems);
-
-    // fallback an toàn
-    setSelectedItems([]);
+    setSelectedItems(currentMenu);
   }, [open, currentMenu, mode, date]);
 
-  // Toggle món trong selectedItems (local)
   const toggleLocal = (recipe) => {
     const formattedRecipe = {
-      id: recipe.id,
+      id: recipe.id || recipe._id,
       name: recipe.name,
       calories: recipe.calories || 0,
       image:
         recipe.image ||
         "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
     };
-
     setSelectedItems((prev) => {
-      const exists = prev.some((item) => item.id === recipe.id);
+      const exists = prev.some((item) => {
+        const itemId = item.id || item._id || item.recipeId;
+        const recipeId = recipe.id || recipe._id;
+        return itemId === recipeId;
+      });
+
       if (exists) {
-        return prev.filter((item) => item.id !== recipe.id);
+        return prev.filter((item) => {
+          const itemId = item.id || item._id || item.recipeId;
+          const recipeId = recipe.id || recipe._id;
+          return itemId !== recipeId;
+        });
       } else {
         return [...prev, formattedRecipe];
       }
     });
   };
 
-  // Xóa 1 món cụ thể (dùng ở nút Xóa)
   const removeLocal = (recipeId) => {
-    setSelectedItems((prev) => prev.filter((i) => (i.id || i.recipeId) !== recipeId));
+    setSelectedItems((prev) =>
+      prev.filter((i) => {
+        const itemId = i.id || i._id || i.recipeId;
+        return itemId !== recipeId;
+      })
+    );
   };
 
-  // Gọi onSave với dữ liệu local (parent sẽ update menus / weekMenus)
   const handleSaveLocal = () => {
     if (typeof onSave === "function") {
-      console.log("selectedItems: ", selectedItems);
+      console.log("Saving selectedItems:", selectedItems, "for date:", date);
       onSave(selectedItems, date);
     }
     onClose?.();
@@ -160,28 +149,31 @@ export default function MenuModal({
 
             {selectedItems.length > 0 ? (
               <Grid container spacing={2} mb={3}>
-                {selectedItems.map((item) => (
-                  <Grid item xs={12} sm={6} md={4} key={item._id || item.id || item.recipeId}>
-                    <FoodCard
-                      title={item.name}
-                      calories={item.calories}
-                      image={
-                        item.image ||
-                        "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
-                      }
-                    >
-                      <MDButton
-                        size="small"
-                        color="error"
-                        variant="outlined"
-                        startIcon={<DeleteIcon />}
-                        onClick={() => removeLocal(item._id || item.id || item.recipeId)}
+                {selectedItems.map((item) => {
+                  const itemId = item.id;
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={itemId}>
+                      <FoodCard
+                        title={item.name}
+                        calories={item.calories}
+                        image={
+                          item.image ||
+                          "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
+                        }
                       >
-                        Xóa
-                      </MDButton>
-                    </FoodCard>
-                  </Grid>
-                ))}
+                        <MDButton
+                          size="small"
+                          color="error"
+                          variant="outlined"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => removeLocal(itemId)}
+                        >
+                          Xóa
+                        </MDButton>
+                      </FoodCard>
+                    </Grid>
+                  );
+                })}
               </Grid>
             ) : (
               <Paper sx={{ p: 3, mb: 3, textAlign: "center", bgcolor: "grey.50" }}>
@@ -200,11 +192,14 @@ export default function MenuModal({
 
             <Grid container spacing={2} mb={3}>
               {recipes.map((recipe) => {
-                const isSelected = selectedItems.some(
-                  (item) => (item.id || item.recipeId) === (recipe._id || recipe.id)
-                );
+                const recipeId = recipe._id?.toString() || recipe.id;
+                const isSelected = selectedItems.some((item) => {
+                  const itemId = item._id?.toString() || item.id || item.recipeId;
+                  return itemId === recipeId;
+                });
+
                 return (
-                  <Grid item xs={12} sm={6} md={4} key={recipe.id}>
+                  <Grid item xs={12} sm={6} md={4} key={recipeId}>
                     <FoodCard title={recipe.name} calories={recipe.calories} image={recipe.image}>
                       <MDButton
                         fullWidth
