@@ -240,7 +240,7 @@ const [reloadWeek, setReloadWeek] = useState(false);
         const plan2 = await getPlanByStartDate(userId, startDate2);
         const formattedMenus1 = {};
         const formattedMenus2 = {};
-        plan1.dailyMenuIds.forEach((d) => {
+        plan1?.dailyMenuIds.forEach((d) => {
           const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
           formattedMenus1[dateKey] = (d.recipes || []).map((r) => ({
             id: r.recipeId._id,
@@ -253,12 +253,12 @@ const [reloadWeek, setReloadWeek] = useState(false);
         });
         plan2?.dailyMenuIds.forEach((d) => {
           const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
-          formattedMenus2[dateKey] = (d.recipes?.recipeId || []).map((r) => ({
-            id: r.recipeId,
-            name: r.name,
-            calories: r.totalNutrition?.calories || 0,
+          formattedMenus2[dateKey] = (d.recipes || []).map((r) => ({
+            id: r.recipeId._id,
+            name: r.recipeId.name,
+            calories: r.recipeId.totalNutrition?.calories || 0,
             image:
-              r.imageUrl ||
+              r.recipeId.imageUrl ||
               "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
           }));
         });
