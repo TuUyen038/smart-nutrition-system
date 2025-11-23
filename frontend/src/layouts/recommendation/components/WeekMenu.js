@@ -43,14 +43,19 @@ const WeekMenu = ({
 
         const allMeals = (week.dailyMenuIds || [])
           .flatMap((dayMenu) => dayMenu.recipes || [])
-          .filter((item) => item && item.recipeId.name);
+          .filter((item) => item && item.recipeId?.name);
 
-        const totalWeekCal = (week.dailyMenuIds || []).reduce(
-          (sum, dayMenu) => sum + (dayMenu.totalNutrition?.calories || 0),
+        const dailyMenus = week.dailyMenuIds || [];
+
+        const totalWeekCal = dailyMenus.reduce(
+          (sum, dayMenu) => sum + (dayMenu?.totalNutrition?.calories || 0),
           0
         );
 
-        const totalDishes = allMeals.length;
+        const totalDishes = dailyMenus.reduce(
+          (sum, dayMenu) => sum + (dayMenu?.recipes?.filter((r) => r?.recipeId)?.length || 0),
+          0
+        );
 
         const [isEditingWeek, setIsEditingWeek] = React.useState(false);
 
@@ -132,9 +137,8 @@ const WeekMenu = ({
             {hasMealPlan &&
               (week.dailyMenuIds || []).map((dayMenu, index) => {
                 const date = weekDates[index];
-                const validItems = (dayMenu.recipes || []).filter(Boolean);
-
-                const dayCal = dayMenu.totalNutrition?.calories || 0;
+                const validItems = (dayMenu?.recipes || []).filter(Boolean);
+                const dayCal = dayMenu?.totalNutrition?.calories || 0;
 
                 return (
                   <Box key={date} mb={2}>
@@ -199,15 +203,20 @@ const WeekMenu = ({
 
                       {validItems.length > 0 ? (
                         <Grid container spacing={2} p={2}>
-                          {validItems.map((item, idx) => (
-                            <Grid item xs={12} sm={6} md={3} key={item._id || idx}>
-                              <FoodCard
-                                title={item.recipeId?.name}
-                                calories={item.recipeId.totalNutrition?.calories || 0}
-                                image={item.recipeId?.image || "https://via.placeholder.com/150"}
-                              />
-                            </Grid>
-                          ))}
+                          {validItems.map((item, idx) => {
+                            const recipe = item.recipeId || {};
+                            const calories = recipe.totalNutrition?.calories || 0;
+                            const imageUrl =
+                              recipe.imageUrl ||
+                              "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg";
+                            const name = recipe.name || "Unknown";
+
+                            return (
+                              <Grid item xs={12} sm={6} md={3} key={item._id || idx}>
+                                <FoodCard title={name} calories={calories} image={imageUrl} />
+                              </Grid>
+                            );
+                          })}
                         </Grid>
                       ) : (
                         <Box p={2} textAlign="center">

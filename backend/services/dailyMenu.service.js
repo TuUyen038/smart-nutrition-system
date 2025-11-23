@@ -17,11 +17,11 @@ exports.createMeal = async (data) => {
 
     // Chuẩn hoá món ăn
     const normalizedRecipes = (recipes || []).map((r) => ({
-      recipeId: r.recipeId,
-      portion: r.portion || 1,
-      note: r.note || "",
-      status: r.status || "planned",
-    }));
+  recipeId: r.recipeId, // <- cần chắc chắn r.recipeId là ObjectId hợp lệ của Recipe
+  portion: r.portion || 1,
+  note: r.note || "",
+  status: r.status || "planned",
+}));
 
     const totalNutrition = await calculateTotalNutrition(normalizedRecipes);
 
@@ -84,9 +84,14 @@ exports.getRecipesByDateAndStatus = async (data) => {
       userId,
       date: { $gte: startDate, $lte: endDate },
     })
-      .populate("recipes.recipeId")
-      .lean();
+      .populate({
+    path: "recipes.recipeId",
+    model: "Recipe",
+  })
+  .lean();
 
+      // .lean();
+    console.log("dailyMenus: ", dailyMenus[0].recipes);
     if (!dailyMenus?.length) return [];
 
     const isFilteringByStatus = status && status.trim() !== "";
@@ -95,7 +100,7 @@ exports.getRecipesByDateAndStatus = async (data) => {
       const recipes = menu.recipes
         .filter((r) => (isFilteringByStatus ? r.status === status : true))
         .map(({ recipeId, portion, note, status }) => ({
-          recipeId: recipeId?._id,
+          recipeId: recipeId,
           name: recipeId?.name,
           imageUrl: recipeId?.imageUrl,
           totalNutrition: recipeId?.totalNutrition,

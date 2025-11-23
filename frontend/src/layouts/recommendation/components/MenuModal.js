@@ -1,7 +1,16 @@
 import React, { useState, useEffect } from "react";
 import PropTypes from "prop-types";
 import {
-  Modal, Fade, Backdrop, Box, Typography, Grid, Button, Paper, Divider, Chip,
+  Modal,
+  Fade,
+  Backdrop,
+  Box,
+  Typography,
+  Grid,
+  Button,
+  Paper,
+  Divider,
+  Chip,
 } from "@mui/material";
 import FoodCard from "./FoodCard";
 import MDButton from "components/MDButton";
@@ -18,12 +27,13 @@ export default function MenuModal({
   open,
   onClose,
   mode,
-  date,           // nếu mode === "week", date thường là weekStart; nếu mode === "day", date là ngày đang edit
+  date, // nếu mode === "week", date thường là weekStart; nếu mode === "day", date là ngày đang edit
   currentMenu = [],
-  onSave,         // (updatedItems, date) => void
+  onSave, // (updatedItems, date) => void
   recipes = [],
   getDayName,
 }) {
+  console.log("currentMenu in modal: ", currentMenu);
   // selectedItems luôn là MẢNG: các món của ngày đang edit
   const [selectedItems, setSelectedItems] = useState(currentMenu);
 
@@ -40,9 +50,11 @@ export default function MenuModal({
     // Nếu currentMenu là object (ở mode "week") => lấy mảng tại key = date (nếu có)
     if (mode === "week" && currentMenu && date) {
       const dayArr = Array.isArray(currentMenu[date]) ? currentMenu[date] : [];
+      console.log("dayArr: ", dayArr);
       setSelectedItems(dayArr);
       return;
     }
+    console.log("selectedItems updated: ", selectedItems);
 
     // fallback an toàn
     setSelectedItems([]);
@@ -50,24 +62,34 @@ export default function MenuModal({
 
   // Toggle món trong selectedItems (local)
   const toggleLocal = (recipe) => {
-    setSelectedItems(prev => {
-      const exists = prev.some(item => item.id === recipe.id);
+    const formattedRecipe = {
+      id: recipe.id,
+      name: recipe.name,
+      calories: recipe.calories || 0,
+      image:
+        recipe.image ||
+        "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
+    };
+
+    setSelectedItems((prev) => {
+      const exists = prev.some((item) => item.id === recipe.id);
       if (exists) {
-        return prev.filter(item => item.id !== recipe.id);
+        return prev.filter((item) => item.id !== recipe.id);
       } else {
-        return [...prev, recipe];
+        return [...prev, formattedRecipe];
       }
     });
   };
 
   // Xóa 1 món cụ thể (dùng ở nút Xóa)
   const removeLocal = (recipeId) => {
-    setSelectedItems(prev => prev.filter(i => i.id !== recipeId));
+    setSelectedItems((prev) => prev.filter((i) => (i.id || i.recipeId) !== recipeId));
   };
 
   // Gọi onSave với dữ liệu local (parent sẽ update menus / weekMenus)
   const handleSaveLocal = () => {
     if (typeof onSave === "function") {
+      console.log("selectedItems: ", selectedItems);
       onSave(selectedItems, date);
     }
     onClose?.();
@@ -84,32 +106,36 @@ export default function MenuModal({
       slotProps={{ backdrop: { timeout: 500 } }}
     >
       <Fade in={open}>
-        <Box sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          bgcolor: "background.paper",
-          boxShadow: 24,
-          borderRadius: 3,
-          width: "90%",
-          maxWidth: 900,
-          maxHeight: "90vh",
-          overflowY: "auto",
-        }}>
-          {/* Header */}
-          <Box sx={{
-            position: "sticky",
-            top: 0,
+        <Box
+          sx={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
             bgcolor: "background.paper",
-            borderBottom: 1,
-            borderColor: "divider",
-            p: 3,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            zIndex: 1,
-          }}>
+            boxShadow: 24,
+            borderRadius: 3,
+            width: "90%",
+            maxWidth: 900,
+            maxHeight: "90vh",
+            overflowY: "auto",
+          }}
+        >
+          {/* Header */}
+          <Box
+            sx={{
+              position: "sticky",
+              top: 0,
+              bgcolor: "background.paper",
+              borderBottom: 1,
+              borderColor: "divider",
+              p: 3,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              zIndex: 1,
+            }}
+          >
             <Typography variant="h5" fontWeight={700}>
               {`Thực đơn ${getDayName ? getDayName(date) : date}`}
             </Typography>
@@ -134,19 +160,25 @@ export default function MenuModal({
 
             {selectedItems.length > 0 ? (
               <Grid container spacing={2} mb={3}>
-                {selectedItems.map(item => (
-                  <Grid item xs={12} sm={6} md={4} key={item.id || item.recipeId}>
-                    <FoodCard title={item.name} calories={item.calories} image={item.image || "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"}>
-                      <Button
-                        fullWidth
+                {selectedItems.map((item) => (
+                  <Grid item xs={12} sm={6} md={4} key={item._id || item.id || item.recipeId}>
+                    <FoodCard
+                      title={item.name}
+                      calories={item.calories}
+                      image={
+                        item.image ||
+                        "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
+                      }
+                    >
+                      <MDButton
                         size="small"
                         color="error"
                         variant="outlined"
                         startIcon={<DeleteIcon />}
-                        onClick={() => removeLocal(item.id || item.recipeId)}
+                        onClick={() => removeLocal(item._id || item.id || item.recipeId)}
                       >
                         Xóa
-                      </Button>
+                      </MDButton>
                     </FoodCard>
                   </Grid>
                 ))}
@@ -167,21 +199,29 @@ export default function MenuModal({
             </Typography>
 
             <Grid container spacing={2} mb={3}>
-              {recipes.map(recipe => {
-                const isSelected = selectedItems.some(item => item.id === recipe.id);
+              {recipes.map((recipe) => {
+                const isSelected = selectedItems.some(
+                  (item) => (item.id || item.recipeId) === (recipe._id || recipe.id)
+                );
                 return (
                   <Grid item xs={12} sm={6} md={4} key={recipe.id}>
                     <FoodCard title={recipe.name} calories={recipe.calories} image={recipe.image}>
-                      <Button
+                      <MDButton
                         fullWidth
                         size="small"
                         variant={isSelected ? "contained" : "outlined"}
-                        color={isSelected ? "success" : "primary"}
+                        color={isSelected ? "success" : "info"}
                         startIcon={isSelected ? <CheckCircleIcon /> : <AddIcon />}
                         onClick={() => toggleLocal(recipe)}
+                        sx={{
+                          "&:hover": {
+                            backgroundColor: isSelected ? "success.dark" : "info.main",
+                            color: "#fff",
+                          },
+                        }}
                       >
                         {isSelected ? "Đã chọn" : "Thêm"}
-                      </Button>
+                      </MDButton>
                     </FoodCard>
                   </Grid>
                 );
@@ -190,16 +230,18 @@ export default function MenuModal({
           </Box>
 
           {/* Footer */}
-          <Box sx={{
-            position: "sticky",
-            bottom: 0,
-            bgcolor: "background.paper",
-            borderTop: 1,
-            borderColor: "divider",
-            p: 3,
-            display: "flex",
-            gap: 2,
-          }}>
+          <Box
+            sx={{
+              position: "sticky",
+              bottom: 0,
+              bgcolor: "background.paper",
+              borderTop: 1,
+              borderColor: "divider",
+              p: 3,
+              display: "flex",
+              gap: 2,
+            }}
+          >
             <MDButton
               color="secondary"
               variant="outlined"

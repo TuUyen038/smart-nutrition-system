@@ -16,15 +16,13 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
   return (
     <Box>
       {days.map(({ date, label }) => {
-        let menu = (menusArray || []).filter(
-          (m) => m && new Date(m.date).toDateString() === new Date(date).toDateString()
-        );
+        let menu = menus[date] || [];
         console.log("menu: ", menu);
         const hasMenu = menu.length > 0;
         const totalCal = hasMenu
-          ? menu.reduce((sum, item) => sum + (item?.totalNutrition?.calories || 0), 0)
+          ? menu.reduce((sum, item) => sum + (item?.calories || 0), 0)
           : 0;
-        const totalDishes = menu.reduce((sum, m) => sum + (m.recipes?.length || 0), 0);
+        const totalDishes = menu.length;
 
         return (
           <Paper key={date} elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
@@ -83,36 +81,25 @@ const DayMenu = ({ menus, days, handleOpenModal, handleDelete, getDayName }) => 
 
             {hasMenu && (
               <Grid container spacing={2}>
-                {menu.map((m, idx) =>
-                  m.recipes?.map((item, rIdx) => (
+                {menu.map((item, idx) =>
                     <Grid
                       item
                       xs={12}
                       sm={6}
                       md={4}
                       lg={3}
-                      key={item._id || item.recipeId || `${idx}-${rIdx}`}
+                      key={item.id || item.recipeId || item._id}
                     >
                       <FoodCard
                         title={item.name}
-                        calories={item.totalNutrition?.calories}
+                        calories={item?.calories}
                         image={
-                          item.imageUrl ||
+                          item.image ||
                           "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
                         }
                       >
-                        <MDButton
-                          variant="outlined"
-                          startIcon={<Delete />}
-                          size="small"
-                          color="error"
-                          onClick={() => handleDelete(date, item._id || item.recipeId)}
-                        >
-                          Xoá
-                        </MDButton>
                       </FoodCard>
                     </Grid>
-                  ))
                 )}
               </Grid>
             )}

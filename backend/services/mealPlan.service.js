@@ -125,7 +125,7 @@ class MealPlanService {
     .populate({
       path: "dailyMenuIds",
       populate: {
-        path: "recipes.recipeId",   // ✔ populate đúng trường
+        path: "recipes.recipeId",
         model: "Recipe",
       },
     });
