@@ -8,6 +8,7 @@ router.post('/', mealPlanController.createMealPlan);
 
 // GET /mealplans/by-startdate?startDate=YYYY-MM-DD
 router.get('/by-startdate', mealPlanController.getMealPlanByStartDate);
+router.get("/status", mealPlanController.getWeekStatus);
 
 // GET /api/v1/mealplans/:planId - Lấy chi tiết Plan
 router.get('/:planId', mealPlanController.getMealPlanDetail);
@@ -20,6 +21,10 @@ router.patch('/:planId/status', mealPlanController.updatePlanStatus);
 
 // DELETE /api/v1/mealplans/:planId - Xóa Plan (Chỉ cho phép xóa Plan ở trạng thái 'suggested')
 router.delete('/:planId', mealPlanController.deleteMealPlan);
+
+// gợi ý tuần
+router.post("/suggest", mealPlanController.suggestWeekPlan);
+
 
 module.exports = router;
 //authMiddleware,

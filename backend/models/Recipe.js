@@ -47,6 +47,7 @@ const recipeSchema = new mongoose.Schema({
 recipeSchema.index({ name: 'text' }); // Index dạng text cho tìm kiếm toàn văn (nếu cần)
 recipeSchema.index({ ownerId: 1 }); // Index đơn giản cho tìm kiếm theo ID
 recipeSchema.index({ category: 1 }); // Index đơn giản cho bộ lọc danh mục
+recipeSchema.index({ "ingredients.ingredientId": 1 });
 
 recipeSchema.pre("save", function (next) {
   this.updatedAt = Date.now();

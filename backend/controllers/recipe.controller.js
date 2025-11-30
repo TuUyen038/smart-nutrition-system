@@ -13,6 +13,32 @@ const {
   getIngredients
 } = require('../utils/ai_providers/aiInterface'); 
 const Analysis = require('../models/Analysis');
+const recipeService = require('../services/recipe.service');
+
+const searchByIngredientName = async (req, res) => {
+  try {
+    const { query, q, keyword, page, limit } = req.query;
+
+    const searchText = query || q || keyword || "";
+    const result = await recipeService.searchRecipesByIngredientName(searchText, {
+      page,
+      limit,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Tìm kiếm món ăn theo nguyên liệu thành công",
+      data: result,
+    });
+  } catch (error) {
+    console.error("❌ Error searchByIngredientName:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Có lỗi xảy ra khi tìm kiếm món ăn",
+    });
+  }
+}
+
 
 //lay danh sach mon an
 const getAllRecipe = async (req, res) => {
@@ -407,4 +433,4 @@ const getBackUpNutrition = async (req, res) => {
   return res.status(200).json(result);
 }
 
-module.exports = {getAllRecipe, detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById, findIngredientsByAi };
+module.exports = {searchByIngredientName, getAllRecipe, detectImage, findRecipeByName, findIngrAndInstrByAi, getBackUpNutrition, createNewRecipe, getRecipeById, findIngredientsByAi };

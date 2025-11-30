@@ -15,5 +15,6 @@ router.get('/:id', dailyMenuController.getDailyMenuById);
 router.post("/add-recipe", dailyMenuController.addRecipeToDailyMenu);
 router.put('/:mealId/status', dailyMenuController.updateStatus);
 router.put('/:mealId', dailyMenuController.updateMeal);
+router.post("/suggest", dailyMenuController.suggestDailyMenu);
 
 module.exports = router;

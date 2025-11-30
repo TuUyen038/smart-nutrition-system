@@ -1,5 +1,57 @@
 const mealPlanService = require('../services/mealPlan.service');
 
+
+async function getWeekStatus (req, res) {
+  try {
+    const { userId, startDate, days } = req.query;
+
+    if (!userId || !startDate) {
+      return res.status(400).json({ message: "userId và startDate là bắt buộc" });
+    }
+
+    const result = await mealPlanService.checkWeekDailyMenus({
+      userId,
+      startDateStr: startDate,
+      days: days ? Number(days) : 7,
+    });
+
+    return res.json(result);
+  } catch (err) {
+    console.error("getWeekStatus error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+/**
+ * POST /api/meal-plans/week/suggest
+ * body: { userId, startDate, days? }
+ */
+async function suggestWeekPlan(req, res) {
+  try {
+    const { userId, startDate, days, mode } = req.body;
+    // mode: "reuse" | "overwrite"
+
+    if (!userId || !startDate) {
+      return res.status(400).json({ message: "userId và startDate là bắt buộc" });
+    }
+
+    const mealPlan = await mealPlanService.suggestWeekPlan({
+      userId,
+      startDateStr: startDate,
+      days: days || 7,
+      mode: mode === "overwrite" ? "overwrite" : "reuse",
+    });
+
+    await mealPlan.populate("dailyMenuIds");
+    return res.status(201).json(mealPlan);
+  } catch (err) {
+    console.error("Error suggestWeekPlan:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
+
 const getMealPlanByStartDate = async (req, res) => {
     try {
         const userId = "68f4394c4d4cc568e6bc5daa" // lấy từ middleware auth
@@ -112,4 +164,6 @@ module.exports = {
     getMealPlanDetail,
     updatePlanStatus,
     deleteMealPlan,
+    suggestWeekPlan,
+    getWeekStatus
 };

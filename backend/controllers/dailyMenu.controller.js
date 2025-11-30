@@ -5,6 +5,31 @@ const Recipe = require('../models/Recipe');
 const DailyMenu = require('../models/DailyMenu');
 
 const userId = '68f4394c4d4cc568e6bc5daa';
+
+/**
+ * POST /api/daily-menus/suggest
+ * body: { userId, date }  // date: "YYYY-MM-DD"
+ */
+exports.suggestDailyMenu = async(req, res) => {
+  try {
+    const { userId, date } = req.body;
+
+    if (!userId || !date) {
+      return res.status(400).json({ message: "userId và date là bắt buộc" });
+    }
+
+    const dailyMenu = await dailyMenuService.suggestDailyMenu({
+      userId,
+      dateStr: date,
+    });
+
+    return res.status(201).json(dailyMenu);
+  } catch (err) {
+    console.error("Error suggestDailyMenu:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+}
+
 exports.createDailyMenu = async (req, res) => {
   try {
     const meal = await dailyMenuService.createMeal(req.body);
