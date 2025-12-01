@@ -1,6 +1,27 @@
 import { normalizeDateVN } from "../helpers/date";
 const API_BASE_URL = "http://localhost:3000/api/daily-menu";
 
+export const createRecommendDailyMenu = async ({ date }) => {
+  try {
+    const payload = {
+      userId,
+      date,
+    };
+
+    const res = await fetch(`${API_BASE_URL}/suggest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Tạo thực đơn cho ngày thất bại");
+    return data;
+  } catch (err) {
+    console.error("createRecommendMealPlan error:", err);
+    throw err;
+  }
+};
 export const getRecipesByDateAndStatus = async (userId, startDate, endDate, status) => {
   try {
     if (!endDate) endDate = startDate;
@@ -23,13 +44,27 @@ export const getRecipesByDateAndStatus = async (userId, startDate, endDate, stat
   }
 };
 
-export const addRecipeToDailyMenu = async ({ userId, date, recipeId, portion, note, servingTime }) => {
+export const addRecipeToDailyMenu = async ({
+  userId,
+  date,
+  recipeId,
+  portion,
+  note,
+  servingTime,
+}) => {
   try {
     const ndate = normalizeDateVN(date);
     const res = await fetch(`${API_BASE_URL}/add-recipe`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId, date: normalizeDateVN(date), recipeId, portion, note, servingTime }),
+      body: JSON.stringify({
+        userId,
+        date: normalizeDateVN(date),
+        recipeId,
+        portion,
+        note,
+        servingTime,
+      }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Thêm món ăn thất bại");
@@ -42,7 +77,7 @@ export const addRecipeToDailyMenu = async ({ userId, date, recipeId, portion, no
 
 export const createDailyMenu = async ({ userId, date, recipes }) => {
   try {
-      const res = await fetch(`${API_BASE_URL}`, {
+    const res = await fetch(`${API_BASE_URL}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -61,4 +96,3 @@ export const createDailyMenu = async ({ userId, date, recipes }) => {
     throw err;
   }
 };
-

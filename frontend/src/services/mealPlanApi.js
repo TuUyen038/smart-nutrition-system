@@ -1,7 +1,48 @@
 import { normalizeDateVN } from "../helpers/date";
 const API_BASE_URL = "http://localhost:3000/api/meal-plans";
 
-  const userId = '68f4394c4d4cc568e6bc5daa';
+const userId = "68f4394c4d4cc568e6bc5daa";
+
+export const getWeekDailyMenuStatus = async ({ startDate, days = 7 }) => {
+  const startDateStr = normalizeDateVN(startDate);
+
+  const url = `${API_BASE_URL}/status?userId=${userId}&startDate=${encodeURIComponent(
+    startDateStr
+  )}&days=${days}`;
+
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Kiểm tra tuần thất bại");
+  return data; // { hasExisting: boolean, existingDates: string[] }
+};
+
+export const createRecommendMealPlan = async ({
+  startDate,
+  days = 7,
+  mode = "reuse", // hoặc "overwrite"
+}) => {
+  try {
+    const payload = {
+      userId,
+      startDate: startDate, // "YYYY-MM-DD"
+      days,
+      mode, // "reuse" | "overwrite"
+    };
+
+    const res = await fetch(`${API_BASE_URL}/suggest`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Tạo kế hoạch thất bại");
+    return data;
+  } catch (err) {
+    console.error("createRecommendMealPlan error:", err);
+    throw err;
+  }
+};
 
 export const createMealPlan = async (payload) => {
   try {
@@ -23,37 +64,36 @@ export const createMealPlan = async (payload) => {
 export const getPlanByStartDate = async (userId, startDate) => {
   try {
     const res = await fetch(`${API_BASE_URL}/by-startdate?startDate=${startDate}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         // 'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
+      },
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Lỗi khi lấy MealPlan theo startDate');
-    console.log('MealPlan by startDate:', data.data);
+    if (!res.ok) throw new Error(data.error || "Lỗi khi lấy MealPlan theo startDate");
+    console.log("MealPlan by startDate:", data.data);
     return data.data;
   } catch (err) {
-    console.error('GetPlanByStartDate error:', err);
+    console.error("GetPlanByStartDate error:", err);
   }
 };
-
 
 //lay danh sach cua user
 export const getMealPlans = async () => {
   try {
     const res = await fetch(`${API_BASE_URL}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}` // nếu dùng JWT
-      }
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`, // nếu dùng JWT
+      },
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Lỗi khi lấy danh sách MealPlan');
-    console.log('MealPlans:', data.data);
+    if (!res.ok) throw new Error(data.error || "Lỗi khi lấy danh sách MealPlan");
+    console.log("MealPlans:", data.data);
     return data.data;
   } catch (err) {
     console.error(err);
@@ -64,24 +104,19 @@ export const getMealPlans = async () => {
 export const updatePlanStatus = async (planId, newStatus) => {
   try {
     const res = await fetch(`${API_BASE_URL}/${planId}/status`, {
-      method: 'PATCH',
+      method: "PATCH",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
       },
-      body: JSON.stringify({ newStatus })
+      body: JSON.stringify({ newStatus }),
     });
 
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Lỗi khi cập nhật status');
-    console.log('Updated Plan:', data.data);
+    if (!res.ok) throw new Error(data.error || "Lỗi khi cập nhật status");
+    console.log("Updated Plan:", data.data);
     return data.data;
   } catch (err) {
     console.error(err);
   }
 };
-
-
-
-
-
