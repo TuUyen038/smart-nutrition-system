@@ -174,6 +174,7 @@ function MealPlannerTabs() {
             {tabValue === "day" && (
               <DayMenu
                 menus={menus}
+                setMenus={setMenus}
                 days={[
                   { date: today, label: "Hôm nay" },
                   { date: tomorrow, label: "Ngày mai" },

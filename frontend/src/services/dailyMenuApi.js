@@ -1,6 +1,8 @@
 import { normalizeDateVN } from "../helpers/date";
 const API_BASE_URL = "http://localhost:3000/api/daily-menu";
 
+const userId = "68f4394c4d4cc568e6bc5daa";
+
 export const createRecommendDailyMenu = async ({ date }) => {
   try {
     const payload = {

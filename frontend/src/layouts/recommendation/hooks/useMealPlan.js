@@ -299,7 +299,6 @@ const [reloadWeek, setReloadWeek] = useState(false);
 
         setMenus(formattedMenus);
 
-        console.log("formattedMenus:", formattedMenus);
       } catch (err) {
         console.error(err);
       }

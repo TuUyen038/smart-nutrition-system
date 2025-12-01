@@ -58,8 +58,8 @@ const WeekMenu = ({
     setConfirmWeekStart(null);
   };
 
-  const handleCloseModeDialog = () => {
-    if (loadingCreate) return;
+  const handleCloseModeDialog = (force = false) => {
+    if (loadingCreate && !force) return;
     setModeDialogOpen(false);
     setPendingWeekStart(null);
     setExistingDates([]);
@@ -67,18 +67,25 @@ const WeekMenu = ({
 
   const handleSelectMode = async (mode) => {
     if (!pendingWeekStart) return;
+
+    const targetWeekStart = pendingWeekStart;
+
+    // đóng popup chọn mode, show skeleton cho tuần đang xử lý
+    handleCloseModeDialog(true); // force đóng, không bị chặn bởi loadingCreate
+    setCreatingWeekStart(targetWeekStart);
+
     try {
       setLoadingCreate(true);
 
       const plan = await createRecommendMealPlan({
-        startDate: pendingWeekStart,
+        startDate: targetWeekStart,
         days: 7,
-        mode,
+        mode, // "reuse" hoặc "overwrite"
       });
-      // console.log("Meal plan created with mode:", mode, plan);
+
       const formattedMenus = {};
-      plan?.dailyMenuIds.forEach((d) => {
-        const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
+      plan?.dailyMenuIds?.forEach((d) => {
+        const dateKey = d.date; // "yyyy-mm-dd"
         formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
           id: r.recipeId._id,
           name: r.recipeId.name,
@@ -89,23 +96,22 @@ const WeekMenu = ({
         }));
       });
 
-      // 3) Gộp vào weekMenus theo đúng pattern bạn dùng trong saveWeekMenus
       setWeekMenus((prev) => ({
         ...prev,
         [targetWeekStart]: {
-          // giữ lại nếu tuần đó đã có ngày nào đó (trường hợp backend chỉ trả một vài ngày)
           ...(prev[targetWeekStart] || {}),
-          ...formattedMenus, // ghi đè các ngày mà AI vừa gợi ý
+          ...formattedMenus, // ghi đè các ngày mà AI gợi ý
         },
       }));
     } catch (err) {
-      console.error("Create weekly meal plan error:", err);
+      console.error("Create daily meal plan error:", err);
       alert(err.message || "Tạo thực đơn thất bại");
     } finally {
       setLoadingCreate(false);
-      handleCloseModeDialog(true);
+      setCreatingWeekStart(null); // tắt skeleton
     }
   };
+
   const handleConfirmCreateWeekPlan = async () => {
     if (!confirmWeekStart) return;
 
@@ -210,6 +216,8 @@ const WeekMenu = ({
           .filter((meal) => meal?.id).length;
 
         const isEditingWeek = editingWeek === start;
+        const isCreatingCurrentWeek = creatingWeekStart === start && loadingCreate;
+
         const handleCreateMealPlan = async () => {
           try {
             await createEmptyMealPlan(start);
@@ -224,98 +232,89 @@ const WeekMenu = ({
           <Paper
             key={start}
             elevation={3}
-            sx={{ p: 3, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}
+            sx={{ p: 3, pt: 2, mb: 3, borderRadius: 2, bgcolor: "background.paper" }}
           >
-            {creatingWeekStart === start && loadingCreate ? (
-              <>
-                {/* header skeleton */}
-                <Box mb={3}>
-                  <Skeleton variant="text" width={200} height={28} />
-                  <Skeleton variant="text" width={160} height={20} />
-                  <Skeleton
-                    variant="rectangular"
-                    width={220}
-                    height={32}
-                    sx={{ mt: 1, borderRadius: 2 }}
-                  />
+            {/* HEADER – luôn hiển thị, không skeleton */}
+            <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+              <Box>
+                <MDTypography variant="h5">{label}</MDTypography>
+                <Box display="flex" alignItems="center" gap={2}>
+                  <MDTypography variant="body2" fontWeight="light" color="text" fontSize="0.9rem">
+                    {start} → {weekEnd}
+                  </MDTypography>
+                  {totalDishes > 0 && !isCreatingCurrentWeek && (
+                    <Chip
+                      icon={<RestaurantIcon />}
+                      label={`${totalDishes} món - ${Math.round(totalWeekCal)} kcal`}
+                      sx={{
+                        mt: 0,
+                        bgcolor: "rgba(0,0,0,0.05)",
+                        color: "text.primary",
+                        fontWeight: 600,
+                      }}
+                    />
+                  )}
                 </Box>
+              </Box>
 
+              <Box display="flex" gap={1}>
+                {!hasMealPlan ? (
+                  <>
+                    <MDButton
+                      variant="contained"
+                      startIcon={<RestaurantIcon />}
+                      size="small"
+                      color="info"
+                      onClick={handleCreateMealPlan}
+                      disabled={isCreatingCurrentWeek}
+                    >
+                      Tạo menu tuần
+                    </MDButton>
+                    <MDButton
+                      variant="outlined"
+                      startIcon={<RestaurantIcon />}
+                      size="small"
+                      color="info"
+                      onClick={() => handleClickSuggest(start)}
+                      disabled={loadingCreate}
+                    >
+                      Gợi ý menu tuần
+                    </MDButton>
+                  </>
+                ) : (
+                  <MDButton
+                    variant={isEditingWeek ? "contained" : "outlined"}
+                    startIcon={<Edit />}
+                    size="small"
+                    color="info"
+                    onClick={() => setEditingWeek(isEditingWeek ? null : start)}
+                    disabled={isCreatingCurrentWeek}
+                  >
+                    {isEditingWeek ? "Lưu thay đổi" : "Chỉnh sửa"}
+                  </MDButton>
+                )}
+              </Box>
+            </Box>
+
+            {/* NỘI DUNG DƯỚI – skeleton hoặc list ngày */}
+            {isCreatingCurrentWeek ? (
+              <>
                 {/* skeleton cho 7 ngày */}
                 {weekDates.map((d) => (
                   <Box key={d} mb={2}>
-                    <Skeleton variant="rectangular" height={60} sx={{ mb: 1, borderRadius: 2 }} />
-                    <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 2 }} />
+                    <Skeleton variant="rectangular" height={30} sx={{ mb: 1, borderRadius: 2 }} />
+                    <Skeleton variant="rectangular" height={70} sx={{ borderRadius: 2 }} />
                   </Box>
                 ))}
               </>
             ) : (
               <>
-                <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
-                  <Box>
-                    <MDTypography variant="h5">{label}</MDTypography>
-                    <MDTypography fontWeight="light" color="text" fontSize="0.9rem">
-                      {start} → {weekEnd}
-                    </MDTypography>
-                    {totalDishes > 0 && (
-                      <Chip
-                        icon={<RestaurantIcon />}
-                        label={`${totalDishes} món - ${Math.round(totalWeekCal)} kcal`}
-                        sx={{
-                          mt: 1,
-                          bgcolor: "rgba(0,0,0,0.05)",
-                          color: "text.primary",
-                          fontWeight: 600,
-                        }}
-                      />
-                    )}
-                  </Box>
-
-                  <Box display="flex" gap={1}>
-                    {!hasMealPlan ? (
-                      <>
-                        <MDButton
-                          variant="contained"
-                          startIcon={<RestaurantIcon />}
-                          size="small"
-                          color="info"
-                          onClick={handleCreateMealPlan}
-                        >
-                          Tạo thực đơn
-                        </MDButton>
-                        <MDButton
-                          variant="outlined"
-                          startIcon={<RestaurantIcon />}
-                          size="small"
-                          color="info"
-                          onClick={() => handleClickSuggest(start)}
-                          disabled={loadingCreate}
-                        >
-                          Gợi ý thực đơn
-                        </MDButton>
-                      </>
-                    ) : (
-                      <MDButton
-                        variant={isEditingWeek ? "contained" : "outlined"}
-                        startIcon={<Edit />}
-                        size="small"
-                        color="info"
-                        onClick={() => setIsEditingWeek(!isEditingWeek)}
-                      >
-                        {isEditingWeek ? "Lưu thay đổi" : "Chỉnh sửa"}
-                      </MDButton>
-                    )}
-                  </Box>
-                </Box>
-
-                {/* Hiển thị các ngày trong tuần */}
                 {hasMealPlan &&
-                  weekDates.map((date, index) => {
+                  weekDates.map((date) => {
                     const dayMenu = week[date] || [];
                     const validItems = (dayMenu || []).filter(Boolean);
 
-                    const dayCal = validItems.reduce((sum, item) => {
-                      return sum + (item.calories || 0);
-                    }, 0);
+                    const dayCal = validItems.reduce((sum, item) => sum + (item.calories || 0), 0);
 
                     return (
                       <Box key={date} mb={2}>
@@ -403,6 +402,7 @@ const WeekMenu = ({
                       </Box>
                     );
                   })}
+
                 {!hasMealPlan && (
                   <Box p={2} textAlign="center">
                     <MDTypography variant="body2" color="text" fontWeight="light">

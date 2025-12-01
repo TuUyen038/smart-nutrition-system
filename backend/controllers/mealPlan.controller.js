@@ -43,7 +43,13 @@ async function suggestWeekPlan(req, res) {
       mode: mode === "overwrite" ? "overwrite" : "reuse",
     });
 
-    await mealPlan.populate("dailyMenuIds");
+    await mealPlan.populate({
+      path: "dailyMenuIds",
+      populate: {
+        path: "recipes.recipeId",
+        model: "Recipe",
+      },
+    });
     return res.status(201).json(mealPlan);
   } catch (err) {
     console.error("Error suggestWeekPlan:", err);

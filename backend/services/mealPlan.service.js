@@ -172,7 +172,6 @@ class MealPlanService {
         best = r;
       }
     }
-
     return best;
   }
 
@@ -231,7 +230,10 @@ class MealPlanService {
       recipesPlanned.push({
         recipeId: recipe._id,
         portion,
+        name: recipe.name,
+        totalNutrition: recipe.  totalNutrition,
         servingTime: mealType,
+        imageUrl: recipe.imageUrl,
         status: "planned",
       });
 
@@ -270,7 +272,7 @@ class MealPlanService {
           dateStr: normalizedDate,
         }
       );
-
+      // console.log("recipesPlanned:", recipesPlanned);
       existing = await DailyMenu.create({
         userId,
         date: normalizedDate,
@@ -325,9 +327,9 @@ class MealPlanService {
         dateStr: d,
         mode, // "reuse" hoặc "overwrite"
       });
-
       dailyMenuIds.push(dailyMenu._id);
     }
+      console.log("dailyMenu 0:", dailyMenuIds);
 
     const mealPlan = await MealPlan.create({
       userId,
@@ -385,7 +387,6 @@ class MealPlanService {
       const current = new Date(d);
       current.setDate(d.getDate() + i);
       list.push(normalizeDate(current));
-      console.log("current: ", current);
     }
 
     return list;
