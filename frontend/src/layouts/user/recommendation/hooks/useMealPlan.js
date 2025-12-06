@@ -242,8 +242,9 @@ const [reloadWeek, setReloadWeek] = useState(false);
         const formattedMenus2 = {};
         plan1?.dailyMenuIds.forEach((d) => {
           const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
+          
           formattedMenus1[dateKey] = (d.recipes || []).map((r) => ({
-            id: r.recipeId._id,
+            id: r.recipeId?._id,
             name: r.recipeId.name,
             calories: r.recipeId.totalNutrition?.calories || 0,
             image:

@@ -16,9 +16,9 @@ import {
   getIngredientsAndInstructionsInAi,
   getIngredientsInAi,
   createRecipe
-} from "../../services/recipeApi";
-import { fetchIngredientsNutrition } from "../../services/mappingModelApi";
-import { findIngredientById } from "../../services/ingredientApi";
+} from "../../../services/recipeApi";
+import { fetchIngredientsNutrition } from "../../../services/mappingModelApi";
+import { findIngredientById } from "../../../services/ingredientApi";
 import { List, ListItem, ListItemText, ListItemIcon, Divider } from "@mui/material";
 import CircleIcon from "@mui/icons-material/Circle";
 import NutritionProgress from "./nutritionProgress";

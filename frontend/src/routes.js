@@ -1,18 +1,46 @@
-import Dashboard from "layouts/dashboard";
-import FoodDetect from "layouts/food-detect";
-import History from "layouts/history";
-import Recommendation from "layouts/recommendation";
-import Profile from "layouts/profile";
-import SignIn from "layouts/authentication/sign-in";
-import SignUp from "layouts/authentication/sign-up";
-import Analyze from "layouts/analyze-recipe";
-import MenuCreation from "layouts/menu";
-import MenuEditor from "layouts/menu/menu-editor";
-import RecipeDetail from "layouts/recipe-detail";
+import Dashboard from "layouts/user/dashboard";
+import FoodDetect from "layouts/user/food-detect";
+import History from "layouts/user/history";
+import Recommendation from "layouts/user/recommendation";
+import Profile from "layouts/user/profile";
+import SignIn from "layouts/user/authentication/sign-in";
+import SignUp from "layouts/user/authentication/sign-up";
+import Analyze from "layouts/user/analyze-recipe";
+import MenuCreation from "layouts/user/menu";
+import MenuEditor from "layouts/user/menu/menu-editor";
+import RecipeDetail from "layouts/user/recipe-detail";
 // @mui icons
 import Icon from "@mui/material/Icon";
+import { ROLES } from "constants/roles";
+import AdminDashboard from "layouts/admin/dashboard";
+import IngredientManagement from "layouts/admin/ingredients.js";
 
 const routes = [
+  {
+    type: "collapse",
+    name: "Nguyên liệu",
+    key: "admin-ingredients",
+    icon: <Icon fontSize="small">science</Icon>,
+    route: "/admin/ingredients",
+    component: <IngredientManagement />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.ADMIN],
+    layout: "admin",
+    showInSidebar: true,
+  },
+
+    {
+    type: "collapse",
+    name: "Quản trị",
+    key: "admin-dashboard",
+    icon: <Icon fontSize="small">admin_panel_settings</Icon>,
+    route: "/admin",
+    component: <AdminDashboard />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.ADMIN],
+    layout: "admin",
+    showInSidebar: true,
+  },
   {
     type: "collapse",
     name: "Trang chủ",
@@ -20,12 +48,20 @@ const routes = [
     icon: <Icon fontSize="small">dashboard</Icon>,
     route: "/dashboard",
     component: <Dashboard />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: true,
   },
   {
     name: "Chỉnh sửa thực đơn",
     key: "menu-editor",
     route: "/edit-menu",
     component: <MenuEditor />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: false, // trang “ẩn”, chỉ mở khi redirect
   },
   {
     type: "collapse",
@@ -34,6 +70,10 @@ const routes = [
     icon: <Icon fontSize="small">fastfood</Icon>,
     route: "/detect-food",
     component: <FoodDetect />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: true,
   },
   {
     type: "collapse",
@@ -42,22 +82,22 @@ const routes = [
     icon: <Icon fontSize="small">receipt_long</Icon>,
     route: "/analyze-recipe",
     component: <Analyze />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: true,
   },
   {
     type: "collapse",
-    name: "Món ăn & thực đơn",
-    key: "recommendation",
-    icon: <Icon fontSize="small">auto_awesome</Icon>,
-    route: "/recommendation",
-    component: <Recommendation />,
-  },
-  {
-    type: "collapse",
-    name: "Kế hoạch",
+    name: "Thực đơn",
     key: "meal-plan",
     icon: <Icon fontSize="small">event_note</Icon>,
     route: "/meal-plan",
     component: <Recommendation />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: true,
   },
   {
     type: "collapse",
@@ -66,8 +106,11 @@ const routes = [
     icon: <Icon fontSize="small">history</Icon>,
     route: "/history",
     component: <History />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: true,
   },
-  
   {
     type: "collapse",
     name: "Thông tin cá nhân",
@@ -75,7 +118,12 @@ const routes = [
     icon: <Icon fontSize="small">person</Icon>,
     route: "/profile",
     component: <Profile />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: true,
   },
+  // Auth pages (public)
   {
     type: "collapse",
     name: "Sign In",
@@ -83,6 +131,9 @@ const routes = [
     icon: <Icon fontSize="small">login</Icon>,
     route: "/authentication/sign-in",
     component: <SignIn />,
+    requiresAuth: false,
+    layout: "auth",
+    showInSidebar: false, // thường không hiện trong sidebar chính
   },
   {
     type: "collapse",
@@ -91,13 +142,21 @@ const routes = [
     icon: <Icon fontSize="small">assignment</Icon>,
     route: "/authentication/sign-up",
     component: <SignUp />,
+    requiresAuth: false,
+    layout: "auth",
+    showInSidebar: false,
   },
+  // Route chi tiết (không show sidebar)
   {
     key: "recipe-detail",
     name: "Chi tiết món ăn",
     route: "/recipes/:id",
     breadcrumb: "Chi tiết món ăn",
     component: <RecipeDetail />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    layout: "user",
+    showInSidebar: false,
   },
 ];
 

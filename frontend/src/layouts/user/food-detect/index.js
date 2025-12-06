@@ -16,7 +16,7 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
-import { detectFood } from "../../services/recipeApi";
+import { detectFood } from "../../../services/recipeApi";
 
 function DetectFood() {
   const navigate = useNavigate();

@@ -87,7 +87,7 @@ const WeekMenu = ({
       plan?.dailyMenuIds?.forEach((d) => {
         const dateKey = d.date; // "yyyy-mm-dd"
         formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
-          id: r.recipeId._id,
+          id: r.recipeId?._id,
           name: r.recipeId.name,
           calories: r.recipeId.totalNutrition?.calories || 0,
           image:
@@ -419,27 +419,22 @@ const WeekMenu = ({
       <Dialog open={modeDialogOpen} onClose={() => handleCloseModeDialog(false)}>
         <DialogTitle>Đã có thực đơn trong tuần này</DialogTitle>
         <DialogContent dividers>
-          <p>Trong tuần này, các ngày sau đã có sẵn thực đơn:</p>
-          {existingDates.length > 0 && (
-            <ul>
-              {existingDates.map((d) => (
-                <li key={d}>{d}</li>
-              ))}
-            </ul>
-          )}
+          <p>Trong tuần này, một số ngày đã được tạo thực đơn.</p>
           <p>Bạn muốn xử lý các ngày này như thế nào?</p>
         </DialogContent>
         <DialogActions>
-          <MDButton onClick={() => handleCloseModeDialog()} disabled={loadingCreate}>
+          <MDButton color="secondary"
+            variant="outlined" onClick={() => handleCloseModeDialog()} disabled={loadingCreate}>
             Hủy
           </MDButton>
 
-          <MDButton onClick={() => handleSelectMode("reuse")} disabled={loadingCreate}>
+          <MDButton color="info"
+            variant="outlined" onClick={() => handleSelectMode("reuse")} disabled={loadingCreate}>
             Giữ thực đơn cũ
           </MDButton>
           <MDButton
             variant="contained"
-            color="primary"
+            color="info"
             onClick={() => handleSelectMode("overwrite")}
             disabled={loadingCreate}
           >
@@ -457,7 +452,7 @@ const WeekMenu = ({
         </DialogContent>
         <DialogActions>
           <MDButton
-            color="info"
+            color="secondary"
             variant="outlined"
             onClick={handleCloseConfirmDialog}
             disabled={loadingCreate}

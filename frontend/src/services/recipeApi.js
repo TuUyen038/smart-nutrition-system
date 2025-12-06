@@ -1,5 +1,34 @@
 const API_BASE_URL = "http://localhost:3000/api/recipes";
 
+export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => {
+  try {
+    if (!keyword || !keyword.trim()) {
+      console.warn("Keyword rỗng, không gọi API search-by-ingredient.");
+      return null;
+    }
+
+    const params = new URLSearchParams({
+      keyword: keyword.trim(),      // ?keyword=tôm
+      page: String(page),
+      limit: String(limit),
+    });
+
+    const response = await fetch(`${API_BASE_URL}/search-by-ingredient?${params.toString()}`);
+
+    if (!response.ok) {
+      console.warn(`Khong lay duoc danh sach mon an (status: ${response.status})`);
+      return null;
+    }
+
+    const data = await response.json();
+    return data; // { success, data: { recipes, total, page, limit }, ... }
+  } catch (error) {
+    console.error("Loi goi getRecipesByIngredients:", error);
+    return null;
+  }
+};
+
+
 export const getRecipes = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}`);

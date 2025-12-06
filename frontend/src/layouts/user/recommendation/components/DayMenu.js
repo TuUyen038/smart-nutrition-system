@@ -72,7 +72,7 @@ const DayMenu = ({ menus, setMenus, days, handleOpenModal, handleDelete, getDayN
 
         return (
           <Paper key={date} elevation={3} sx={{ p: 3, mb: 3, borderRadius: 2 }}>
-            <Box display="flex" justifyContent="space-between" mb={2}>
+            <Box display="flex" justifyContent="space-between" alignItems="flex-start"  mb={2}>
               <Box>
                 <MDTypography variant="h5">{label}</MDTypography>
                 <Box display="flex" alignItems="center" gap={3} mt={1}>
@@ -156,16 +156,17 @@ const DayMenu = ({ menus, setMenus, days, handleOpenModal, handleDelete, getDayN
         <DialogTitle>Xác nhận tạo thực đơn</DialogTitle>
         <DialogContent dividers>
           <MDTypography mb={1}>
-            Bạn có chắc chắn muốn để hệ thống gợi ý thực đơn cho ngày{" "}
-            <strong>{selectedDate}</strong>?
+            Bạn có chắc chắn muốn để hệ thống gợi ý thực đơn cho ngày này?
+            {/* {" "}
+            <strong>{selectedDate}</strong>? */}
           </MDTypography>
-          <MDTypography variant="body2" color="text" mb={3}>
+          {/* <MDTypography variant="body2" color="text" mb={3}>
             Thực đơn sẽ được tạo tự động cho ngày này.
-          </MDTypography>
+          </MDTypography> */}
         </DialogContent>
         <DialogActions>
           <MDButton
-            color="info"
+            color="secondary"
             variant="outlined"
             onClick={handleCloseConfirmDialog}
             disabled={loadingCreate}
