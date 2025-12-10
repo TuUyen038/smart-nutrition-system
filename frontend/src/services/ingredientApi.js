@@ -53,3 +53,90 @@ export const findIngredientById = async (ingredientId) => {
     return null;
   }
 };
+
+export const createIngredient = async (ingredientData) => {
+  try {
+    const response = await fetch(API_BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+      },
+      body: JSON.stringify(ingredientData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể đọc lỗi từ server.",
+      }));
+      throw new Error(
+        errorData.message || `Lỗi HTTP ${response.status} khi tạo nguyên liệu`
+      );
+    }
+
+    const data = await response.json();
+    return data; // trả về object ingredient
+  } catch (error) {
+    console.error("Lỗi khi tạo nguyên liệu:", error.message);
+    return null;
+  }
+};
+
+export const updateIngredient = async (ingredientId, ingredientData) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/${ingredientId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        // Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+      },
+      body: JSON.stringify(ingredientData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể đọc lỗi từ server.",
+      }));
+      throw new Error(
+        errorData.message ||
+          `Lỗi HTTP ${response.status} khi cập nhật nguyên liệu`
+      );
+    }
+
+    const data = await response.json();
+    return data; // object ingredient sau khi update
+  } catch (error) {
+    console.error("Lỗi khi cập nhật nguyên liệu:", error.message);
+    return null;
+  }
+};
+
+// Xóa nguyên liệu (Admin)
+export const deleteIngredient = async (ingredientId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/${ingredientId}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        // Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể đọc lỗi từ server.",
+      }));
+      throw new Error(
+        errorData.message ||
+          `Lỗi HTTP ${response.status} khi xóa nguyên liệu`
+      );
+    }
+
+    const data = await response.json();
+    // BE đang trả { message: "Ingredient deleted" }
+    return data;
+  } catch (error) {
+    console.error("Lỗi khi xóa nguyên liệu:", error.message);
+    return null;
+  }
+};

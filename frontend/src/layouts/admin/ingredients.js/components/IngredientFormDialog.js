@@ -16,8 +16,8 @@ import PropTypes from "prop-types";
 import MDButton from "components/MDButton";
 
 const CATEGORY_OPTIONS = [
-  { value: "protein", label: "Protein" },
-  { value: "carb", label: "Carb" },
+  { value: "protein", label: "Đạm" },
+  { value: "carb", label: "Tinh bột" },
   { value: "fat", label: "Chất béo" },
   { value: "vegetable", label: "Rau củ" },
   { value: "fruit", label: "Trái cây" },
@@ -33,14 +33,14 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
     name_en: "",
     unit: "100g",
     category: "other",
-    calories: "",
-    protein: "",
-    fat: "",
-    carbs: "",
-    fiber: "",
-    sugar: "",
-    sodium: "",
-    source: ""
+    calories: "0",
+    protein: "0",
+    fat: "0",
+    carbs: "0",
+    fiber: "0",
+    sugar: "0",
+    sodium: "0",
+    source: "",
   });
 
   useEffect(() => {
@@ -49,22 +49,22 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
       setForm({
         name: ingredient.name || "",
         name_en: ingredient.name_en || "",
-        unit: ingredient.unit || "g",
+        unit: ingredient.unit || "100g",
         category: ingredient.category || "other",
-        calories: n.calories ?? "",
-        protein: n.protein ?? "",
-        fat: n.fat ?? "",
-        carbs: n.carbs ?? "",
-        fiber: n.fiber ?? "",
-        sugar: n.sugar ?? "",
-        sodium: n.sodium ?? "",
-        source: n.source || ""
+        calories: n.calories ?? "0",
+        protein: n.protein ?? "0",
+        fat: n.fat ?? "0",
+        carbs: n.carbs ?? "0",
+        fiber: n.fiber ?? "0",
+        sugar: n.sugar ?? "0",
+        sodium: n.sodium ?? "0",
+        source: n.source || "0",
       });
     } else {
       setForm({
         name: "",
         name_en: "",
-        unit: "g",
+        unit: "100g",
         category: "other",
         calories: "",
         protein: "",
@@ -73,7 +73,7 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
         fiber: "",
         sugar: "",
         sodium: "",
-        source: ""
+        source: "",
       });
     }
   }, [ingredient, open]);
@@ -94,17 +94,17 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
       unit: form.unit || "g",
       category: form.category || "other",
       nutrition: {
-        calories: form.calories === "" ? undefined : Number(form.calories),
-        protein: form.protein === "" ? undefined : Number(form.protein),
-        fat: form.fat === "" ? undefined : Number(form.fat),
-        carbs: form.carbs === "" ? undefined : Number(form.carbs),
-        fiber: form.fiber === "" ? undefined : Number(form.fiber),
-        sugar: form.sugar === "" ? undefined : Number(form.sugar),
-        sodium: form.sodium === "" ? undefined : Number(form.sodium),
+        calories: form.calories === "" ? 0 : Number(form.calories),
+        protein: form.protein === "" ? 0 : Number(form.protein),
+        fat: form.fat === "" ? 0 : Number(form.fat),
+        carbs: form.carbs === "" ? 0 : Number(form.carbs),
+        fiber: form.fiber === "" ? 0 : Number(form.fiber),
+        sugar: form.sugar === "" ? 0 : Number(form.sugar),
+        sodium: form.sodium === "" ? 0 : Number(form.sodium),
       },
       source: form.source.trim() || undefined,
     };
-
+    console.log("Submitting ingredient:", payload);
     onSubmit(payload);
   };
 
@@ -115,23 +115,23 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
       <DialogTitle>
         <MDTypography variant="h6">{title}</MDTypography>
       </DialogTitle>
-      <DialogContent 
+      <DialogContent
         dividers
-        sx = {{ 
-          "label": {
+        sx={{
+          label: {
             pb: 1,
           },
           ".css-12n1zae-MuiInputBase-root-MuiOutlinedInput-root": {
             lineHeight: "3.15",
-          }
-         }}
-        >
+          },
+        }}
+      >
         <Grid container spacing={2} mt={0.5}>
           <Grid item xs={12} md={6}>
             <TextField
               required
               fullWidth
-              label="Tên nguyên liệu (VI)"
+              label="Tên tiếng Việt"
               value={form.name}
               onChange={handleChange("name")}
             />
@@ -139,7 +139,7 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="Tên nguyên liệu (EN)"
+              label="Tên tiếng Anh"
               value={form.name_en}
               onChange={handleChange("name_en")}
             />
@@ -207,7 +207,9 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
         </Grid>
       </DialogContent>
       <DialogActions>
-        <MDButton variant="outlined" color="secondary" onClick={onClose}>Hủy</MDButton>
+        <MDButton variant="outlined" color="secondary" onClick={onClose}>
+          Hủy
+        </MDButton>
         <MDButton variant="contained" color="info" onClick={handleSubmit}>
           Lưu
         </MDButton>
@@ -236,6 +238,5 @@ IngredientFormDialog.propTypes = {
     }),
   }),
 };
-
 
 export default IngredientFormDialog;

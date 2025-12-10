@@ -16,10 +16,33 @@ import IngredientFormDialog from "./components/IngredientFormDialog";
 
 import {
   getIngredients,
-//   createIngredient,
-//   updateIngredient,
-//   deleteIngredient,
+  createIngredient,
+  updateIngredient,
+  deleteIngredient,
 } from "services/ingredientApi";
+
+// Hàm chuẩn hóa dữ liệu nguyên liệu cho form (đảm bảo luôn có nutrition đầy đủ field)
+const normalizeIngredientForForm = (ingredient) => {
+  if (!ingredient) return null;
+
+  return {
+    ...ingredient,
+    name: ingredient.name || "",
+    name_en: ingredient.name_en || "",
+    unit: ingredient.unit || "g",
+    category: ingredient.category || "other",
+    source: ingredient.source || "",
+    nutrition: {
+      calories: ingredient.nutrition?.calories ?? "",
+      protein: ingredient.nutrition?.protein ?? "",
+      fat: ingredient.nutrition?.fat ?? "",
+      carbs: ingredient.nutrition?.carbs ?? "",
+      fiber: ingredient.nutrition?.fiber ?? "",
+      sugar: ingredient.nutrition?.sugar ?? "",
+      sodium: ingredient.nutrition?.sodium ?? "",
+    },
+  };
+};
 
 function IngredientManagement() {
   const [ingredients, setIngredients] = useState([]);
@@ -53,7 +76,7 @@ function IngredientManagement() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await getIngredients(); // bạn có thể pass search/category vào API nếu muốn
+      const data = await getIngredients();
       setIngredients(data || []);
     } catch (err) {
       console.error("Fetch ingredients error:", err);
@@ -66,20 +89,23 @@ function IngredientManagement() {
     fetchData();
   }, []);
 
+  // Thêm mới: không truyền ingredient -> dialog tự dùng form rỗng
   const handleAddClick = () => {
     setEditingIngredient(null);
     setDialogOpen(true);
   };
 
+  // Chỉnh sửa: chuẩn hóa trước khi truyền xuống dialog
   const handleEditClick = (ingredient) => {
-    setEditingIngredient(ingredient);
+    const normalized = normalizeIngredientForForm(ingredient);
+    setEditingIngredient(normalized);
     setDialogOpen(true);
   };
 
   const handleDeleteClick = async (ingredient) => {
     if (!window.confirm(`Xóa nguyên liệu "${ingredient.name}"?`)) return;
     try {
-      // await deleteIngredient(ingredient._id);
+      await deleteIngredient(ingredient._id);
       await fetchData();
     } catch (err) {
       console.error("Delete ingredient error:", err);
@@ -93,10 +119,10 @@ function IngredientManagement() {
 
   const handleDialogSubmit = async (formData) => {
     try {
-      if (editingIngredient) {
-        // await updateIngredient(editingIngredient._id, formData);
+      if (editingIngredient && editingIngredient._id) {
+        await updateIngredient(editingIngredient._id, formData);
       } else {
-        // await createIngredient(formData);
+        await createIngredient(formData);
       }
       await fetchData();
       handleDialogClose();
