@@ -20,27 +20,92 @@ exports.searchRecipesByIngredientName = async (keyword, options = {}) => {
   }
 
   const cleanKeyword = keyword.trim();
-  const regex = new RegExp(escapeRegex(cleanKeyword), "i"); // "i" = không phân biệt hoa thường
+  const regex = new RegExp(escapeRegex(cleanKeyword), "i");
 
-  const query = {
-    "ingredients.name": regex,
+  // pipeline aggregate để:
+  // - match theo name hoặc ingredients.name
+  // - thêm cờ matchByName, matchByIngredient
+  // - có thể lấy luôn danh sách ingredient match
+  const baseMatch = {
+    $or: [
+      { name: regex },
+      { "ingredients.name": regex },
+    ],
   };
 
-  const total = await Recipe.countDocuments(query);
+  const pipeline = [
+    { $match: baseMatch },
 
-  const recipes = await Recipe.find(query)
-    .select("name description category imageUrl totalNutrition ingredients")
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit)
-    .lean();
+    // đánh dấu match theo tên món
+    {
+      $addFields: {
+        matchByName: { $regexMatch: { input: "$name", regex } },
+      },
+    },
+
+    // lọc ra các ingredients match
+    {
+      $addFields: {
+        matchedIngredients: {
+          $filter: {
+            input: "$ingredients",
+            as: "ing",
+            cond: {
+              $regexMatch: {
+                input: "$$ing.name",
+                regex,
+              },
+            },
+          },
+        },
+      },
+    },
+
+    // flag xem có match theo ingredient không
+    {
+      $addFields: {
+        matchByIngredient: {
+          $gt: [{ $size: "$matchedIngredients" }, 0],
+        },
+      },
+    },
+
+    // sort mới nhất trước
+    { $sort: { createdAt: -1 } },
+
+    // phân trang
+    { $skip: skip },
+    { $limit: limit },
+
+    // chọn field cần thiết
+    {
+      $project: {
+        name: 1,
+        description: 1,
+        category: 1,
+        imageUrl: 1,
+        totalNutrition: 1,
+        ingredients: 1,
+        matchByName: 1,
+        matchByIngredient: 1,
+        // nếu không muốn gửi full matchedIngredients ra thì có thể chỉ gửi tên:
+        matchedIngredientNames: "$matchedIngredients.name",
+      },
+    },
+  ];
+
+  const [items, totalArr] = await Promise.all([
+    Recipe.aggregate(pipeline),
+    Recipe.countDocuments(baseMatch),
+  ]);
 
   return {
-    recipes,
-    total,
+    recipes: items,
+    total: totalArr,
     page,
     limit,
   };
+
 };
 
 exports.searchRecipes = async (name) => {

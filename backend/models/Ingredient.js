@@ -17,7 +17,8 @@ const ingredientSchema = new mongoose.Schema({
     type: String,
     enum: ["protein", "carb", "fat", "vegetable", "fruit", "dairy", "seasoning", "beverage", "other"],
     default: "other",
-  }
+  },
+  source: { type: String },
 
 });
 

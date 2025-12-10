@@ -33,13 +33,19 @@ exports.searchIngredients = async (req, res) => {
   }
 };
 
-
 // Thêm nguyên liệu (Admin)
 exports.createIngredient = async (req, res) => {
   try {
-    const ingredient = new Ingredient(req.body);
+    const ingredient = new Ingredient({
+      name: req.body.name,
+      name_en: req.body.name_en,
+      nutrition: req.body.nutrition,
+      unit: req.body.unit,
+      category: req.body.category,
+      source: req.body.source,
+    });
     await ingredient.save();
-    res.status(200).json(ingredient);
+    res.status(201).json(ingredient);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

@@ -2,7 +2,7 @@
 const fs = require('fs');
 const Recipe = require('../models/Recipe');
 const mongoose = require('mongoose');
-const { createRecipe, saveRecipeToDB, getVerifiedRecipes } = require('../services/recipe.service');
+const { createRecipe, saveRecipeToDB, getVerifiedRecipes, searchRecipesByIngredientName } = require('../services/recipe.service');
 // Sửa import: Lấy tất cả các hàm mới
 const { 
   identifyFoodName, 
@@ -17,24 +17,18 @@ const recipeService = require('../services/recipe.service');
 
 const searchByIngredientName = async (req, res) => {
   try {
-    const { query, q, keyword, page, limit } = req.query;
+    const { keyword, page, limit } = req.query;
+    const result = await searchRecipesByIngredientName(keyword, { page, limit });
 
-    const searchText = query || q || keyword || "";
-    const result = await recipeService.searchRecipesByIngredientName(searchText, {
-      page,
-      limit,
-    });
-
-    return res.status(200).json({
+    return res.json({
       success: true,
-      message: "Tìm kiếm món ăn theo nguyên liệu thành công",
       data: result,
     });
-  } catch (error) {
-    console.error("❌ Error searchByIngredientName:", error);
+  } catch (err) {
+    console.error("searchRecipes error:", err);
     return res.status(500).json({
       success: false,
-      message: "Có lỗi xảy ra khi tìm kiếm món ăn",
+      message: "Lỗi khi tìm kiếm món ăn",
     });
   }
 }
