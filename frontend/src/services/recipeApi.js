@@ -28,7 +28,6 @@ export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => 
   }
 };
 
-
 export const getRecipes = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}`);
@@ -39,7 +38,7 @@ export const getRecipes = async () => {
     }
 
     const data = await response.json();
-    return data;
+    return data.data;
   } catch (error) {
     console.error(error.message);
     return null;
@@ -173,8 +172,6 @@ export const getIngredientsInAi = async (recipe) => {
     throw error;
   }
 };
-
-
 
 export async function createRecipe(recipeData, token) {
   const res = await fetch(API_BASE_URL, {

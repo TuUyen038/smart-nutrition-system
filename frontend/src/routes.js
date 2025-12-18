@@ -13,9 +13,21 @@ import RecipeDetail from "layouts/user/recipe-detail";
 import Icon from "@mui/material/Icon";
 import { ROLES } from "constants/roles";
 import AdminDashboard from "layouts/admin/dashboard";
-import IngredientManagement from "layouts/admin/ingredients.js";
-
+import IngredientManagement from "layouts/admin/ingredient/index.js";
+import RecipeManagement from "layouts/admin/recipe/index.js";
 const routes = [
+  {
+    type: "collapse",
+    name: "Món ăn",
+    key: "admin-recipes",
+    icon: <Icon fontSize="small">science</Icon>,
+    route: "/admin/recipres",
+    component: <RecipeManagement />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.ADMIN],
+    layout: "admin",
+    showInSidebar: true,
+  },
   {
     type: "collapse",
     name: "Nguyên liệu",

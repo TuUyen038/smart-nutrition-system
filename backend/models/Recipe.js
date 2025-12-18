@@ -1,57 +1,65 @@
 const mongoose = require("mongoose");
 
-const recipeSchema = new mongoose.Schema({
-  ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
-  name: { type: String, required: true, trim: true },
-  description: { type: String, trim: true },
-  category: { type: String, enum: ["main", "side", "dessert", "drink"] },
+const recipeSchema = new mongoose.Schema(
+  {
+    ownerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: false,
+    },
+    name: { type: String, required: true, trim: true },
+    description: { type: String, trim: true },
+    category: { type: String, enum: ["main", "side", "dessert", "drink"] },
 
-  instructions: [String],
-  ingredients: [ 
-    {
-      ingredientId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "Ingredient", 
-        // required: true 
+    instructions: [String],
+    ingredients: [
+      {
+        ingredientId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Ingredient",
+          required: false, // mapping xong mới có
+        },
+        quantity: {
+          amount: { type: Number, required: true }, // cho phép null thì không cần required
+          unit: {
+            type: String,
+            enum: ["g", "kg", "l", "ml", "cup", "tbsp", "tsp", "unit"],
+          },
+        },
+        // tên nguyên liệu (thô hoặc theo Ingredient)
+        name: { type: String, required: true, trim: true },
       },
-      quantity: {
-        amount: { type: Number, required: false },
-        unit: { type: String, enum: ['g', 'kg','l', 'ml', 'cup', 'tbsp', 'tsp', 'unit'], required: false }, 
-      },
-      name: { type: String, required: false, trim: true },
-    }
-  ],
+    ],
 
-  servings: { type: Number, default: 1 },
+    servings: { type: Number, default: 1 },
 
-  totalNutrition: {
-    calories: Number,
-    protein: Number,
-    fat: Number,
-    carbs: Number,
-    fiber: Number,
-    sugar: Number,
-    sodium: Number,
+    totalNutrition: {
+      calories: Number,
+      protein: Number,
+      fat: Number,
+      carbs: Number,
+      fiber: Number,
+      sugar: Number,
+      sodium: Number,
+    },
+
+    imageUrl: String,
+    public_id: String,
+    createdBy: {
+      type: String,
+      enum: ["admin", "user", "ai"],
+      default: "admin",
+    },
+    verified: { type: Boolean, default: false },
+    isPublic: { type: Boolean, default: false },
+
   },
+  { timestamps: true }
+);
 
-  imageUrl: String,
-  public_id: String,
-  createdBy: { type: String, enum: ["admin", "user", "ai"] },
-  verified: { type: Boolean, default: false },
-
-
-  createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now },
-});
-
-recipeSchema.index({ name: 'text' }); // Index dạng text cho tìm kiếm toàn văn (nếu cần)
+recipeSchema.index({ name: "text" }); // Index dạng text cho tìm kiếm toàn văn (nếu cần)
 recipeSchema.index({ ownerId: 1 }); // Index đơn giản cho tìm kiếm theo ID
 recipeSchema.index({ category: 1 }); // Index đơn giản cho bộ lọc danh mục
 recipeSchema.index({ "ingredients.ingredientId": 1 });
-
-recipeSchema.pre("save", function (next) {
-  this.updatedAt = Date.now();
-  next();
-});
 
 module.exports = mongoose.model("Recipe", recipeSchema);

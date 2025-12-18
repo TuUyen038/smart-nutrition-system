@@ -60,9 +60,7 @@ function IngredientManagement() {
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(q) ||
-          item.name_en?.toLowerCase().includes(q)
+        (item) => item.name?.toLowerCase().includes(q) || item.name_en?.toLowerCase().includes(q)
       );
     }
 
@@ -136,12 +134,7 @@ function IngredientManagement() {
       <DashboardNavbar />
       <MDBox py={3}>
         {/* Header + nút thêm */}
-        <MDBox
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={2}
-        >
+        <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
           <div>
             <MDTypography variant="h5" fontWeight="medium">
               Quản lý nguyên liệu
@@ -176,6 +169,12 @@ function IngredientManagement() {
                 onCategoryChange={setCategoryFilter}
               />
 
+              <Grid item xs={12} sx={{ textAlign: "right", mb: 1 }}>
+                <MDTypography variant="caption" color="text">
+                  * Dữ liệu dinh dưỡng được tính theo đơn vị 100g
+                </MDTypography>
+              </Grid>
+              
               <IngredientTable
                 loading={loading}
                 ingredients={filteredIngredients}

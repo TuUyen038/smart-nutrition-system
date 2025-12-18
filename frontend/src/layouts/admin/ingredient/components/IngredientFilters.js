@@ -6,6 +6,9 @@ import MenuItem from "@mui/material/MenuItem";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import PropTypes from "prop-types"; // <--- THÊM DÒNG NÀY
+import { IconButton, InputAdornment, Tooltip } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 
 const CATEGORY_OPTIONS = [
   { value: "all", label: "Tất cả nhóm" },
@@ -23,23 +26,52 @@ const CATEGORY_OPTIONS = [
 function IngredientFilters({ search, onSearchChange, category, onCategoryChange }) {
   return (
     <MDBox mb={3}>
-      <Grid container spacing={2} alignItems="center">
-        <Grid item xs={12} md={6}>
+      <Grid container spacing={3} alignItems="center">
+        <Grid item xs={12} md={9}>
           <TextField
             fullWidth
             size="small"
-            label="Tìm kiếm theo tên (VI/EN)"
+            placeholder="Tìm kiếm theo tên (VI/EN)…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <Tooltip title="Xóa">
+                    <IconButton size="small" onClick={() => onSearchChange("")}>
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ) : null,
+            }}
+            sx={{
+              ".css-enr3vy-MuiFormControl-root-MuiTextField-root .MuiOutlinedInput-root": {
+                borderRadius: 10,
+              },
+            }}
           />
         </Grid>
-        <Grid item xs={12} md={3}>
+        <Grid item xs={12} md={2}>
           <TextField
             select
             fullWidth
             size="small"
             label="Nhóm nguyên liệu"
             value={category}
+            sx={{
+              label: {
+                pb: 1,
+              },
+              ".css-12n1zae-MuiInputBase-root-MuiOutlinedInput-root": {
+                lineHeight: "3.12",
+              },
+            }}
             onChange={(e) => onCategoryChange(e.target.value)}
           >
             {CATEGORY_OPTIONS.map((opt) => (
@@ -49,17 +81,11 @@ function IngredientFilters({ search, onSearchChange, category, onCategoryChange 
             ))}
           </TextField>
         </Grid>
-        <Grid item xs={12} md={3}>
-          <MDTypography variant="caption" color="text">
-            * Dữ liệu dinh dưỡng được tính theo đơn vị cơ bản (ví dụ 100g hoặc 1 đơn vị).
-          </MDTypography>
-        </Grid>
       </Grid>
     </MDBox>
   );
 }
 
-// 🔹 THÊM PROP TYPES Ở CUỐI FILE
 IngredientFilters.propTypes = {
   search: PropTypes.string.isRequired,
   onSearchChange: PropTypes.func.isRequired,
