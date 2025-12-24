@@ -14,8 +14,38 @@ import RecipeFilters from "./components/RecipeFilters";
 import RecipeTable from "./components/RecipeTable";
 import RecipeFormDialog from "./components/RecipeFormDialog";
 
-import { getRecipes, createRecipe, updateRecipe, deleteRecipe } from "services/recipeApi";
-import { getIngredients } from "services/ingredientApi"; // đã có sẵn
+import {
+  getRecipes,
+  createRecipe,
+  updateRecipe,
+  deleteRecipe,
+} from "services/recipeApi";
+import { getIngredients } from "services/ingredientApi";
+
+function toUiIngredientRow(input) {
+  // input backend: { name, ingredientId, quantity:{amount,unit}, ... }
+  const id =
+    (typeof crypto !== "undefined" && crypto?.randomUUID?.()) ||
+    `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+  return {
+    id,
+    name: input?.name || "",
+    rawText: input?.rawText || input?.name || "",
+    quantity: {
+      amount: input?.quantity?.amount ?? "",
+      unit: input?.quantity?.unit || "g",
+      estimate: Boolean(input?.quantity?.estimate),
+    },
+    grams: input?.grams ?? "",
+    ingredientId: input?.ingredientId ?? null,
+    ingredientLabel: input?.ingredientLabel ?? "",
+    mappingName: input?.mappingName ?? "",
+    mappingSuggestion: input?.mappingSuggestion ?? null,
+    mapping: input?.mapping ?? { suggestions: [] },
+    flags: input?.flags ?? { optional: false },
+  };
+}
 
 function RecipeManagement() {
   const [recipes, setRecipes] = useState([]);
@@ -27,7 +57,6 @@ function RecipeManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRecipe, setEditingRecipe] = useState(null);
 
-  // danh sách nguyên liệu dùng cho mapping trong dialog
   const [allIngredients, setAllIngredients] = useState([]);
 
   const filteredRecipes = useMemo(() => {
@@ -35,9 +64,7 @@ function RecipeManagement() {
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      data = data.filter((item) =>
-        item.name?.toLowerCase().includes(q)
-      );
+      data = data.filter((item) => item.name?.toLowerCase().includes(q));
     }
 
     if (categoryFilter !== "all") {
@@ -79,15 +106,22 @@ function RecipeManagement() {
   };
 
   const handleEditClick = (recipe) => {
-    // chuẩn hóa instructions thành text để edit
     const instructionsText = Array.isArray(recipe.instructions)
       ? recipe.instructions.join("\n")
       : recipe.instructions || "";
 
+    const uiIngredients = Array.isArray(recipe.ingredients)
+      ? recipe.ingredients.map(toUiIngredientRow)
+      : [];
+
     setEditingRecipe({
       ...recipe,
       instructionsText,
+      ingredients: uiIngredients,
+      // nếu backend có ảnh thì giữ lại:
+      imageUrl: recipe.imageUrl || recipe.image || "",
     });
+
     setDialogOpen(true);
   };
 
@@ -107,32 +141,35 @@ function RecipeManagement() {
   };
 
   const handleDialogSubmit = async (formData) => {
-    /*
-      formData sẽ có cấu trúc:
-      {
-        name,
-        description,
-        category,
-        servings,
-        instructionsText, // string
-        ingredients: [
-          { name, ingredientId, quantity: { amount, unit } }
-        ]
-      }
-    */
-
+    // formData có thêm status: 'draft' | 'published'
     const payload = {
       name: formData.name,
       description: formData.description,
       category: formData.category,
       servings: formData.servings,
+      imageUrl: formData.imageUrl || undefined,
+      status: formData.status || undefined,
+
       instructions: formData.instructionsText
         ? formData.instructionsText
             .split("\n")
             .map((s) => s.trim())
             .filter(Boolean)
         : [],
-      ingredients: formData.ingredients || [],
+
+      // backend bạn đang nhận { name, ingredientId, quantity }
+      // thêm optional fields nếu backend ignore thì ok
+      ingredients: (formData.ingredients || []).map((row) => ({
+        name: row.name,
+        ingredientId: row.ingredientId,
+        quantity: row.quantity,
+        grams:
+          row.grams === "" || row.grams === null || row.grams === undefined
+            ? undefined
+            : Number(row.grams),
+        isOptional: Boolean(row?.flags?.optional),
+        rawText: row.rawText || undefined,
+      })),
     };
 
     try {
@@ -151,8 +188,8 @@ function RecipeManagement() {
   return (
     <DashboardLayout>
       <DashboardNavbar />
+
       <MDBox py={3}>
-        {/* Header + nút thêm */}
         <MDBox
           display="flex"
           justifyContent="space-between"
@@ -164,7 +201,7 @@ function RecipeManagement() {
               Quản lý món ăn
             </MDTypography>
             <MDTypography variant="button" color="text">
-              Tạo, chỉnh sửa công thức và quản lý nguyên liệu / dinh dưỡng cho từng món
+              Tạo, chỉnh sửa công thức và quản lý nguyên liệu / dinh dưỡng
             </MDTypography>
           </div>
 
@@ -172,17 +209,13 @@ function RecipeManagement() {
             <IconButton
               color="primary"
               onClick={handleAddClick}
-              sx={{
-                borderRadius: "12px",
-                boxShadow: 2,
-              }}
+              sx={{ borderRadius: "12px", boxShadow: 2 }}
             >
               <AddIcon />
             </IconButton>
           </Tooltip>
         </MDBox>
 
-        {/* Filter + bảng */}
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <Card sx={{ p: 3 }}>
@@ -209,7 +242,7 @@ function RecipeManagement() {
         onClose={handleDialogClose}
         onSubmit={handleDialogSubmit}
         recipe={editingRecipe}
-        allIngredients={allIngredients} // để mapping trong dialog
+        allIngredients={allIngredients}
       />
     </DashboardLayout>
   );
