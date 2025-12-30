@@ -8,12 +8,12 @@ import {
   Grid,
   TextField,
   MenuItem,
-  Button,
 } from "@mui/material";
 
 import MDTypography from "components/MDTypography";
 import PropTypes from "prop-types";
 import MDButton from "components/MDButton";
+import { useToast } from "context/ToastContext";
 
 const CATEGORY_OPTIONS = [
   { value: "protein", label: "Đạm" },
@@ -28,6 +28,7 @@ const CATEGORY_OPTIONS = [
 ];
 
 function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
+  const { showError } = useToast();
   const [form, setForm] = useState({
     name: "",
     name_en: "",
@@ -84,7 +85,7 @@ function IngredientFormDialog({ open, onClose, onSubmit, ingredient }) {
 
   const handleSubmit = () => {
     if (!form.name.trim()) {
-      alert("Tên nguyên liệu (VI) là bắt buộc");
+      showError("Tên nguyên liệu (tiếng Việt) là bắt buộc");
       return;
     }
 

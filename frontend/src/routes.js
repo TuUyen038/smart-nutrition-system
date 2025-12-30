@@ -5,6 +5,7 @@ import Recommendation from "layouts/user/recommendation";
 import Profile from "layouts/user/profile";
 import SignIn from "layouts/user/authentication/sign-in";
 import SignUp from "layouts/user/authentication/sign-up";
+import ForgotPassword from "layouts/user/authentication/forgot-password";
 import Analyze from "layouts/user/analyze-recipe";
 import MenuCreation from "layouts/user/menu";
 import MenuEditor from "layouts/user/menu/menu-editor";
@@ -15,6 +16,8 @@ import { ROLES } from "constants/roles";
 import AdminDashboard from "layouts/admin/dashboard";
 import IngredientManagement from "layouts/admin/ingredient/index.js";
 import RecipeManagement from "layouts/admin/recipe/index.js";
+import AdminRecipeDetail from "layouts/admin/recipe/recipe-detail/index.js";
+import UserManagement from "layouts/admin/user/index.js";
 const routes = [
   {
     type: "collapse",
@@ -40,8 +43,19 @@ const routes = [
     layout: "admin",
     showInSidebar: true,
   },
-
-    {
+  {
+    type: "collapse",
+    name: "Người dùng",
+    key: "admin-users",
+    icon: <Icon fontSize="small">people</Icon>,
+    route: "/admin/users",
+    component: <UserManagement />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.ADMIN],
+    layout: "admin",
+    showInSidebar: true,
+  },
+  {
     type: "collapse",
     name: "Quản trị",
     key: "admin-dashboard",
@@ -158,6 +172,17 @@ const routes = [
     layout: "auth",
     showInSidebar: false,
   },
+  {
+    type: "collapse",
+    name: "Forgot Password",
+    key: "forgot-password",
+    icon: <Icon fontSize="small">lock_reset</Icon>,
+    route: "/authentication/forgot-password",
+    component: <ForgotPassword />,
+    requiresAuth: false,
+    layout: "auth",
+    showInSidebar: false,
+  },
   // Route chi tiết (không show sidebar)
   {
     key: "recipe-detail",
@@ -168,6 +193,17 @@ const routes = [
     requiresAuth: true,
     allowedRoles: [ROLES.USER, ROLES.ADMIN],
     layout: "user",
+    showInSidebar: false,
+  },
+  {
+    key: "admin-recipe-detail",
+    name: "Chi tiết món ăn (Admin)",
+    route: "/admin/recipes/:id",
+    breadcrumb: "Chi tiết món ăn",
+    component: <AdminRecipeDetail />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.ADMIN],
+    layout: "admin",
     showInSidebar: false,
   },
 ];

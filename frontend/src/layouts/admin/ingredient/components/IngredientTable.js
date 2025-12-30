@@ -5,6 +5,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import MDTypography from "components/MDTypography";
 import PropTypes from "prop-types";
 import { EllipsisText } from "helpers/ellipsisText";
+import Pagination from "components/shared/Pagination";
 
 const CATEGORY_LABELS = {
   protein: "Protein",
@@ -30,7 +31,68 @@ const CATEGORY_COLORS = {
   other: "default",
 };
 
-function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
+function IngredientTable({ 
+  loading, 
+  ingredients, 
+  pagination,
+  sortBy,
+  sortOrder,
+  onSort,
+  onEdit, 
+  onDelete,
+  onPageChange 
+}) {
+  const handleSort = (field) => {
+    if (onSort) {
+      const newOrder = sortBy === field && sortOrder === "asc" ? "desc" : "asc";
+      onSort(field, newOrder);
+    }
+  };
+
+  // eslint-disable-next-line react/prop-types
+  const SortableHeader = ({ field, children, textAlign = "left" }) => {
+    if (!onSort) {
+      return (
+        <th
+          style={{
+            display: "table-cell",
+            boxSizing: "border-box",
+            padding: "10px 12px",
+            borderBottom: "1px solid #d9d9d9",
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            textAlign,
+          }}
+        >
+          {children}
+        </th>
+      );
+    }
+    
+    return (
+      <th
+        style={{
+          display: "table-cell",
+          boxSizing: "border-box",
+          padding: "10px 12px",
+          borderBottom: "1px solid #d9d9d9",
+          fontWeight: 600,
+          whiteSpace: "nowrap",
+          cursor: "pointer",
+          textAlign,
+        }}
+        onClick={() => handleSort(field)}
+      >
+        <Box display="flex" alignItems="center" gap={0.5}>
+          {children}
+          {sortBy === field && (
+            <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
+          )}
+        </Box>
+      </th>
+    );
+  };
+
   return (
     <Box width="100%">
       {loading && <LinearProgress sx={{ mb: 1 }} />}
@@ -49,64 +111,82 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
           <table
             style={{
               width: "100%",
-              minWidth: 1000, // ✅ bảng nhiều cột => cần minWidth để scroll ngang
+              minWidth: 1000,
               borderCollapse: "collapse",
               tableLayout: "fixed",
             }}
           >
-            {/* ✅ khóa width cột => header & body luôn khớp */}
             <colgroup>
-              <col style={{ width: 200 }} />  {/* Tên (VI) */}
-              <col style={{ width: 200 }} />  {/* Tên (EN) */}
-              <col style={{ width: 80 }} />  {/* Nhóm */}
-              <col style={{ width: 60 }} />   {/* Đơn vị */}
-              <col style={{ width: 55 }} />   {/* Kcal */}
-              <col style={{ width: 55 }} />   {/* P */}
-              <col style={{ width: 55 }} />   {/* C */}
-              <col style={{ width: 55 }} />   {/* F */}
-              <col style={{ width: 75 }} />   {/* Đường */}
-              <col style={{ width: 70 }} />   {/* Na */}
-              <col style={{ width: 90 }} />  {/* Thao tác */}
+              <col style={{ width: 200 }} />
+              <col style={{ width: 200 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 60 }} />
+              <col style={{ width: 55 }} />
+              <col style={{ width: 55 }} />
+              <col style={{ width: 55 }} />
+              <col style={{ width: 55 }} />
+              <col style={{ width: 75 }} />
+              <col style={{ width: 70 }} />
+              <col style={{ width: 90 }} />
             </colgroup>
 
             <thead style={{ display: "table-header-group" }}>
               <tr style={{ background: "#f5f5f5" }}>
-                {[
-                  "Tên (VI)",
-                  "Tên (EN)",
-                  "Nhóm",
-                  "Đơn vị",
-                  "Kcal",
-                  "P (g)",
-                  "C (g)",
-                  "F (g)",
-                  "Đường (g)",
-                  "Na (mg)",
-                  "Thao tác",
-                ].map((h, i) => (
-                  <th
-                    key={h}
-                    style={{
-                      display: "table-cell",
-                      boxSizing: "border-box",
-                      textAlign:
-                        h === "Thao tác"
-                          ? "center"
-                          : ["Kcal", "P (g)", "C (g)", "F (g)", "Đường (g)", "Na (mg)"].includes(h)
-                          ? "right"
-                          : "left",
-                      padding: "10px 12px",
-                      borderBottom: "1px solid #d9d9d9",
-                      borderRight: i === 10 ? "none" : "1px solid #e6e6e6",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    <MDTypography variant="button" fontWeight="medium">
-                      {h}
-                    </MDTypography>
-                  </th>
-                ))}
+                <SortableHeader field="name">
+                  <MDTypography variant="button" fontWeight="medium">
+                    Tên (VI)
+                  </MDTypography>
+                </SortableHeader>
+                <SortableHeader field="name_en">
+                  <MDTypography variant="button" fontWeight="medium">
+                    Tên (EN)
+                  </MDTypography>
+                </SortableHeader>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9" }}>
+                  <MDTypography variant="button" fontWeight="medium">
+                    Nhóm
+                  </MDTypography>
+                </th>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9" }}>
+                  <MDTypography variant="button" fontWeight="medium">
+                    Đơn vị
+                  </MDTypography>
+                </th>
+                <SortableHeader field="calories" textAlign="right">
+                  <MDTypography variant="button" fontWeight="medium">
+                    Kcal
+                  </MDTypography>
+                </SortableHeader>
+                <SortableHeader field="protein" textAlign="right">
+                  <MDTypography variant="button" fontWeight="medium">
+                    P (g)
+                  </MDTypography>
+                </SortableHeader>
+                <SortableHeader field="carbs" textAlign="right">
+                  <MDTypography variant="button" fontWeight="medium">
+                    C (g)
+                  </MDTypography>
+                </SortableHeader>
+                <SortableHeader field="fat" textAlign="right">
+                  <MDTypography variant="button" fontWeight="medium">
+                    F (g)
+                  </MDTypography>
+                </SortableHeader>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9", textAlign: "right" }}>
+                  <MDTypography variant="button" fontWeight="medium">
+                    Đường (g)
+                  </MDTypography>
+                </th>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9", textAlign: "right" }}>
+                  <MDTypography variant="button" fontWeight="medium">
+                    Na (mg)
+                  </MDTypography>
+                </th>
+                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9", textAlign: "center" }}>
+                  <MDTypography variant="button" fontWeight="medium">
+                    Thao tác
+                  </MDTypography>
+                </th>
               </tr>
             </thead>
 
@@ -130,7 +210,6 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
                         background: idx % 2 === 1 ? "rgba(0,0,0,0.01)" : "transparent",
                       }}
                     >
-                      {/* VI */}
                       <td
                         style={{
                           display: "table-cell",
@@ -142,7 +221,6 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
                         <EllipsisText text={ing.name} variant="button" fontWeight="medium" />
                       </td>
 
-                      {/* EN */}
                       <td
                         style={{
                           display: "table-cell",
@@ -154,7 +232,6 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
                         <EllipsisText text={ing.name_en || "-"} variant="caption" />
                       </td>
 
-                      {/* Nhóm */}
                       <td
                         style={{
                           display: "table-cell",
@@ -171,7 +248,6 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
                         />
                       </td>
 
-                      {/* Đơn vị */}
                       <td
                         style={{
                           display: "table-cell",
@@ -186,49 +262,42 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
                         </MDTypography>
                       </td>
 
-                      {/* Kcal */}
                       <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.calories ?? "-"}
                         </MDTypography>
                       </td>
 
-                      {/* P */}
                       <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.protein ?? "-"}
                         </MDTypography>
                       </td>
 
-                      {/* C */}
                       <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.carbs ?? "-"}
                         </MDTypography>
                       </td>
 
-                      {/* F */}
                       <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.fat ?? "-"}
                         </MDTypography>
                       </td>
 
-                      {/* Đường */}
                       <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.sugar ?? "-"}
                         </MDTypography>
                       </td>
 
-                      {/* Na */}
                       <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.sodium ?? "-"}
                         </MDTypography>
                       </td>
 
-                      {/* Actions */}
                       <td style={{ padding: "6px 12px", textAlign: "center", whiteSpace: "nowrap" }}>
                         <Tooltip title="Chỉnh sửa">
                           <IconButton size="small" onClick={() => onEdit(ing)}>
@@ -249,32 +318,43 @@ function IngredientTable({ loading, ingredients, onEdit, onDelete }) {
           </table>
         </Box>
       </Box>
+
+      {/* Pagination */}
+      {pagination && (
+        <Pagination
+          currentPage={pagination.page}
+          totalPages={pagination.totalPages}
+          onPageChange={onPageChange}
+        />
+      )}
+
+      {/* Results count */}
+      {pagination && (
+        <Box mt={2} textAlign="center">
+          <MDTypography variant="caption" color="text">
+            Hiển thị {ingredients.length} / {pagination.total} nguyên liệu
+          </MDTypography>
+        </Box>
+      )}
     </Box>
   );
 }
 
 IngredientTable.propTypes = {
   loading: PropTypes.bool,
-  ingredients: PropTypes.arrayOf(
-    PropTypes.shape({
-      _id: PropTypes.string,
-      name: PropTypes.string,
-      name_en: PropTypes.string,
-      unit: PropTypes.string,
-      category: PropTypes.string,
-      nutrition: PropTypes.shape({
-        calories: PropTypes.number,
-        protein: PropTypes.number,
-        fat: PropTypes.number,
-        carbs: PropTypes.number,
-        fiber: PropTypes.number,
-        sugar: PropTypes.number,
-        sodium: PropTypes.number,
-      }),
-    })
-  ).isRequired,
+  ingredients: PropTypes.array.isRequired,
+  pagination: PropTypes.shape({
+    page: PropTypes.number,
+    limit: PropTypes.number,
+    total: PropTypes.number,
+    totalPages: PropTypes.number,
+  }),
+  sortBy: PropTypes.string,
+  sortOrder: PropTypes.oneOf(["asc", "desc"]),
+  onSort: PropTypes.func,
   onEdit: PropTypes.func.isRequired,
   onDelete: PropTypes.func.isRequired,
+  onPageChange: PropTypes.func,
 };
 
 export default IngredientTable;

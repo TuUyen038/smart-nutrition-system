@@ -15,11 +15,15 @@ import {
   DialogActions,
   InputAdornment,
   Box,
+  Alert,
+  LinearProgress,
+  Paper,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import CloseIcon from "@mui/icons-material/Close";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -78,8 +82,7 @@ function extractTopName(top) {
 }
 
 function extractScore(top) {
-  const s =
-    top?.score ?? top?.similarity ?? top?.cosine ?? top?.confidence ?? null;
+  const s = top?.score ?? top?.similarity ?? top?.cosine ?? top?.confidence ?? null;
   if (typeof s === "number") return Math.max(0, Math.min(1, s));
 
   const d = top?.distance ?? top?.dist ?? null;
@@ -128,13 +131,25 @@ export default function RecipeIngredientsEditor({
   // track signature of AI raw list to auto-run mapping only when raw names change
   const lastRawSigRef = useRef("");
 
-  // raw list = only AI rows (manual rows not shown here to keep “nguồn gốc mapping” rõ ràng)
+  // raw list = only AI rows (manual rows not shown here to keep "nguồn gốc mapping" rõ ràng)
   const rawRows = useMemo(() => {
     return rows.filter((r) => r?.source !== "manual" && (r?.name || "").trim());
   }, [rows]);
 
   // mapped list = all rows (AI + manual additions)
   const mappedRows = rows;
+
+  // Get mapped rows that correspond to raw rows (for alignment)
+  const mappedRowsForRaw = useMemo(() => {
+    return rawRows.map((rawRow) => {
+      return mappedRows.find((mr) => mr.id === rawRow.id) || rawRow;
+    });
+  }, [rawRows, mappedRows]);
+
+  // Manual rows (added manually, not from AI)
+  const manualRows = useMemo(() => {
+    return mappedRows.filter((r) => r?.source === "manual");
+  }, [mappedRows]);
 
   const summary = useMemo(() => {
     const totalRaw = rawRows.length;
@@ -165,7 +180,7 @@ export default function RecipeIngredientsEditor({
     const next = [...mappedRows];
     next[index] = {
       ...next[index],
-      ingredientId: opt?._id || null,
+      ingredientId: opt?._id || opt?.id || null,
       ingredientLabel: opt ? opt.name || opt.name_en || "" : "",
       // hiển thị mappingName theo DB sau khi chọn
       mappingName: opt
@@ -272,9 +287,13 @@ export default function RecipeIngredientsEditor({
 
   // ---- AUTO MAPPING FLOW ----
   const runAutoMapping = async () => {
-    if (!rawRows.length) return;
+    if (!rawRows.length) {
+      console.log("❌ runAutoMapping: No rawRows, returning early");
+      return;
+    }
 
     try {
+      console.log("🔄 runAutoMapping: Starting...");
       setMappingLoading(true);
       setMappingVisible(true);
 
@@ -290,8 +309,8 @@ export default function RecipeIngredientsEditor({
       });
 
       const results = await fetchIngredientsNutrition(aiPayload, 3);
-      const next = [...mappedRows];
 
+      const next = [...mappedRows];
       results.forEach((item, i) => {
         const targetIdx = aiIndexes[i];
         if (targetIdx === undefined) return;
@@ -306,11 +325,23 @@ export default function RecipeIngredientsEditor({
         const q = next[targetIdx]?.quantity || {};
         const grams = toGram(q.amount, q.unit);
 
+        // Auto-select ingredientId from mongo_id if exact match or high score
+        let autoIngredientId = null;
+        let autoIngredientLabel = "";
+        if (top && (top.exact_alias_match || (mappingScore && mappingScore >= 0.9))) {
+          // Use mongo_id if available, fallback to id
+          autoIngredientId = top.mongo_id || top.id || null;
+          autoIngredientLabel = top.name_vi || top.name || "";
+        }
+
         next[targetIdx] = {
           ...next[targetIdx],
           mappingName,
           mappingCandidates: candidates,
           mappingScore,
+          // Auto-set ingredientId if exact match or high score
+          ingredientId: autoIngredientId || next[targetIdx].ingredientId || null,
+          ingredientLabel: autoIngredientLabel || next[targetIdx].ingredientLabel || "",
           quantity: {
             amount: grams !== "" ? grams : q.unit === "g" ? q.amount : "",
             unit: "g",
@@ -318,7 +349,7 @@ export default function RecipeIngredientsEditor({
           },
         };
 
-        // apply alias auto select if exists
+        // apply alias auto select if exists (only if not already set from mapping)
         if (!next[targetIdx].ingredientId) {
           const key = normalizeText(next[targetIdx].name);
           const saved = aliasMap[key];
@@ -358,39 +389,39 @@ export default function RecipeIngredientsEditor({
     await runAutoMapping();
   };
 
+  const progressPercent =
+    summary.totalMapped > 0 ? Math.round((summary.chosenDb / summary.totalMapped) * 100) : 0;
+
   return (
     <MDBox>
-      <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+      <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <div>
           <MDTypography variant="button" fontWeight="medium">
-            Nguyên liệu & Mapping
-          </MDTypography>
-          <MDTypography variant="caption" color="text">
-            Bước 1: xem nguyên liệu thô (read-only) • Bước 2: mapping + chọn ingredient DB (gram chỉnh được)
+            Nguyên liệu và khối lượng
           </MDTypography>
         </div>
 
         <MDBox display="flex" gap={1} flexWrap="wrap" alignItems="center">
-          <Chip label={`Raw: ${summary.totalRaw}`} variant="outlined" />
-          <Chip label={`Rows: ${summary.totalMapped}`} variant="outlined" />
           <Chip
-            label={`Chọn DB: ${summary.chosenDb}`}
-            color={summary.chosenDb ? "success" : "default"}
+            label={`Tổng: ${summary.totalMapped}`}
             variant="outlined"
+            color={summary.totalMapped > 0 ? "info" : "default"}
           />
           <Chip
-            label={`Thiếu gram: ${summary.missingGram}`}
-            color={summary.missingGram ? "warning" : "default"}
+            label={`Thiếu khối lượng: ${summary.missingGram}`}
+            color={summary.missingGram === 0 ? "success" : "warning"}
             variant="outlined"
           />
         </MDBox>
       </MDBox>
 
-      <Grid container spacing={2}>
+      <Grid container spacing={2} alignItems="flex-start">
         {/* RAW LIST (READ-ONLY) */}
-        <Grid item xs={12} md={5}>
-          <Card sx={{ borderRadius: 2, p: 2, height: "100%" }}>
-            <MDBox display="flex" justifyContent="space-between" alignItems="top" mb={1.5}>
+        <Grid item xs={12} md={4}>
+          <Card
+            sx={{ borderRadius: 2, p: 2, height: "100%", display: "flex", flexDirection: "column" }}
+          >
+            <MDBox display="flex" justifyContent="space-between" alignItems="top" mb={1}>
               <MDBox display="flex" flexDirection="column" gap={0.25}>
                 <MDTypography variant="button" fontWeight="medium">
                   Nguyên liệu thô
@@ -399,86 +430,98 @@ export default function RecipeIngredientsEditor({
                   Danh sách nguyên liệu được AI phân tích từ công thức bạn đã nhập.
                 </MDTypography>
               </MDBox>
-
-              <Tooltip
-                title={
-                  aiDisabled
-                    ? "Nhập công thức/mô tả trước."
-                    : "Phân tích nguyên liệu bằng AI và tự chạy mapping."
-                }
-              >
-                <span>
-                  <MDButton
-                    variant="outlined"
-                    color="info"
-                    size="small"
-                    onClick={onAnalyzeByAI}
-                    disabled={aiLoading || aiDisabled}
-                    startIcon={<AutoFixHighIcon />}
-                  >
-                    {aiLoading ? "Đang phân tích..." : "Phân tích AI"}
-                  </MDButton>
-                </span>
-              </Tooltip>
             </MDBox>
 
-            <Divider sx={{ mb: 2 }} />
+            <Divider sx={{ mb: 1.5 }} />
 
             {aiLoading ? (
               <MDBox display="flex" flexDirection="column" gap={1}>
+                <LinearProgress />
+                <MDTypography variant="caption" color="text" sx={{ mt: 1, textAlign: "center" }}>
+                  Đang phân tích nguyên liệu...
+                </MDTypography>
                 {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} variant="rectangular" height={44} />
+                  <Skeleton key={i} variant="rectangular" height={44} sx={{ borderRadius: 1 }} />
                 ))}
               </MDBox>
             ) : rawRows.length === 0 ? (
-              <MDTypography variant="caption" color="text">
-                Chưa có dữ liệu nguyên liệu thô. Hãy bấm “Phân tích AI”.
-              </MDTypography>
+              <Alert severity="info">
+                <MDTypography variant="caption">
+                  Chưa có dữ liệu nguyên liệu thô. Hãy quay lại bước trước và bấm &quot;Phân tích
+                  nguyên liệu (AI)&quot;.
+                </MDTypography>
+              </Alert>
             ) : (
-              <MDBox display="flex" flexDirection="column" gap={2}>
-                {rawRows.map((r, i) => (
-                  <Box
-                    key={r.id || i}
-                    sx={{
-                      border: "1px solid",
-                      borderColor: "grey.200",
-                      borderRadius: 2,
-                      p: 1.25,
-                      bgcolor: "background.default",
-
-                    }}
-                  >
-                    <MDBox display="flex" justifyContent="space-between" gap={1}>
-                      <MDTypography variant="button" fontWeight="medium" sx={{ wordBreak: "break-word" }}>
-                        {r.name}
-                      </MDTypography>
-                      <Chip
-                        size="small"
-                        variant="outlined"
-                        label={
-                          r?.quantity?.amount !== "" && r?.quantity?.amount != null
-                            ? `${r.quantity.amount} ${r.quantity.unit || ""}`
-                            : "thiếu lượng"
-                        }
-                      />
-                    </MDBox>
-                  </Box>
-                ))}
+              <MDBox display="flex" flexDirection="column" gap={2} flex={1}>
+                {rawRows.map((r, i) => {
+                  const mappedRow = mappedRows.find((mr) => mr.id === r.id);
+                  const isMapped = !!mappedRow?.ingredientId;
+                  return (
+                    <Paper
+                      key={r.id || i}
+                      elevation={isMapped ? 0 : 1}
+                      sx={{
+                        border: "1px solid",
+                        borderColor: isMapped ? "success.main" : "grey.300",
+                        borderRadius: 2,
+                        p: 1.5,
+                        mb: 0,
+                        bgcolor: isMapped ? "success.lighter" : "background.default",
+                        transition: "all 0.2s",
+                        display: "flex",
+                        flexDirection: "column",
+                      }}
+                    >
+                      <MDBox
+                        display="flex"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        gap={1}
+                      >
+                        <MDBox flex={1}>
+                          <MDTypography
+                            variant="button"
+                            fontWeight="medium"
+                            sx={{ wordBreak: "break-word" }}
+                          >
+                            {r.name}
+                          </MDTypography>
+                        </MDBox>
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          color={
+                            r?.quantity?.amount !== "" && r?.quantity?.amount != null
+                              ? "success"
+                              : "warning"
+                          }
+                          label={
+                            r?.quantity?.amount !== "" && r?.quantity?.amount != null
+                              ? `${r.quantity.amount} ${r.quantity.unit || ""}`
+                              : "thiếu lượng"
+                          }
+                        />
+                      </MDBox>
+                    </Paper>
+                  );
+                })}
               </MDBox>
             )}
           </Card>
         </Grid>
 
         {/* MAPPING PANEL (RIGHT) */}
-        <Grid item xs={12} md={7}>
-          <Card sx={{ borderRadius: 2, p: 2, height: "100%" }}>
+        <Grid item xs={12} md={8}>
+          <Card
+            sx={{ borderRadius: 2, p: 2, height: "100%", display: "flex", flexDirection: "column" }}
+          >
             <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={1}>
               <MDBox display="flex" flexDirection="column" gap={0.25}>
                 <MDTypography variant="button" fontWeight="medium">
                   Nguyên liệu chuẩn hoá
                 </MDTypography>
                 <MDTypography variant="caption" color="text" sx={{ maxWidth: "300px" }}>
-                  Danh sách nguyên liệu đã được chuẩn hoá từ danh sách thô thành danh sách đã có trong hệ thống.
+                  Danh sách nguyên liệu sẽ được sử dụng để tính toán dinh dưỡng cho món ăn này.
                 </MDTypography>
               </MDBox>
               <MDBox display="flex" gap={1} flexWrap="wrap">
@@ -513,119 +556,340 @@ export default function RecipeIngredientsEditor({
 
             {mappingLoading ? (
               <MDBox display="flex" flexDirection="column" gap={1.25}>
-                {Array.from({ length: Math.max(3, Math.min(6, mappedRows.length || 5)) }).map((_, i) => (
-                  <Skeleton key={i} variant="rectangular" height={78} />
-                ))}
+                <LinearProgress />
+                <MDTypography variant="caption" color="text" sx={{ textAlign: "center" }}>
+                  Đang mapping nguyên liệu...
+                </MDTypography>
+                {Array.from({ length: Math.max(3, Math.min(6, mappedRows.length || 5)) }).map(
+                  (_, i) => (
+                    <Skeleton key={i} variant="rectangular" height={78} sx={{ borderRadius: 1 }} />
+                  )
+                )}
               </MDBox>
             ) : mappingVisible || mappedRows.some((r) => r.mappingName) ? (
-              mappedRows.length > 0 ? (
-                mappedRows.map((row, index) => (
-                  <Grid
-                    container
-                    spacing={1}
-                    alignItems="top"
-                    key={row.id || index}
-                    sx={{ mb: 3 }}
-                  >
-                    {/* NAME: read-only -> click => autocomplete */}
-                    <Grid item xs={12} md={7}>
-                      {editingIndex === index ? (
-                        <Autocomplete
-                          options={mergedOptions}
-                          getOptionLabel={(opt) => opt?.name || opt?.name_en || ""}
-                          value={getSelectedOption(row)}
-                          onChange={(_, opt) => handlePickIngredient(index, opt)}
-                          renderInput={(params) => (
+              mappedRowsForRaw.length > 0 ? (
+                <MDBox flex={1}>
+                  {/* Mapped rows corresponding to raw rows */}
+                  {mappedRowsForRaw.map((row, rawIndex) => {
+                    // Find the actual index in mappedRows array
+                    const actualIndex = mappedRows.findIndex((mr) => mr.id === row.id);
+                    if (actualIndex < 0) return null;
+
+                    const isMapped = !!row.ingredientId;
+                    const rawRow = rawRows[rawIndex];
+
+                    return (
+                      <Paper
+                        key={row.id || rawIndex}
+                        elevation={isMapped ? 0 : 1}
+                        sx={{
+                          p: 1.5,
+                          pb: 0.75,
+                          mb: 1,
+                          border: "1px solid",
+                          borderColor: isMapped ? "success.main" : "grey.300",
+                          bgcolor: isMapped ? "success.lighter" : "background.paper",
+                          borderRadius: 2,
+                          transition: "all 0.2s",
+                          display: "flex",
+                          flexDirection: "column",
+                          position: "relative", // For absolute positioned close button
+                        }}
+                      >
+                        {/* Close button - float ở góc trên bên phải */}
+                        <Tooltip title="Xóa nguyên liệu này">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => handleRemoveRow(actualIndex)}
+                            sx={{
+                              position: "absolute",
+                              top: 4,
+                              right: 4,
+                              zIndex: 1,
+                              bgcolor: "background.paper",
+                              "&:hover": { bgcolor: "error.lighter" },
+                              boxShadow: 1,
+                              width: 24,
+                              height: 24,
+                            }}
+                          >
+                            <CloseIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+
+                        <Grid container spacing={1} alignItems="flex-start">
+                          {/* NAME: read-only -> click => autocomplete */}
+                          <Grid item xs={12} md={6}>
+                            {editingIndex === actualIndex ? (
+                              <Autocomplete
+                                options={mergedOptions}
+                                getOptionLabel={(opt) => opt?.name || opt?.name_en || ""}
+                                value={getSelectedOption(row)}
+                                onChange={(_, opt) => handlePickIngredient(actualIndex, opt)}
+                                onBlur={stopEdit}
+                                renderInput={(params) => (
+                                  <TextField
+                                    {...params}
+                                    fullWidth
+                                    size="small"
+                                    label="Chọn nguyên liệu trong DB"
+                                    placeholder="Gõ để tìm..."
+                                    autoFocus
+                                    helperText="Chọn nguyên liệu từ danh sách hoặc tạo mới"
+                                  />
+                                )}
+                                freeSolo={false}
+                              />
+                            ) : (
+                              <TextField
+                                fullWidth
+                                size="small"
+                                label="Tên nguyên liệu mapping"
+                                value={row.mappingName || row.ingredientLabel || row.name || ""}
+                                InputProps={{ readOnly: true }}
+                                placeholder="Chưa có gợi ý mapping - Click để chọn"
+                                onClick={() => startEdit(actualIndex)}
+                                sx={{
+                                  cursor: "pointer",
+                                  "& .MuiInputBase-root": { cursor: "pointer" },
+                                }}
+                              />
+                            )}
+
+                            {/* row actions under name */}
+                            <MDBox
+                              mt={0.75}
+                              display="flex"
+                              justifyContent="space-between"
+                              alignItems="center"
+                              gap={0.5}
+                              flexWrap="wrap"
+                            >
+                              {onCreateIngredient ? (
+                                <Chip
+                                  size="small"
+                                  variant="outlined"
+                                  clickable
+                                  onClick={() => openCreateDialog(actualIndex)}
+                                  label="+ Tạo mới"
+                                  color="info"
+                                  sx={{ height: 20, fontSize: "0.65rem" }}
+                                />
+                              ) : null}
+                              {/* Score text - góc dưới bên trái */}
+                              {(isMapped || typeof row.mappingScore === "number") &&
+                                (() => {
+                                  let scorePercent;
+                                  if (isMapped) {
+                                    scorePercent = 100;
+                                  } else if (typeof row.mappingScore === "number") {
+                                    scorePercent = Math.round(row.mappingScore * 100);
+                                  } else {
+                                    return null;
+                                  }
+                                  const isGreen = scorePercent === 100;
+                                  return (
+                                    <MDTypography
+                                      variant="caption"
+                                      color={isGreen ? "success" : "warning"}
+                                      sx={{ fontSize: "0.7rem", height: 1 }}
+                                    >
+                                      Tỉ lệ đúng: {scorePercent}%
+                                    </MDTypography>
+                                  );
+                                })()}
+                            </MDBox>
+                          </Grid>
+
+                          {/* GRAM */}
+                          <Grid item xs={12} md={4}>
                             <TextField
-                              {...params}
                               fullWidth
                               size="small"
-                              label="Chọn nguyên liệu trong DB"
-                              placeholder="Gõ để tìm..."
-                              autoFocus
+                              type="number"
+                              label="Khối lượng (g)"
+                              value={row.quantity?.amount ?? ""}
+                              onChange={(e) => handleChangeGram(actualIndex, e.target.value)}
+                              error={!row.quantity?.amount || Number(row.quantity?.amount) <= 0}
+                              InputProps={{
+                                endAdornment: <InputAdornment position="end">g</InputAdornment>,
+                              }}
+                              inputProps={{ min: 0, step: 0.1 }}
                             />
-                          )}
-                          freeSolo={false}
-                        />
-                      ) : (
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Tên nguyên liệu mapping"
-                          value={row.mappingName || row.ingredientLabel || ""}
-                          InputProps={{ readOnly: true }}
-                          placeholder="Chưa có gợi ý mapping"
-                          onClick={() => startEdit(index)}
-                          sx={{
-                            cursor: "pointer",
-                            "& .MuiInputBase-root": { cursor: "pointer" },
-                          }}
-                        />
-                      )}
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    );
+                  })}
 
-                      {/* row actions under name */}
-                      <MDBox mt={0.75} display="flex" gap={1} flexWrap="wrap">
-                        {/* <Chip
-                          size="small"
-                          variant="outlined"
-                          color={row.ingredientId ? "success" : "error"}
-                          label={row.ingredientId ? "Đã chọn DB" : "Chưa chọn DB"}
-                        /> */}
-                        {typeof row.mappingScore === "number" ? (
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            label={`Score: ${Math.round(row.mappingScore * 100)}%`}
-                          />
-                        ) : null}
-                        {onCreateIngredient ? (
-                          <Chip
-                            size="small"
-                            variant="outlined"
-                            clickable
-                            onClick={() => openCreateDialog(index)}
-                            label="Tạo ingredient mới"
-                          />
-                        ) : null}
-                      </MDBox>
-                    </Grid>
+                  {/* Manual rows (added manually, shown separately) */}
+                  {manualRows.length > 0 && (
+                    <MDBox mt={3}>
+                      <Divider sx={{ mb: 2 }} />
 
-                    {/* GRAM */}
-                    <Grid item xs={10} md={3}>
-                      <TextField
-                        fullWidth
-                        size="small"
-                        type="number"
-                        label="Khối lượng (g)"
-                        value={row.quantity?.amount ?? ""}
-                        onChange={(e) => handleChangeGram(index, e.target.value)}
-                        InputProps={{
-                          endAdornment: (
-                            <InputAdornment position="end">g</InputAdornment>
-                          ),
-                        }}
-                      />
-                    </Grid>
+                      {manualRows.map((row, idx) => {
+                        const actualIndex = mappedRows.findIndex((mr) => mr.id === row.id);
+                        if (actualIndex < 0) return null;
 
-                    {/* DELETE */}
-                    <Grid item xs={2} md={1} mt={0.6} display="flex" justifyContent="flex-end" alignItems="flex-start">
-                      <Tooltip title="Xóa dòng">
-                        <IconButton size="small" color="error" onClick={() => handleRemoveRow(index)}>
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Grid>
-                  </Grid>
-                ))
+                        const isMapped = !!row.ingredientId;
+                        return (
+                          <Paper
+                            key={row.id || `manual-${idx}`}
+                            elevation={isMapped ? 0 : 1}
+                            sx={{
+                              p: 1.5,
+                              mb: 1,
+                              border: "1px solid",
+                              borderColor: isMapped ? "success.main" : "grey.300",
+                              bgcolor: isMapped ? "success.lighter" : "background.paper",
+                              borderRadius: 1.5,
+                              transition: "all 0.2s",
+                              position: "relative", // For absolute positioned close button
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            {/* Close button - float ở góc trên bên phải */}
+                            <Tooltip title="Xóa nguyên liệu này">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleRemoveRow(actualIndex)}
+                                sx={{
+                                  position: "absolute",
+                                  top: 8,
+                                  right: 8,
+                                  zIndex: 1,
+                                  bgcolor: "background.paper",
+                                  "&:hover": { bgcolor: "error.lighter" },
+                                  boxShadow: 1,
+                                }}
+                              >
+                                <CloseIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+
+                            <Grid container spacing={1.5} alignItems="flex-start">
+                              <Grid item xs={12} md={6}>
+                                {editingIndex === actualIndex ? (
+                                  <Autocomplete
+                                    options={mergedOptions}
+                                    getOptionLabel={(opt) => opt?.name || opt?.name_en || ""}
+                                    value={getSelectedOption(row)}
+                                    onChange={(_, opt) => handlePickIngredient(actualIndex, opt)}
+                                    onBlur={stopEdit}
+                                    renderInput={(params) => (
+                                      <TextField
+                                        {...params}
+                                        fullWidth
+                                        size="small"
+                                        label="Chọn nguyên liệu trong DB"
+                                        placeholder="Gõ để tìm..."
+                                        autoFocus
+                                        helperText="Chọn nguyên liệu từ danh sách hoặc tạo mới"
+                                      />
+                                    )}
+                                    freeSolo={false}
+                                  />
+                                ) : (
+                                  <TextField
+                                    fullWidth
+                                    size="small"
+                                    label="Tên nguyên liệu mapping"
+                                    value={row.mappingName || row.ingredientLabel || row.name || ""}
+                                    InputProps={{ readOnly: true }}
+                                    placeholder="Chưa có gợi ý mapping - Click để chọn"
+                                    onClick={() => startEdit(actualIndex)}
+                                    sx={{
+                                      cursor: "pointer",
+                                      "& .MuiInputBase-root": { cursor: "pointer" },
+                                    }}
+                                  />
+                                )}
+
+                                <MDBox
+                                  mt={0.5}
+                                  display="flex"
+                                  justifyContent="space-between"
+                                  alignItems="center"
+                                  gap={0.5}
+                                  flexWrap="wrap"
+                                >
+                                  {onCreateIngredient ? (
+                                    <Chip
+                                      size="small"
+                                      variant="outlined"
+                                      clickable
+                                      onClick={() => openCreateDialog(actualIndex)}
+                                      label="+ Tạo mới"
+                                      color="info"
+                                      sx={{ height: 20, fontSize: "0.65rem" }}
+                                    />
+                                  ) : null}
+                                  {/* Score text - góc dưới bên trái */}
+                                  {(isMapped || typeof row.mappingScore === "number") &&
+                                    (() => {
+                                      let scorePercent;
+                                      if (isMapped) {
+                                        scorePercent = 100;
+                                      } else if (typeof row.mappingScore === "number") {
+                                        scorePercent = Math.round(row.mappingScore * 100);
+                                      } else {
+                                        return null;
+                                      }
+                                      const isGreen = scorePercent === 100;
+                                      return (
+                                        <MDTypography
+                                          variant="caption"
+                                          color={isGreen ? "success" : "warning"}
+                                          sx={{ fontSize: "0.7rem" }}
+                                        >
+                                          Tỉ lệ đúng: {scorePercent}%
+                                        </MDTypography>
+                                      );
+                                    })()}
+                                </MDBox>
+                              </Grid>
+
+                              {/* GRAM */}
+                              <Grid item xs={12} md={3}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  type="number"
+                                  label="Khối lượng (g)"
+                                  value={row.quantity?.amount ?? ""}
+                                  onChange={(e) => handleChangeGram(actualIndex, e.target.value)}
+                                  error={!row.quantity?.amount || Number(row.quantity?.amount) <= 0}
+                                  InputProps={{
+                                    endAdornment: <InputAdornment position="end">g</InputAdornment>,
+                                  }}
+                                  inputProps={{ min: 0, step: 0.1 }}
+                                />
+                              </Grid>
+                            </Grid>
+                          </Paper>
+                        );
+                      })}
+                    </MDBox>
+                  )}
+                </MDBox>
               ) : (
-                <MDTypography variant="caption" color="text">
-                  Chưa có nguyên liệu nào để mapping.
-                </MDTypography>
+                <Alert severity="info">
+                  <MDTypography variant="caption">
+                    Chưa có nguyên liệu nào để mapping. Hãy quay lại bước trước và phân tích nguyên
+                    liệu bằng AI.
+                  </MDTypography>
+                </Alert>
               )
             ) : (
-              <MDTypography variant="caption" color="text">
-                Chưa mapping. Hãy bấm “Phân tích AI” để tự động mapping.
-              </MDTypography>
+              <Alert severity="warning">
+                <MDTypography variant="caption">
+                  Chưa mapping. Hãy quay lại bước trước và bấm &quot;Phân tích nguyên liệu
+                  (AI)&quot; để tự động mapping.
+                </MDTypography>
+              </Alert>
             )}
           </Card>
         </Grid>

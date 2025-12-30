@@ -14,6 +14,8 @@ import {
   Chip,
   Tooltip,
   Divider,
+  Alert,
+  Box,
 } from "@mui/material";
 
 import MDBox from "components/MDBox";
@@ -61,8 +63,7 @@ function computeValidation(form) {
   const warnings = [];
 
   if (!form.name?.trim()) blockers.push("Thiếu tên món.");
-  if (!form.servings || Number(form.servings) <= 0)
-    blockers.push("Khẩu phần phải > 0.");
+  if (!form.servings || Number(form.servings) <= 0) blockers.push("Khẩu phần phải > 0.");
 
   const rows = Array.isArray(form.ingredients) ? form.ingredients : [];
   if (rows.length === 0) warnings.push("Chưa có nguyên liệu nào.");
@@ -76,7 +77,8 @@ function computeValidation(form) {
       r?.quantity?.amount === undefined
   ).length;
 
-  if (rows.length > 0 && mappedCount === 0) blockers.push("Chưa chọn nguyên liệu DB cho bất kỳ dòng nào.");
+  if (rows.length > 0 && mappedCount === 0)
+    blockers.push("Chưa chọn nguyên liệu DB cho bất kỳ dòng nào.");
   if (missingQty > 0) blockers.push(`Còn ${missingQty} dòng thiếu khối lượng.`);
 
   return { blockers, warnings, mappedCount, missingQty, totalRows: rows.length };
@@ -195,7 +197,7 @@ export default function RecipeFormDialog({
         {/* STEP 1 */}
         {activeStep === 0 && (
           <Grid container spacing={2.5}>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12}>
               <Card sx={{ p: 2.5, borderRadius: 2 }}>
                 <MDTypography variant="button" fontWeight="medium">
                   Thông tin cơ bản
@@ -235,9 +237,7 @@ export default function RecipeFormDialog({
                         type="number"
                         label="Khẩu phần *"
                         value={form.servings}
-                        onChange={(e) =>
-                          handleChange("servings", Number(e.target.value) || 1)
-                        }
+                        onChange={(e) => handleChange("servings", Number(e.target.value) || 1)}
                       />
                     </Grid>
 
@@ -265,41 +265,13 @@ export default function RecipeFormDialog({
                 </MDBox>
               </Card>
             </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card sx={{ p: 2.5, borderRadius: 2 }}>
-                <MDTypography variant="button" fontWeight="medium">
-                  Trạng thái
-                </MDTypography>
-
-                <MDBox mt={2} display="flex" flexWrap="wrap" gap={1}>
-                  <Chip
-                    label={`${validation.blockers.length} blocker`}
-                    color={validation.blockers.length ? "error" : "success"}
-                    variant="outlined"
-                  />
-                  <Chip
-                    label={`${validation.warnings.length} warning`}
-                    color={validation.warnings.length ? "warning" : "default"}
-                    variant="outlined"
-                  />
-                  <Chip label={`Mapped: ${validation.mappedCount}/${validation.totalRows}`} variant="outlined" />
-                </MDBox>
-
-                <MDBox mt={2}>
-                  <MDTypography variant="caption" color="text">
-                    Bạn có thể lưu nháp bất cứ lúc nào. Xuất bản sẽ bị chặn nếu thiếu mapping/khối lượng.
-                  </MDTypography>
-                </MDBox>
-              </Card>
-            </Grid>
           </Grid>
         )}
 
         {/* STEP 2 */}
         {activeStep === 1 && (
           <Grid container spacing={2.5}>
-            <Grid item xs={12} md={8}>
+            <Grid item xs={12}>
               <Card sx={{ p: 2.5, borderRadius: 2 }}>
                 <MDBox display="flex" justifyContent="space-between" alignItems="center">
                   <MDTypography variant="button" fontWeight="medium">
@@ -319,7 +291,9 @@ export default function RecipeFormDialog({
                         color="info"
                         size="small"
                         onClick={handleAnalyzeByAI}
-                        disabled={aiLoading || !((form.instructionsText || form.description || "").trim())}
+                        disabled={
+                          aiLoading || !(form.instructionsText || form.description || "").trim()
+                        }
                       >
                         {aiLoading ? "Đang phân tích..." : "Phân tích nguyên liệu (AI)"}
                       </MDButton>
@@ -345,19 +319,6 @@ export default function RecipeFormDialog({
                 </MDBox>
               </Card>
             </Grid>
-
-            <Grid item xs={12} md={4}>
-              <Card sx={{ p: 2.5, borderRadius: 2 }}>
-                <MDTypography variant="button" fontWeight="medium">
-                  Hướng dẫn nhanh
-                </MDTypography>
-                <MDBox mt={2} display="flex" flexDirection="column" gap={1}>
-                  <Chip label="1) Dán công thức" variant="outlined" />
-                  <Chip label="2) Bấm Phân tích (AI)" variant="outlined" />
-                  <Chip label="3) Mapping sang DB" variant="outlined" />
-                </MDBox>
-              </Card>
-            </Grid>
           </Grid>
         )}
 
@@ -369,75 +330,268 @@ export default function RecipeFormDialog({
             allIngredients={allIngredients}
             onAnalyzeByAI={handleAnalyzeByAI}
             aiLoading={aiLoading}
-            aiDisabled={!((form.instructionsText || form.description || "").trim())}
+            aiDisabled={!(form.instructionsText || form.description || "").trim()}
             onCreateIngredient={onCreateIngredient}
           />
         )}
 
-        {/* STEP 4 */}
+        {/* STEP 4 - REVIEW */}
         {activeStep === 3 && (
           <Grid container spacing={2.5}>
-            <Grid item xs={12} md={7}>
+            {/* Thông tin món ăn */}
+            <Grid item xs={12}>
               <Card sx={{ p: 2.5, borderRadius: 2 }}>
-                <MDTypography variant="button" fontWeight="medium">
-                  Kiểm tra trước khi lưu
+                <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                  Thông tin món ăn
                 </MDTypography>
 
-                <Divider sx={{ my: 2 }} />
+                <Grid container spacing={2}>
+                  {/* Ảnh món ăn */}
+                  {form.imageUrl && (
+                    <Grid item xs={12} md={3}>
+                      <Box
+                        component="img"
+                        src={form.imageUrl}
+                        alt={form.name}
+                        sx={{
+                          width: "100%",
+                          height: 150,
+                          objectFit: "cover",
+                          borderRadius: 2,
+                          border: "1px solid",
+                          borderColor: "grey.300",
+                        }}
+                        onError={(e) => {
+                          e.target.style.display = "none";
+                        }}
+                      />
+                    </Grid>
+                  )}
 
-                <MDTypography variant="button" fontWeight="medium">
-                  Blockers
+                  {/* Thông tin cơ bản */}
+                  <Grid item xs={12} md={form.imageUrl ? 9 : 12}>
+                    <MDBox display="flex" flexDirection="column" gap={1.5}>
+                      <MDBox>
+                        <MDTypography variant="caption" color="text" fontWeight="medium">
+                          Tên món ăn
+                        </MDTypography>
+                        <MDTypography variant="body1" fontWeight="medium">
+                          {form.name || "(Chưa có tên)"}
+                        </MDTypography>
+                      </MDBox>
+
+                      <MDBox display="flex" gap={3} alignItems="center" flexWrap="wrap">
+                        <MDBox display="flex" alignItems="center" gap={1}>
+                          <MDTypography variant="caption" color="text" fontWeight="medium">
+                            Danh mục:
+                          </MDTypography>
+                          <Chip
+                            label={
+                              CATEGORY_OPTIONS.find((o) => o.value === form.category)?.label ||
+                              form.category ||
+                              "-"
+                            }
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </MDBox>
+
+                        <MDBox display="flex" alignItems="center" gap={1}>
+                          <MDTypography variant="caption" color="text" fontWeight="medium">
+                            Khẩu phần:
+                          </MDTypography>
+                          <MDTypography variant="body1" fontWeight="medium">
+                            {form.servings || 1} người
+                          </MDTypography>
+                        </MDBox>
+                      </MDBox>
+
+                      {form.description && (
+                        <MDBox>
+                          <MDTypography variant="caption" color="text" fontWeight="medium">
+                            Mô tả
+                          </MDTypography>
+                          <MDTypography variant="body2" color="text">
+                            {form.description}
+                          </MDTypography>
+                        </MDBox>
+                      )}
+                    </MDBox>
+                  </Grid>
+                </Grid>
+              </Card>
+            </Grid>
+
+            {/* Validation Status */}
+            <Grid item xs={12} md={6}>
+              <Card
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                  Trạng thái kiểm tra
                 </MDTypography>
-                <MDBox mt={1} display="flex" flexDirection="column" gap={0.75}>
-                  {validation.blockers.length ? (
-                    validation.blockers.slice(0, 12).map((b) => (
-                      <Chip key={b} label={b} color="error" variant="outlined" />
-                    ))
+
+                <MDBox flex={1} display="flex" flexDirection="column" gap={2}>
+                  {validation.blockers.length > 0 ? (
+                    <Alert severity="error">
+                      <MDTypography variant="button" fontWeight="medium" mb={1}>
+                        Có lỗi cần sửa:
+                      </MDTypography>
+                      <MDBox component="ul" sx={{ m: 0, pl: 2 }}>
+                        {validation.blockers.map((b, idx) => (
+                          <MDTypography key={idx} component="li" variant="caption">
+                            {b}
+                          </MDTypography>
+                        ))}
+                      </MDBox>
+                    </Alert>
                   ) : (
-                    <Chip label="Không có blocker 🎉" color="success" variant="outlined" />
+                    <Alert severity="success">Không có lỗi nào! Bạn có thể xuất bản món ăn.</Alert>
+                  )}
+
+                  {validation.warnings.length > 0 && (
+                    <Alert severity="warning">
+                      <MDTypography variant="button" fontWeight="medium" mb={1}>
+                        Cảnh báo ({validation.warnings.length}):
+                      </MDTypography>
+                      <MDBox component="ul" sx={{ m: 0, pl: 2 }}>
+                        {validation.warnings.map((w, idx) => (
+                          <MDTypography key={idx} component="li" variant="caption">
+                            {w}
+                          </MDTypography>
+                        ))}
+                      </MDBox>
+                    </Alert>
                   )}
                 </MDBox>
+              </Card>
+            </Grid>
 
-                <MDBox mt={2}>
-                  <MDTypography variant="button" fontWeight="medium">
-                    Warnings
-                  </MDTypography>
-                  <MDBox mt={1} display="flex" flexDirection="column" gap={0.75}>
-                    {validation.warnings.length ? (
-                      validation.warnings.slice(0, 12).map((w) => (
-                        <Chip key={w} label={w} color="warning" variant="outlined" />
-                      ))
-                    ) : (
-                      <Chip label="Không có warning" variant="outlined" />
-                    )}
+            {/* Thống kê nguyên liệu */}
+            <Grid item xs={12} md={6}>
+              <Card
+                sx={{
+                  p: 2.5,
+                  borderRadius: 2,
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                  Thống kê nguyên liệu
+                </MDTypography>
+
+                <MDBox
+                  flex={1}
+                  display="flex"
+                  flexDirection="column"
+                  gap={1.5}
+                  justifyContent="center"
+                >
+                  <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                    <MDTypography variant="body2" color="text">
+                      Tổng số nguyên liệu:
+                    </MDTypography>
+                    <Chip
+                      label={validation.totalRows}
+                      color={validation.totalRows > 0 ? "info" : "default"}
+                      size="small"
+                    />
+                  </MDBox>
+
+                  <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                    <MDTypography variant="body2" color="text">
+                      Thiếu khối lượng:
+                    </MDTypography>
+                    <Chip
+                      label={validation.missingQty}
+                      color={validation.missingQty === 0 ? "success" : "warning"}
+                      size="small"
+                    />
                   </MDBox>
                 </MDBox>
               </Card>
             </Grid>
 
-            <Grid item xs={12} md={5}>
-              <Card sx={{ p: 2.5, borderRadius: 2 }}>
-                <MDTypography variant="button" fontWeight="medium">
-                  Tóm tắt
-                </MDTypography>
-
-                <MDBox mt={2} display="flex" flexWrap="wrap" gap={1}>
-                  <Chip label={`Nguyên liệu: ${validation.totalRows}`} variant="outlined" />
-                  <Chip label={`Mapped: ${validation.mappedCount}`} variant="outlined" />
-                  <Chip
-                    label={`Thiếu lượng: ${validation.missingQty}`}
-                    color={validation.missingQty ? "warning" : "default"}
-                    variant="outlined"
-                  />
-                </MDBox>
-
-                <MDBox mt={2}>
-                  <MDTypography variant="caption" color="text">
-                    Mục tiêu bước này: đảm bảo đủ dữ liệu (khối lượng + mapping) để backend tính totalNutrition.
+            {/* Danh sách nguyên liệu */}
+            {form.ingredients && form.ingredients.length > 0 && (
+              <Grid item xs={12}>
+                <Card sx={{ p: 2.5, borderRadius: 2 }}>
+                  <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                    Danh sách nguyên liệu ({form.ingredients.length})
                   </MDTypography>
-                </MDBox>
-              </Card>
-            </Grid>
+
+                  <MDBox
+                    sx={{
+                      border: "1px solid",
+                      borderColor: "grey.300",
+                      borderRadius: 1,
+                      p: 1.5,
+                    }}
+                  >
+                    <Grid container spacing={1}>
+                      {form.ingredients.map((ing, idx) => (
+                        <Grid item xs={12} sm={6} md={4} key={idx}>
+                          <MDBox
+                            sx={{
+                              p: 1,
+                              borderRadius: 1,
+                              bgcolor: ing.ingredientId ? "success.lighter" : "grey.100",
+                              border: "1px solid",
+                              borderColor: ing.ingredientId ? "success.main" : "grey.300",
+                            }}
+                          >
+                            <MDTypography variant="caption" fontWeight="medium">
+                              {ing.name ||
+                                ing.ingredientLabel ||
+                                ing.mappingName ||
+                                "(Chưa có tên)"}
+                            </MDTypography>
+                            {ing.quantity?.amount && (
+                              <MDTypography variant="caption" color="text" display="block">
+                                {ing.quantity.amount} {ing.quantity.unit || "g"}
+                              </MDTypography>
+                            )}
+                          </MDBox>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </MDBox>
+                </Card>
+              </Grid>
+            )}
+
+            {/* Hướng dẫn nấu */}
+            {form.instructionsText && (
+              <Grid item xs={12}>
+                <Card sx={{ p: 2.5, borderRadius: 2 }}>
+                  <MDTypography variant="h6" fontWeight="medium" mb={2}>
+                    Hướng dẫn nấu
+                  </MDTypography>
+                  <MDBox
+                    sx={{
+                      p: 1.5,
+                      bgcolor: "grey.50",
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "grey.300",
+                    }}
+                  >
+                    <MDTypography variant="body2" color="text" sx={{ whiteSpace: "pre-wrap" }}>
+                      {form.instructionsText}
+                    </MDTypography>
+                  </MDBox>
+                </Card>
+              </Grid>
+            )}
           </Grid>
         )}
       </DialogContent>
@@ -453,7 +607,12 @@ export default function RecipeFormDialog({
           Quay lại
         </MDButton>
 
-        <MDButton variant="contained" color="info" onClick={goNext} disabled={activeStep === STEPS.length - 1}>
+        <MDButton
+          variant="contained"
+          color="info"
+          onClick={goNext}
+          disabled={activeStep === STEPS.length - 1}
+        >
           Tiếp theo
         </MDButton>
 
@@ -462,7 +621,11 @@ export default function RecipeFormDialog({
             Lưu nháp
           </MDButton>
 
-          <Tooltip title={publishBlocked ? validation.blockers.slice(0, 6).join(" • ") : "Có thể xuất bản."}>
+          <Tooltip
+            title={
+              publishBlocked ? validation.blockers.slice(0, 6).join(" • ") : "Có thể xuất bản."
+            }
+          >
             <span>
               <MDButton
                 color="info"

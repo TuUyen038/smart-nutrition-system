@@ -33,7 +33,7 @@ function RecipeDetail() {
   if (isLoading) return <DashboardLayout><DashboardNavbar /><Box p={2}>Loading...</Box></DashboardLayout>;
   if (!recipe) return <DashboardLayout><DashboardNavbar /><Box p={2}>Không tìm thấy món ăn</Box></DashboardLayout>;
 
-  const { name, imageUrl, description, ingredients, instructions, totalNutrition, servings } = recipe;
+  const { name, imageUrl, description, ingredients = [], instructions = [], totalNutrition = {}, servings = 1 } = recipe;
 
   return (
     <DashboardLayout>
@@ -44,10 +44,10 @@ function RecipeDetail() {
         <Grid container spacing={3} alignItems="flex-start">
           <Grid item xs={12} md={4}>
             <BigFoodCard
-              image={imageUrl}
-              label={`${totalNutrition.calories} kcal`}
-              title={name}
-              description={description}
+              image={imageUrl || ""}
+              label={`${totalNutrition?.calories || 0} kcal`}
+              title={name || "Không có tên"}
+              description={description || ""}
             />
           </Grid>
 
@@ -61,7 +61,7 @@ function RecipeDetail() {
                   {totalNutrition && Object.entries(totalNutrition).map(([key, value]) => (
                     <Grid item xs={6} sm={4} md={3} key={key}>
                       <MDTypography variant="button" color="text">
-                        {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
+                        {key.charAt(0).toUpperCase() + key.slice(1)}: {value?.toFixed?.(1) || value}
                       </MDTypography>
                     </Grid>
                   ))}
@@ -76,13 +76,21 @@ function RecipeDetail() {
                 <MDTypography variant="h6">Nguyên liệu</MDTypography>
                 <Divider sx={{ mb: 1 }} />
                   <Grid container spacing={2}>
-                    {ingredients.map((item, index) => (
-                      <Grid item xs={6} key={index}>
-                        <MDTypography variant="button" color="text">
-                          {item.name} {item.quantity}
+                    {ingredients.length > 0 ? (
+                      ingredients.map((item, index) => (
+                        <Grid item xs={6} key={index}>
+                          <MDTypography variant="button" color="text">
+                            {item.name || "Nguyên liệu"} {item.quantity?.amount ? `${item.quantity.amount} ${item.quantity.unit || "g"}` : item.quantity || ""}
+                          </MDTypography>
+                        </Grid>
+                      ))
+                    ) : (
+                      <Grid item xs={12}>
+                        <MDTypography variant="caption" color="text">
+                          Chưa có thông tin nguyên liệu
                         </MDTypography>
                       </Grid>
-                    ))}
+                    )}
                   </Grid>  
               </MDBox>
 

@@ -11,8 +11,6 @@ import { findRecipeById } from "services/recipeApi";
 import { useNavigate } from "react-router-dom";
 import MDButton from "components/MDButton";
 
-
-
 function FoodHistory() {
   const navigate = useNavigate();
   const [historyData, setHistoryData] = useState([]);
@@ -22,9 +20,9 @@ function FoodHistory() {
       setIsLoading(true);
       try {
         const data = await getRecipesByDateAndStatus(
-          new Date('2025-11-01'),
-          new Date('2025-11-04'),
-          'eaten'
+          new Date("2025-11-01"),
+          new Date("2025-11-04"),
+          "eaten"
         );
         setHistoryData(data);
       } catch (err) {
@@ -55,7 +53,8 @@ function FoodHistory() {
           </Typography>
         )}
 
-        {!isLoading && historyData.length > 0 && (
+        {!isLoading &&
+          historyData.length > 0 &&
           historyData.map((day) => (
             <Box key={day.date} mb={2}>
               {/* Tiêu đề ngày */}
@@ -70,7 +69,7 @@ function FoodHistory() {
               <CustomList
                 items={day.recipes}
                 renderItem={(item) => (
-                  <Box sx={{ mb:1 }} >
+                  <Box sx={{ mb: 1 }}>
                     {/* <DefaultFoodCard
                       image={item.imageUrl}
                       label={`${item.totalNutrition.calories} kcal`}
@@ -87,18 +86,15 @@ function FoodHistory() {
                       title={item.name}
                       description={item.description}
                       action={{ onClick: () => goToDetail(item.recipeId) }}
-                    >
-                    </DefaultFoodCard>
+                    ></DefaultFoodCard>
                   </Box>
                 )}
               />
             </Box>
-          ))
-        )}
+          ))}
       </Box>
     </DashboardLayout>
   );
-
 }
 
 export default FoodHistory;

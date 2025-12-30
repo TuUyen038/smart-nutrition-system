@@ -1,4 +1,5 @@
 const API_BASE_URL = "http://localhost:3000/api/recipes";
+import { getToken } from "./authApi";
 
 export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => {
   try {
@@ -8,7 +9,7 @@ export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => 
     }
 
     const params = new URLSearchParams({
-      keyword: keyword.trim(),      // ?keyword=tôm
+      keyword: keyword.trim(), // ?keyword=tôm
       page: String(page),
       limit: String(limit),
     });
@@ -28,22 +29,72 @@ export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => 
   }
 };
 
-export const getRecipes = async () => {
+/**
+ * Lấy danh sách recipes với pagination và sorting
+ */
+export const getRecipes = async ({
+  search,
+  category,
+  page = 1,
+  limit = 20,
+  sortBy = "createdAt",
+  sortOrder = "desc",
+} = {}) => {
   try {
-    const response = await fetch(`${API_BASE_URL}`);
+    const params = new URLSearchParams();
+
+    if (search && search.trim()) params.append("search", search.trim());
+    if (category && category !== "all") params.append("category", category);
+    if (page != null) params.append("page", page);
+    if (limit != null) params.append("limit", limit);
+    if (sortBy) params.append("sortBy", sortBy);
+    if (sortOrder) params.append("sortOrder", sortOrder);
+
+    const queryString = params.toString();
+    const url = queryString ? `${API_BASE_URL}?${queryString}` : API_BASE_URL;
+
+    const token = getToken();
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
-      console.warn(`Khong lay duoc dan sach mon an`);
-      return null;
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể đọc lỗi từ server.",
+      }));
+      throw new Error(errorData.message || `Lỗi HTTP ${response.status} khi lấy danh sách món ăn`);
     }
 
     const data = await response.json();
-    return data.data;
+
+    // Nếu API trả về object với data và pagination info
+    if (data.data && data.pagination) {
+      return {
+        data: data.data,
+        pagination: data.pagination,
+      };
+    }
+
+    // Backward compatibility: nếu trả về mảng
+    return {
+      data: Array.isArray(data) ? data : [],
+      pagination: {
+        page: 1,
+        limit: Array.isArray(data) ? data.length : 0,
+        total: Array.isArray(data) ? data.length : 0,
+        totalPages: 1,
+      },
+    };
   } catch (error) {
-    console.error(error.message);
-    return null;
+    console.error("Lỗi khi lấy danh sách món ăn:", error.message);
+    throw error;
   }
-}
+};
 export const detectFood = async (imageFile) => {
   const formData = new FormData();
   // "foodImage" phải khớp với tên trường (field) mà Multer (Backend) đang lắng nghe
@@ -108,7 +159,7 @@ export const findRecipeById = async (recipeId) => {
     console.error(`Lỗi khi lấy chi tiet công thức "${recipeId}":`, error.message);
     return null;
   }
-}
+};
 export const getBackUpNutrition = async (ingrs) => {
   try {
     // chỉ lấy mảng tên string
@@ -165,7 +216,7 @@ export const getIngredientsInAi = async (recipe) => {
       return null;
     }
     const data = await response.json();
-    console.log('ingredients by ai: ', data);
+    console.log("ingredients by ai: ", data);
     return data;
   } catch (error) {
     console.error(`Lỗi khi lấy nguyên liệu cho món ăn by AI`, error.message);
@@ -257,4 +308,47 @@ export async function deleteRecipe(id, token) {
   }
 
   return await res.json();
+}
+
+/**
+ * 📊 Lấy thống kê recipes
+ */
+export async function getRecipeStats() {
+  try {
+    const response = await fetch(`${API_BASE_URL}/stats`);
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể lấy thống kê.",
+      }));
+      throw new Error(errorData.message || `Lỗi HTTP ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Lỗi khi lấy thống kê:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * 🔍 Kiểm tra trùng tên recipe
+ */
+export async function checkDuplicateName(name, excludeId = null) {
+  try {
+    const params = new URLSearchParams({ name });
+    if (excludeId) params.append("excludeId", excludeId);
+
+    const response = await fetch(`${API_BASE_URL}/check-duplicate?${params}`);
+
+    if (!response.ok) {
+      return false;
+    }
+
+    const data = await response.json();
+    return data.isDuplicate || false;
+  } catch (error) {
+    console.error("Lỗi khi kiểm tra trùng tên:", error.message);
+    return false;
+  }
 }

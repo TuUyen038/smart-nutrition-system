@@ -13,15 +13,22 @@ import MDTypography from "components/MDTypography";
 import IngredientFilters from "./components/IngredientFilters";
 import IngredientTable from "./components/IngredientTable";
 import IngredientFormDialog from "./components/IngredientFormDialog";
+import IngredientStatsCards from "./components/IngredientStatsCards";
+import DeleteConfirmDialog from "components/shared/DeleteConfirmDialog";
 
 import {
   getIngredients,
+  getIngredientStats,
   createIngredient,
   updateIngredient,
   deleteIngredient,
+  checkDuplicateName,
 } from "services/ingredientApi";
 
-// Hàm chuẩn hóa dữ liệu nguyên liệu cho form (đảm bảo luôn có nutrition đầy đủ field)
+import { useToast } from "context/ToastContext";
+import { handleError } from "utils/errorHandler";
+
+// Hàm chuẩn hóa dữ liệu nguyên liệu cho form
 const normalizeIngredientForForm = (ingredient) => {
   if (!ingredient) return null;
 
@@ -45,68 +52,121 @@ const normalizeIngredientForForm = (ingredient) => {
 };
 
 function IngredientManagement() {
+  const { showSuccess, showError } = useToast();
+  
   const [ingredients, setIngredients] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [statsLoading, setStatsLoading] = useState(false);
 
+  // Filters và pagination
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [sortBy, setSortBy] = useState("name");
+  const [sortOrder, setSortOrder] = useState("asc");
 
+  // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [ingredientToDelete, setIngredientToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const filteredIngredients = useMemo(() => {
-    let data = [...ingredients];
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      data = data.filter(
-        (item) => item.name?.toLowerCase().includes(q) || item.name_en?.toLowerCase().includes(q)
-      );
-    }
-
-    if (categoryFilter !== "all") {
-      data = data.filter((item) => item.category === categoryFilter);
-    }
-
-    return data;
-  }, [ingredients, search, categoryFilter]);
+  // Pagination state
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const data = await getIngredients();
-      setIngredients(data || []);
+      const result = await getIngredients({
+        search,
+        category: categoryFilter,
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+      });
+
+      if (result.data && result.pagination) {
+        setIngredients(result.data);
+        setPagination(result.pagination);
+      } else {
+        setIngredients([]);
+        setPagination({ page: 1, limit: 20, total: 0, totalPages: 1 });
+      }
     } catch (err) {
-      console.error("Fetch ingredients error:", err);
+      const errorMessage = handleError(err);
+      showError(errorMessage);
+      setIngredients([]);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchStats = async () => {
+    try {
+      setStatsLoading(true);
+      const statsData = await getIngredientStats();
+      setStats(statsData);
+    } catch (err) {
+      console.error("Fetch stats error:", err);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+  }, [search, categoryFilter, page, sortBy, sortOrder]);
+
+  useEffect(() => {
+    fetchStats();
   }, []);
 
-  // Thêm mới: không truyền ingredient -> dialog tự dùng form rỗng
+  // Reset page khi filter thay đổi
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, sortBy, sortOrder]);
+
   const handleAddClick = () => {
     setEditingIngredient(null);
     setDialogOpen(true);
   };
 
-  // Chỉnh sửa: chuẩn hóa trước khi truyền xuống dialog
   const handleEditClick = (ingredient) => {
     const normalized = normalizeIngredientForForm(ingredient);
     setEditingIngredient(normalized);
     setDialogOpen(true);
   };
 
-  const handleDeleteClick = async (ingredient) => {
-    if (!window.confirm(`Xóa nguyên liệu "${ingredient.name}"?`)) return;
+  const handleDeleteClick = (ingredient) => {
+    setIngredientToDelete(ingredient);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!ingredientToDelete) return;
+
     try {
-      await deleteIngredient(ingredient._id);
+      setDeleting(true);
+      await deleteIngredient(ingredientToDelete._id);
+      showSuccess(`Đã xóa nguyên liệu "${ingredientToDelete.name}"`);
       await fetchData();
+      await fetchStats();
+      setDeleteDialogOpen(false);
+      setIngredientToDelete(null);
     } catch (err) {
-      console.error("Delete ingredient error:", err);
+      const errorMessage = handleError(err);
+      showError(errorMessage);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -117,16 +177,69 @@ function IngredientManagement() {
 
   const handleDialogSubmit = async (formData) => {
     try {
+      // Validation
+      if (!formData.name?.trim()) {
+        showError("Tên nguyên liệu (tiếng Việt) là bắt buộc");
+        return;
+      }
+
+      // Check duplicate
+      const isDuplicate = await checkDuplicateName(
+        formData.name.trim(),
+        editingIngredient?._id
+      );
+
+      if (isDuplicate) {
+        showError(`Nguyên liệu "${formData.name}" đã tồn tại`);
+        return;
+      }
+
+      // Validate nutrition values
+      if (formData.nutrition) {
+        const nutrition = formData.nutrition;
+        if (nutrition.calories < 0 || nutrition.calories > 10000) {
+          showError("Calories phải từ 0 đến 10000");
+          return;
+        }
+        if (nutrition.protein < 0 || nutrition.protein > 1000) {
+          showError("Protein phải từ 0 đến 1000g");
+          return;
+        }
+        if (nutrition.carbs < 0 || nutrition.carbs > 1000) {
+          showError("Carbs phải từ 0 đến 1000g");
+          return;
+        }
+        if (nutrition.fat < 0 || nutrition.fat > 1000) {
+          showError("Fat phải từ 0 đến 1000g");
+          return;
+        }
+      }
+
       if (editingIngredient && editingIngredient._id) {
         await updateIngredient(editingIngredient._id, formData);
+        showSuccess("Cập nhật nguyên liệu thành công");
       } else {
         await createIngredient(formData);
+        showSuccess("Thêm nguyên liệu thành công");
       }
+      
       await fetchData();
+      await fetchStats();
       handleDialogClose();
     } catch (err) {
-      console.error("Save ingredient error:", err);
+      const errorMessage = handleError(err);
+      showError(errorMessage);
     }
+  };
+
+  const handleSort = (field, order) => {
+    setSortBy(field);
+    setSortOrder(order);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -158,6 +271,9 @@ function IngredientManagement() {
           </Tooltip>
         </MDBox>
 
+        {/* Statistics Cards */}
+        <IngredientStatsCards stats={stats} loading={statsLoading} />
+
         {/* Filter + bảng */}
         <Grid container spacing={3}>
           <Grid item xs={12}>
@@ -171,15 +287,20 @@ function IngredientManagement() {
 
               <Grid item xs={12} sx={{ textAlign: "right", mb: 1 }}>
                 <MDTypography variant="caption" color="text">
-                  * Dữ liệu dinh dưỡng được tính theo đơn vị 100g
+                  * Dữ liệu dinh dưỡng được tính theo trên 100g nguyên liệu
                 </MDTypography>
               </Grid>
               
               <IngredientTable
                 loading={loading}
-                ingredients={filteredIngredients}
+                ingredients={ingredients}
+                pagination={pagination}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSort={handleSort}
                 onEdit={handleEditClick}
                 onDelete={handleDeleteClick}
+                onPageChange={handlePageChange}
               />
             </Card>
           </Grid>
@@ -191,6 +312,18 @@ function IngredientManagement() {
         onClose={handleDialogClose}
         onSubmit={handleDialogSubmit}
         ingredient={editingIngredient}
+      />
+
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setIngredientToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Xác nhận xóa nguyên liệu"
+        itemName={ingredientToDelete?.name}
+        loading={deleting}
       />
     </DashboardLayout>
   );

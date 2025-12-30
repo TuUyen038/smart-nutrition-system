@@ -5,12 +5,20 @@ const userSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  role: { 
+    type: String, 
+    enum: ["USER", "ADMIN"], 
+    default: "USER" 
+  },
   age: Number,
   gender: { type: String, enum: ["male", "female", "other"] },
   height: Number,
   weight: Number,
   goal: { type: String, enum: ["lose_weight", "maintain_weight", "gain_weight"] },
   allergies: [String],
+  // Password reset
+  resetPasswordToken: String,
+  resetPasswordExpires: Date,
 }, { timestamps: true });
 
 userSchema.post("save", async function (doc, next) {
