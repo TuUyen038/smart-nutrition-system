@@ -11,6 +11,7 @@ const mealPlanRoutes = require("./mealPlan.routes");
 const recipeRoutes = require("./recipe.routes");
 const uploadImageRoutes = require("./uploadImage.routes");
 const auditLogRoutes = require("./auditLog.routes");
+const favoriteRoutes = require("./favorite.routes");
 
 // Public routes (không cần authentication)
 router.use("/auth", authRoutes);
@@ -23,6 +24,7 @@ router.use("/daily-menu", dailyMenuRoutes);
 router.use("/meal-plans", mealPlanRoutes);
 router.use("/recipes", recipeRoutes);
 router.use("/upload-image", uploadImageRoutes);
+router.use("/favorites", favoriteRoutes);
 
 // Admin only routes
 router.use("/audit-logs", auditLogRoutes);

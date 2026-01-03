@@ -51,7 +51,7 @@ const recipeSchema = new mongoose.Schema(
       default: "admin",
     },
     verified: { type: Boolean, default: false },
-    isPublic: { type: Boolean, default: false },
+    // isPublic: { type: Boolean, default: false },
 
   },
   { timestamps: true }

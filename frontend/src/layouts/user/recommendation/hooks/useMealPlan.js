@@ -205,20 +205,28 @@ const [reloadWeek, setReloadWeek] = useState(false);
   useEffect(() => {
     const fetchRecipes = async () => {
       try {
-        const res = await getRecipes();
-        if (res.success && Array.isArray(res.data)) {
-          const formatted = res.data.map((r) => ({
+        const res = await getRecipes({
+          limit: 1000, // Lấy nhiều món để hiển thị trong modal
+        });
+        // API trả về { data, pagination } giống như trang admin/recipe
+        const recipesData = res?.data || [];
+        if (Array.isArray(recipesData)) {
+          const formatted = recipesData.map((r) => ({
             id: r._id,
             name: r.name,
             calories: r.totalNutrition?.calories || 0,
             image:
               r.imageUrl ||
+              r.image ||
               "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
           }));
           setRecipes(formatted);
+        } else {
+          setRecipes([]);
         }
       } catch (err) {
         console.error("Lỗi fetchRecipes:", err);
+        setRecipes([]);
       } finally {
         setIsLoadingRecipes(false);
         setReloadWeek(false)

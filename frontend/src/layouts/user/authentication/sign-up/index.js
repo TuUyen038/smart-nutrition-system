@@ -5,6 +5,10 @@ import { useNavigate, Link } from "react-router-dom";
 import Card from "@mui/material/Card";
 import Alert from "@mui/material/Alert";
 import MenuItem from "@mui/material/MenuItem";
+import Grid from "@mui/material/Grid";
+import Select from "@mui/material/Select";
+import InputLabel from "@mui/material/InputLabel";
+import FormControl from "@mui/material/FormControl";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -19,7 +23,8 @@ import CoverLayout from "layouts/user/authentication/components/CoverLayout";
 import { signup } from "services/authApi";
 
 // Images
-import bgImage from "assets/images/bg-sign-up-cover.jpeg";
+// import bgImage from "assets/images/bg-sign-up-cover.jpeg";
+const bgImage = "https://res.cloudinary.com/denhj5ubh/image/upload/v1767413364/bgr_vom478.jpg";
 
 function Cover() {
   const navigate = useNavigate();
@@ -61,23 +66,30 @@ function Cover() {
     try {
       // Loại bỏ confirmPassword trước khi gửi
       const { confirmPassword, ...signupData } = formData;
-      
+
       // Chuyển đổi số
       if (signupData.age) signupData.age = parseInt(signupData.age);
       if (signupData.height) signupData.height = parseFloat(signupData.height);
       if (signupData.weight) signupData.weight = parseFloat(signupData.weight);
-      
+
       // Loại bỏ các field rỗng
-      Object.keys(signupData).forEach(key => {
+      Object.keys(signupData).forEach((key) => {
         if (signupData[key] === "" || signupData[key] === null) {
           delete signupData[key];
         }
       });
 
       const data = await signup(signupData);
-      
-      // Redirect đến dashboard
-      navigate("/dashboard");
+
+      // Nếu cần verify email, redirect đến trang verify
+      if (data.requiresEmailVerification) {
+        navigate("/authentication/verify-email", {
+          state: { email: formData.email },
+        });
+      } else {
+        // Redirect đến dashboard
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.message || "Đăng ký thất bại. Vui lòng thử lại.");
     } finally {
@@ -87,147 +99,294 @@ function Cover() {
 
   return (
     <CoverLayout image={bgImage}>
-      <Card>
+      <Card
+        sx={{
+          width: "100%",
+          maxWidth: { xs: "100%", sm: "500px", md: "600px" },
+          mx: "auto",
+        }}
+      >
         <MDBox
           variant="gradient"
           bgColor="info"
           borderRadius="lg"
           coloredShadow="success"
-          mx={2}
-          mt={-3}
-          p={3}
+          mx={{ xs: 1, sm: 2 }}
+          mt={-6}
+          p={{ xs: 2, sm: 3 }}
           mb={1}
           textAlign="center"
         >
-          <MDTypography variant="h4" fontWeight="medium" color="white" mt={1}>
+          <MDTypography variant="h4" fontWeight="medium" color="white" mt={0}>
             Đăng ký
           </MDTypography>
-          <MDTypography display="block" variant="button" color="white" my={1}>
+          <MDTypography display="block" variant="button" color="white" my={0}>
             Nhập thông tin để tạo tài khoản mới
           </MDTypography>
         </MDBox>
-        <MDBox pt={4} pb={3} px={3}>
+        <MDBox pt={4} pb={3} px={{ xs: 2, sm: 3, md: 4 }}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
             </Alert>
           )}
           <MDBox component="form" role="form" onSubmit={handleSubmit}>
-            <MDBox mb={2}>
-              <MDInput
-                type="text"
-                label="Tên"
-                variant="standard"
-                fullWidth
-                value={formData.name}
-                onChange={handleChange("name")}
-                required
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                type="email"
-                label="Email"
-                variant="standard"
-                fullWidth
-                value={formData.email}
-                onChange={handleChange("email")}
-                required
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                type="password"
-                label="Mật khẩu"
-                variant="standard"
-                fullWidth
-                value={formData.password}
-                onChange={handleChange("password")}
-                required
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                type="password"
-                label="Xác nhận mật khẩu"
-                variant="standard"
-                fullWidth
-                value={formData.confirmPassword}
-                onChange={handleChange("confirmPassword")}
-                required
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                type="number"
-                label="Tuổi"
-                variant="standard"
-                fullWidth
-                value={formData.age}
-                onChange={handleChange("age")}
-                inputProps={{ min: 0, max: 150 }}
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                select
-                label="Giới tính"
-                variant="standard"
-                fullWidth
-                value={formData.gender}
-                onChange={handleChange("gender")}
-              >
-                <MenuItem value="">Không chọn</MenuItem>
-                <MenuItem value="male">Nam</MenuItem>
-                <MenuItem value="female">Nữ</MenuItem>
-                <MenuItem value="other">Khác</MenuItem>
-              </MDInput>
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                type="number"
-                label="Chiều cao (cm)"
-                variant="standard"
-                fullWidth
-                value={formData.height}
-                onChange={handleChange("height")}
-                inputProps={{ min: 0, step: "any" }}
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                type="number"
-                label="Cân nặng (kg)"
-                variant="standard"
-                fullWidth
-                value={formData.weight}
-                onChange={handleChange("weight")}
-                inputProps={{ min: 0, step: "any" }}
-              />
-            </MDBox>
-            <MDBox mb={2}>
-              <MDInput
-                select
-                label="Mục tiêu"
-                variant="standard"
-                fullWidth
-                value={formData.goal}
-                onChange={handleChange("goal")}
-              >
-                <MenuItem value="">Không chọn</MenuItem>
-                <MenuItem value="lose_weight">Giảm cân</MenuItem>
-                <MenuItem value="maintain_weight">Duy trì cân nặng</MenuItem>
-                <MenuItem value="gain_weight">Tăng cân</MenuItem>
-              </MDInput>
-            </MDBox>
+            <Grid container spacing={3}>
+              {/* Tên */}
+              <Grid item xs={12}>
+                <MDInput
+                  type="text"
+                  label="Tên"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.name}
+                  onChange={handleChange("name")}
+                  required
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+
+              {/* Email */}
+              <Grid item xs={12}>
+                <MDInput
+                  type="email"
+                  label="Email"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.email}
+                  onChange={handleChange("email")}
+                  required
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+
+              {/* Mật khẩu và Xác nhận mật khẩu */}
+              <Grid item xs={12} sm={6}>
+                <MDInput
+                  type="password"
+                  label="Mật khẩu"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.password}
+                  onChange={handleChange("password")}
+                  required
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <MDInput
+                  type="password"
+                  label="Xác nhận mật khẩu"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.confirmPassword}
+                  onChange={handleChange("confirmPassword")}
+                  required
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+
+              {/* Tuổi và Giới tính */}
+              <Grid item xs={12} sm={6}>
+                <MDInput
+                  type="number"
+                  label="Tuổi"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.age}
+                  onChange={handleChange("age")}
+                  inputProps={{ min: 0, max: 150 }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth variant="outlined">
+                  <InputLabel id="gender-label" sx={{ lineHeight: "1.5" }}>
+                    Giới tính
+                  </InputLabel>
+                  <Select
+                    labelId="gender-label"
+                    label="Giới tính"
+                    value={formData.gender}
+                    onChange={handleChange("gender")}
+                    sx={{
+                      minHeight: "48px",
+                      "& .MuiSelect-select": {
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "14px 14px !important",
+                        lineHeight: "1.5",
+                        minHeight: "20px",
+                      },
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(0, 0, 0, 0.23)",
+                        borderWidth: "1px",
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(0, 0, 0, 0.87)",
+                        borderWidth: "1px",
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#1976d2",
+                        borderWidth: "1px",
+                      },
+                    }}
+                  >
+                    <MenuItem value="">Không chọn</MenuItem>
+                    <MenuItem value="male">Nam</MenuItem>
+                    <MenuItem value="female">Nữ</MenuItem>
+                    <MenuItem value="other">Khác</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Chiều cao và Cân nặng */}
+              <Grid item xs={12} sm={6}>
+                <MDInput
+                  type="number"
+                  label="Chiều cao (cm)"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.height}
+                  onChange={handleChange("height")}
+                  inputProps={{ min: 0, step: "any" }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <MDInput
+                  type="number"
+                  label="Cân nặng (kg)"
+                  variant="outlined"
+                  fullWidth
+                  value={formData.weight}
+                  onChange={handleChange("weight")}
+                  inputProps={{ min: 0, step: "any" }}
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      minHeight: "48px",
+                    },
+                    "& .MuiOutlinedInput-input": {
+                      padding: "14px 14px",
+                      lineHeight: "1.5",
+                    },
+                    "& .MuiInputLabel-root": {
+                      lineHeight: "1.5",
+                    },
+                  }}
+                />
+              </Grid>
+
+              {/* Mục tiêu */}
+              <Grid item xs={12}>
+                <FormControl fullWidth variant="outlined">
+                  <InputLabel id="goal-label" sx={{ lineHeight: "1.5" }}>
+                    Mục tiêu
+                  </InputLabel>
+                  <Select
+                    labelId="goal-label"
+                    label="Mục tiêu"
+                    value={formData.goal}
+                    onChange={handleChange("goal")}
+                    sx={{
+                      minHeight: "48px",
+                      "& .MuiSelect-select": {
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "14px 14px !important",
+                        lineHeight: "1.5",
+                        minHeight: "20px",
+                      },
+                      "& .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(0, 0, 0, 0.23)",
+                        borderWidth: "1px",
+                      },
+                      "&:hover .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "rgba(0, 0, 0, 0.87)",
+                        borderWidth: "1px",
+                      },
+                      "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                        borderColor: "#1976d2",
+                        borderWidth: "1px",
+                      },
+                    }}
+                  >
+                    <MenuItem value="">Không chọn</MenuItem>
+                    <MenuItem value="lose_weight">Giảm cân</MenuItem>
+                    <MenuItem value="maintain_weight">Duy trì cân nặng</MenuItem>
+                    <MenuItem value="gain_weight">Tăng cân</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
             <MDBox mt={4} mb={1}>
-              <MDButton
-                variant="gradient"
-                color="info"
-                fullWidth
-                type="submit"
-                disabled={loading}
-              >
+              <MDButton variant="gradient" color="info" fullWidth type="submit" disabled={loading}>
                 {loading ? "Đang đăng ký..." : "Đăng ký"}
               </MDButton>
             </MDBox>

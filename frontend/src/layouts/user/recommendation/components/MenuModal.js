@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import PropTypes from "prop-types";
 import {
   Modal,
@@ -24,9 +24,9 @@ import {
   Delete as DeleteIcon,
   Close as CloseIcon,
   Search as SearchIcon,
+  PhotoCamera as PhotoCameraIcon,
 } from "@mui/icons-material";
-import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
-import { getRecipesByIngredients } from "services/recipeApi";
+import { getRecipesByIngredients, searchRecipesByImage } from "services/recipeApi";
 
 export default function MenuModal({
   open,
@@ -44,13 +44,78 @@ export default function MenuModal({
   const [searchResults, setSearchResults] = useState(recipes);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
+  const [detectedFoodName, setDetectedFoodName] = useState(null);
+  const fileInputRef = useRef(null);
 
-  // ví dụ hàm handleSearchByImage – tạm thời chỉ là skeleton để bạn gắn API
-  const handleSearchByImage = async () => {
-    // mở input file ẩn, lấy file ảnh, gọi API search bằng ảnh
-    // hoặc mở một dialog nhỏ khác để upload ảnh
-    // kết quả API -> setRecipesFromImage([...]) hoặc merge vào `recipes`
-    console.log("TODO: implement search by image");
+  // Hybrid Image→Text→Search: Tìm kiếm món ăn bằng ảnh
+  const handleSearchByImage = async (imageFile) => {
+    if (!imageFile) return;
+
+    try {
+      setSearchLoading(true);
+      setSearchError(null);
+      setDetectedFoodName(null);
+
+      // Gọi API Hybrid Search
+      const result = await searchRecipesByImage(imageFile);
+
+      if (result.success && result.data) {
+        // Format recipes để hiển thị (giống format từ getRecipesByIngredients)
+        const formattedRecipes = result.data.map((r) => ({
+          _id: r._id,
+          id: r._id,
+          name: r.name,
+          calories: r.totalNutrition?.calories || 0,
+          totalNutrition: r.totalNutrition,
+          image: r.imageUrl || r.image,
+          imageUrl: r.imageUrl,
+          description: r.description,
+          category: r.category,
+          ingredients: r.ingredients,
+          matchByName: r.matchByName,
+          matchByIngredient: r.matchByIngredient,
+        }));
+
+        setSearchResults(formattedRecipes);
+        setDetectedFoodName(result.detectedFoodName);
+        setSearchImageFile(null); // Reset file input
+      } else {
+        setSearchError("Không tìm thấy món ăn nào.");
+        setSearchResults([]);
+      }
+    } catch (err) {
+      console.error("Search by image error:", err);
+      setSearchError(err.message || "Lỗi tìm kiếm bằng ảnh");
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  // Xử lý khi user chọn file ảnh
+  const handleImageFileChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith("image/")) {
+        setSearchError("Vui lòng chọn file ảnh hợp lệ.");
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setSearchError("Kích thước ảnh không được vượt quá 5MB.");
+        return;
+      }
+
+      setSearchImageFile(file);
+      handleSearchByImage(file);
+    }
+  };
+
+  // Mở file picker
+  const handleOpenImagePicker = () => {
+    fileInputRef.current?.click();
   };
   // Reset selectedItems khi mở modal hoặc đổi ngày/mode
   useEffect(() => {
@@ -60,6 +125,8 @@ export default function MenuModal({
     setSelectedItems(Array.isArray(currentMenu) ? currentMenu : []);
     setSearchTerm("");
     setSearchError(null);
+    setDetectedFoodName(null);
+    setSearchImageFile(null);
 
     // khi mới mở modal: hiển thị list recipes gốc mà parent truyền xuống
     setSearchResults(recipes);
@@ -288,26 +355,58 @@ export default function MenuModal({
                 Danh sách món ăn
               </Typography>
 
-              <TextField
-                size="small"
-                placeholder="Tìm món theo tên / nguyên liệu..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{ minWidth: 260, width: 560, marginBottom:2 }}
-              />
+              <Box display="flex" alignItems="center" gap={2}>
+                <TextField
+                  size="small"
+                  placeholder="Tìm món theo tên / nguyên liệu..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ minWidth: 260, width: 400 }}
+                />
+                
+                {/* Hidden file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={handleImageFileChange}
+                />
+                
+                {/* Button tìm kiếm bằng ảnh */}
+                <MDButton
+                  variant="outlined"
+                  color="info"
+                  size="small"
+                  startIcon={<PhotoCameraIcon />}
+                  onClick={handleOpenImagePicker}
+                  disabled={searchLoading}
+                >
+                  Tìm bằng ảnh
+                </MDButton>
+              </Box>
             </Box>
+
+            {/* Hiển thị tên món đã detect (nếu search bằng ảnh) */}
+            {detectedFoodName && (
+              <Box mb={2} p={1.5} sx={{ bgcolor: "info.light", borderRadius: 1 }}>
+                <Typography variant="body2" color="info.dark" fontWeight={600}>
+                  Đã nhận diện: <strong>{detectedFoodName}</strong>
+                </Typography>
+              </Box>
+            )}
 
             {/* Nếu đang loading search */}
             {searchLoading && (
               <Typography color="text.secondary" mb={2}>
-                Đang tìm kiếm...
+                {detectedFoodName ? "Đang tìm kiếm trong database..." : "Đang tìm kiếm..."}
               </Typography>
             )}
 

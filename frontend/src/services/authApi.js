@@ -95,6 +95,90 @@ export const isAuthenticated = () => {
 };
 
 /**
+ * Gửi OTP xác thực email
+ */
+export const sendVerificationOTP = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/send-verification-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Không thể gửi mã OTP");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Send verification OTP error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Xác thực email với OTP
+ */
+export const verifyEmail = async (email, otp) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/verify-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Xác thực email thất bại");
+    }
+
+    // Cập nhật token và user nếu có
+    if (data.token) {
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Verify email error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gửi lại OTP xác thực email
+ */
+export const resendVerificationOTP = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/resend-verification-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Không thể gửi lại mã OTP");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Resend verification OTP error:", error);
+    throw error;
+  }
+};
+
+/**
  * Lấy thông tin user hiện tại từ server
  */
 export const getMe = async () => {
@@ -133,7 +217,7 @@ export const getMe = async () => {
 };
 
 /**
- * Yêu cầu reset password
+ * Yêu cầu reset password (gửi OTP)
  */
 export const forgotPassword = async (email) => {
   try {
@@ -159,16 +243,42 @@ export const forgotPassword = async (email) => {
 };
 
 /**
- * Reset password với token
+ * Xác thực OTP reset password
  */
-export const resetPassword = async (token, newPassword) => {
+export const verifyResetPasswordOTP = async (email, otp) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/verify-reset-password-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, otp }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Xác thực OTP thất bại");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Verify reset password OTP error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Reset password với OTP đã verify
+ */
+export const resetPassword = async (email, newPassword) => {
   try {
     const response = await fetch(`${API_BASE_URL}/reset-password`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ token, newPassword }),
+      body: JSON.stringify({ email, newPassword }),
     });
 
     const data = await response.json();
@@ -180,6 +290,32 @@ export const resetPassword = async (token, newPassword) => {
     return data;
   } catch (error) {
     console.error("Reset password error:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gửi lại OTP reset password
+ */
+export const resendResetPasswordOTP = async (email) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/resend-reset-password-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Không thể gửi lại mã OTP");
+    }
+
+    return data;
+  } catch (error) {
+    console.error("Resend reset password OTP error:", error);
     throw error;
   }
 };
@@ -215,4 +351,3 @@ export const changePassword = async (currentPassword, newPassword) => {
     throw error;
   }
 };
-

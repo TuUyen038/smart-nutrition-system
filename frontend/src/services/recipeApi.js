@@ -120,6 +120,45 @@ export const detectFood = async (imageFile) => {
   }
 };
 
+/**
+ * Hybrid Image→Text→Search
+ * Tìm kiếm recipes trong database dựa trên ảnh món ăn
+ * 1. Detect tên món từ ảnh (Gemini)
+ * 2. Text search trong database
+ * 3. Return danh sách recipes
+ * @param {File} imageFile - File ảnh món ăn
+ * @param {number} page - Số trang (default: 1)
+ * @param {number} limit - Số lượng kết quả (default: 20)
+ * @returns {Promise<Object>} { success, detectedFoodName, data: recipes[], pagination }
+ */
+export const searchRecipesByImage = async (imageFile, page = 1, limit = 20) => {
+  const formData = new FormData();
+  formData.append("foodImage", imageFile);
+
+  try {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+
+    const response = await fetch(`${API_BASE_URL}/search-by-image?${params.toString()}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `Lỗi HTTP: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data; // { success, detectedFoodName, data: recipes[], pagination }
+  } catch (error) {
+    console.error("Lỗi tìm kiếm món ăn bằng ảnh:", error.message);
+    throw error;
+  }
+};
+
 export const findRecipeByFoodName = async (foodName) => {
   try {
     const response = await fetch(`${API_BASE_URL}/${encodeURIComponent(foodName)}`);

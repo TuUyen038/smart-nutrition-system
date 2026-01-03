@@ -38,6 +38,7 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
     weight: "",
     goal: "",
     allergies: [],
+    reason: "", // Lý do chỉnh sửa (cho admin)
   });
   const [allergyInput, setAllergyInput] = useState("");
 
@@ -52,6 +53,7 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
         weight: user.weight ?? "",
         goal: user.goal || "",
         allergies: user.allergies || [],
+        reason: "", // Reset reason mỗi lần mở dialog
       });
     } else {
       setForm({
@@ -63,6 +65,7 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
         weight: "",
         goal: "",
         allergies: [],
+        reason: "",
       });
     }
     setAllergyInput("");
@@ -99,6 +102,18 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
       return;
     }
 
+    // Kiểm tra nếu chỉnh sửa thông tin nhạy cảm thì yêu cầu lý do
+    const sensitiveFieldsChanged = 
+      (form.age !== (user?.age ?? "")) ||
+      (form.gender !== (user?.gender || "")) ||
+      (form.height !== (user?.height ?? "")) ||
+      (form.weight !== (user?.weight ?? ""));
+    
+    if (user && sensitiveFieldsChanged && !form.reason.trim()) {
+      alert("Vui lòng nhập lý do khi chỉnh sửa thông tin nhạy cảm (tuổi, giới tính, chiều cao, cân nặng)");
+      return;
+    }
+
     const payload = {
       name: form.name.trim(),
       email: form.email.trim(),
@@ -108,6 +123,7 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
       weight: form.weight === "" ? undefined : Number(form.weight),
       goal: form.goal || undefined,
       allergies: form.allergies,
+      reason: form.reason.trim() || undefined, // Gửi lý do nếu có
     };
 
     onSubmit(payload);
@@ -251,6 +267,22 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               </MDButton>
             </Box>
           </Grid>
+
+          {/* Lý do chỉnh sửa (chỉ hiện khi edit user và có thay đổi thông tin nhạy cảm) */}
+          {user && (
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                multiline
+                rows={2}
+                label="Lý do chỉnh sửa (bắt buộc khi thay đổi tuổi, giới tính, chiều cao, cân nặng)"
+                value={form.reason}
+                onChange={handleChange("reason")}
+                placeholder="Ví dụ: User yêu cầu sửa thông tin, Sửa lỗi nhập liệu, Hỗ trợ user..."
+                helperText="Vui lòng ghi rõ lý do để tuân thủ quy định bảo vệ dữ liệu cá nhân"
+              />
+            </Grid>
+          )}
         </Grid>
       </DialogContent>
       <DialogActions>

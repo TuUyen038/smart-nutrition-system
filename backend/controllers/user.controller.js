@@ -8,7 +8,9 @@ const bcrypt = require("bcryptjs");
  */
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find().select("-password -resetPasswordToken -resetPasswordExpires");
+    const users = await User.find().select(
+      "-password -resetPasswordToken -resetPasswordExpires"
+    );
     res.json(users);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -20,8 +22,10 @@ exports.getAllUsers = async (req, res) => {
  */
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select("-password -resetPasswordToken -resetPasswordExpires");
-    
+    const user = await User.findById(req.user._id).select(
+      "-password -resetPasswordToken -resetPasswordExpires"
+    );
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -40,16 +44,18 @@ exports.getMe = async (req, res) => {
 exports.getUserById = async (req, res) => {
   try {
     const userId = req.params.id;
-    
+
     // USER chỉ có thể xem thông tin của chính mình
     if (req.user.role !== "ADMIN" && userId !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        message: "Bạn chỉ có thể xem thông tin của chính mình" 
+      return res.status(403).json({
+        message: "Bạn chỉ có thể xem thông tin của chính mình",
       });
     }
 
-    const user = await User.findById(userId).select("-password -resetPasswordToken -resetPasswordExpires");
-    
+    const user = await User.findById(userId).select(
+      "-password -resetPasswordToken -resetPasswordExpires"
+    );
+
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -70,11 +76,11 @@ exports.getUserById = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    
+
     // USER chỉ có thể cập nhật thông tin của chính mình
     if (req.user.role !== "ADMIN" && userId !== req.user._id.toString()) {
-      return res.status(403).json({ 
-        message: "Bạn chỉ có thể cập nhật thông tin của chính mình" 
+      return res.status(403).json({
+        message: "Bạn chỉ có thể cập nhật thông tin của chính mình",
       });
     }
 
@@ -92,34 +98,58 @@ exports.updateUser = async (req, res) => {
 
     // Không cho phép đổi password ở đây
     if (req.body.password) {
-      return res.status(400).json({ 
-        message: "Không thể đổi mật khẩu ở đây. Vui lòng dùng chức năng đổi mật khẩu." 
+      return res.status(400).json({
+        message:
+          "Không thể đổi mật khẩu ở đây. Vui lòng dùng chức năng đổi mật khẩu.",
       });
     }
 
     // Không cho phép đổi email
     if (req.body.email && req.body.email !== user.email) {
-      return res.status(400).json({ 
-        message: "Không thể đổi email" 
+      return res.status(400).json({
+        message: "Không thể đổi email",
       });
     }
 
     // Không cho USER đổi role
     if (req.body.role && req.user.role !== "ADMIN") {
-      return res.status(403).json({ 
-        message: "Bạn không có quyền thay đổi role" 
+      return res.status(403).json({
+        message: "Bạn không có quyền thay đổi role",
       });
     }
 
     // Cập nhật thông tin (loại bỏ các field không được phép)
     const { password, email, ...updateData } = req.body;
-    
+
+    // Kiểm tra nếu admin đang chỉnh sửa thông tin nhạy cảm của user khác
+    const isAdminEditingOtherUser =
+      req.user.role === "ADMIN" && userId !== req.user._id.toString();
+    const sensitiveFieldsChanged =
+      updateData.age !== undefined ||
+      updateData.gender !== undefined ||
+      updateData.height !== undefined ||
+      updateData.weight !== undefined;
+
+    // Nếu admin chỉnh sửa thông tin nhạy cảm, yêu cầu lý do
+    if (isAdminEditingOtherUser && sensitiveFieldsChanged && !req.body.reason) {
+      return res.status(400).json({
+        message:
+          "Vui lòng cung cấp lý do khi chỉnh sửa thông tin nhạy cảm (tuổi, giới tính, chiều cao, cân nặng)",
+      });
+    }
+
     // Cập nhật user
     Object.assign(user, updateData);
     await user.save();
 
     // ⚡ Tự động tính và cập nhật lại NutritionGoal nếu có thay đổi thông tin liên quan
-    if (updateData.age || updateData.gender || updateData.height || updateData.weight || updateData.goal) {
+    if (
+      updateData.age ||
+      updateData.gender ||
+      updateData.height ||
+      updateData.weight ||
+      updateData.goal
+    ) {
       await upsertNutritionGoal(user);
     }
 
@@ -137,7 +167,10 @@ exports.updateUser = async (req, res) => {
       userId,
       oldData,
       newData,
-      req.body.reason || (req.user.role === "ADMIN" ? "Admin updated user" : "User updated profile")
+      req.body.reason ||
+        (req.user.role === "ADMIN" && userId !== req.user._id.toString()
+          ? "Admin updated user information"
+          : "User updated profile")
     );
 
     res.json({
@@ -158,8 +191,8 @@ exports.deleteUser = async (req, res) => {
 
     // Không cho phép xóa chính mình
     if (userId === req.user._id.toString()) {
-      return res.status(400).json({ 
-        message: "Bạn không thể xóa tài khoản của chính mình" 
+      return res.status(400).json({
+        message: "Bạn không thể xóa tài khoản của chính mình",
       });
     }
 
@@ -188,8 +221,8 @@ exports.deleteUser = async (req, res) => {
       req.body.reason || "Admin deleted user"
     );
 
-    res.json({ 
-      message: "Xóa người dùng thành công" 
+    res.json({
+      message: "Xóa người dùng thành công",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

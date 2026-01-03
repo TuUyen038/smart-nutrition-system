@@ -15,6 +15,8 @@ import {
   IconButton,
   Box,
   CircularProgress,
+  Autocomplete,
+  Chip,
 } from "@mui/material";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
@@ -24,8 +26,11 @@ import MDButton from "components/MDButton";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
-import { getUser, getToken } from "services/authApi";
+import { getUser, getToken, getMe } from "services/authApi";
 import { getUserById, updateUser } from "services/userApi";
+import { getFavoriteRecipes } from "services/favoriteApi";
+import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
+import { getIngredients } from "services/ingredientApi";
 import { useToast } from "context/ToastContext";
 
 function Profile() {
@@ -35,6 +40,15 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [statistics, setStatistics] = useState({
+    totalAnalyzedRecipes: 0,
+    totalDaysUsed: 0,
+    favoriteRecipes: [],
+    totalFavorites: 0,
+    loading: true,
+  });
+  const [ingredients, setIngredients] = useState([]);
+  const [ingredientsLoading, setIngredientsLoading] = useState(false);
 
   const [profile, setProfile] = useState({
     name: "",
@@ -44,30 +58,50 @@ function Profile() {
     weight: "",
     goal: "maintain_weight",
     allergies: [],
+    allergy: "",
   });
 
   const [originalProfile, setOriginalProfile] = useState({ ...profile });
 
   // Map goal from frontend to backend format
   const mapGoalToBackend = (goal) => {
+    // Nếu đã là format mới, giữ nguyên
+    if (
+      goal === "lose_weight" ||
+      goal === "gain_weight" ||
+      goal === "maintain_weight" ||
+      goal === ""
+    ) {
+      return goal;
+    }
+    // Map từ format cũ sang format mới
     const goalMap = {
       giam_can: "lose_weight",
       tang_co: "gain_weight",
       maintain: "maintain_weight",
       can_bang: "maintain_weight",
-      an_chay: "maintain_weight",
     };
     return goalMap[goal] || goal;
   };
 
   // Map goal from backend to frontend format
   const mapGoalToFrontend = (goal) => {
+    // Nếu đã là format mới, giữ nguyên
+    if (
+      goal === "lose_weight" ||
+      goal === "gain_weight" ||
+      goal === "maintain_weight" ||
+      goal === ""
+    ) {
+      return goal;
+    }
+    // Map từ format cũ sang format mới (fallback)
     const goalMap = {
-      lose_weight: "giam_can",
-      gain_weight: "tang_co",
-      maintain_weight: "maintain",
+      lose_weight: "lose_weight",
+      gain_weight: "gain_weight",
+      maintain_weight: "maintain_weight",
     };
-    return goalMap[goal] || goal;
+    return goalMap[goal] || goal || "";
   };
 
   // Load user profile
@@ -75,37 +109,61 @@ function Profile() {
     const loadProfile = async () => {
       try {
         setLoading(true);
-        const user = getUser();
-        if (!user || !user._id) {
+        const token = getToken();
+        if (!token) {
           showError("Vui lòng đăng nhập để xem thông tin cá nhân");
           return;
         }
 
-        const userData = await getUserById(user._id);
-        if (userData) {
-          setCurrentUser(userData);
-          setProfile({
-            name: userData.name || "",
-            age: userData.age?.toString() || "",
-            gender: userData.gender || "male",
-            height: userData.height?.toString() || "",
-            weight: userData.weight?.toString() || "",
-            goal: mapGoalToFrontend(userData.goal) || "maintain",
-            allergies: userData.allergies || [],
-          });
-          setOriginalProfile({
-            name: userData.name || "",
-            age: userData.age?.toString() || "",
-            gender: userData.gender || "male",
-            height: userData.height?.toString() || "",
-            weight: userData.weight?.toString() || "",
-            goal: mapGoalToFrontend(userData.goal) || "maintain",
-            allergies: userData.allergies || [],
-          });
+        // Lấy thông tin user hiện tại từ server
+        let userData = null;
+        try {
+          userData = await getMe();
+        } catch (error) {
+          console.error("Get me error, trying getUserById:", error);
+          // Fallback: thử lấy từ localStorage và gọi getUserById
+          const user = getUser();
+          if (user && (user._id || user.id)) {
+            const userId = user._id || user.id;
+            userData = await getUserById(userId);
+          }
         }
+
+        if (!userData) {
+          showError("Không thể tải thông tin cá nhân");
+          return;
+        }
+
+        // Xử lý dữ liệu user (có thể là object hoặc có user property)
+        const userInfo = userData.user || userData;
+        setCurrentUser(userInfo);
+
+        const allergiesArray = Array.isArray(userInfo.allergies) ? userInfo.allergies : [];
+        const allergyString = allergiesArray.length > 0 ? allergiesArray.join(", ") : "";
+
+        setProfile({
+          name: userInfo.name || "",
+          age: userInfo.age?.toString() || "",
+          gender: userInfo.gender || "male",
+          height: userInfo.height?.toString() || "",
+          weight: userInfo.weight?.toString() || "",
+          goal: mapGoalToFrontend(userInfo.goal) || "maintain",
+          allergies: allergiesArray,
+          allergy: allergyString,
+        });
+        setOriginalProfile({
+          name: userInfo.name || "",
+          age: userInfo.age?.toString() || "",
+          gender: userInfo.gender || "male",
+          height: userInfo.height?.toString() || "",
+          weight: userInfo.weight?.toString() || "",
+          goal: mapGoalToFrontend(userInfo.goal) || "maintain",
+          allergies: allergiesArray,
+          allergy: allergyString,
+        });
       } catch (error) {
         console.error("Load profile error:", error);
-        showError("Không thể tải thông tin cá nhân");
+        showError("Không thể tải thông tin cá nhân: " + (error.message || "Lỗi không xác định"));
       } finally {
         setLoading(false);
       }
@@ -113,6 +171,140 @@ function Profile() {
 
     loadProfile();
   }, []);
+
+  // Load ingredients list
+  useEffect(() => {
+    const loadIngredients = async () => {
+      try {
+        setIngredientsLoading(true);
+        // Lấy tất cả ingredients (limit lớn để lấy hết)
+        const result = await getIngredients({ limit: 1000, sortBy: "name", sortOrder: "asc" });
+        const ingredientsList = result.data || [];
+        setIngredients(ingredientsList);
+      } catch (error) {
+        console.error("Error loading ingredients:", error);
+        // Không hiển thị lỗi, chỉ log để không ảnh hưởng UX
+      } finally {
+        setIngredientsLoading(false);
+      }
+    };
+
+    loadIngredients();
+  }, []);
+
+  // Load statistics
+  useEffect(() => {
+    const loadStatistics = async () => {
+      try {
+        setStatistics((prev) => ({ ...prev, loading: true }));
+        const user = getUser();
+        if (!user || (!user._id && !user.id)) {
+          return;
+        }
+        const userId = user._id || user.id;
+
+        // Lấy món yêu thích
+        let favoriteRecipes = [];
+        let totalFavorites = 0;
+        try {
+          const favoritesData = await getFavoriteRecipes(1, 100); // Lấy tối đa 100 món
+          if (favoritesData && favoritesData.data) {
+            favoriteRecipes = favoritesData.data.recipes || favoritesData.data || [];
+            totalFavorites = favoritesData.pagination?.total || favoriteRecipes.length;
+          }
+        } catch (error) {
+          console.error("Error loading favorites:", error);
+        }
+
+        // Lấy lịch sử món đã ăn (30 ngày gần nhất)
+        let totalAnalyzedRecipes = 0;
+        let totalDaysUsed = 0;
+        const uniqueRecipes = new Set();
+        const uniqueDays = new Set();
+
+        try {
+          const endDate = new Date();
+
+          // Tính số ngày từ khi đăng ký đến hiện tại
+          let daysSinceSignup = 0;
+          if (currentUser.createdAt) {
+            const signupDate = new Date(currentUser.createdAt);
+            const diffTime = Math.abs(endDate - signupDate);
+            daysSinceSignup = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+
+          // Lấy tất cả daily menu từ ngày đăng ký (hoặc 1 năm gần nhất nếu không có createdAt)
+          const startDate = currentUser.createdAt
+            ? new Date(currentUser.createdAt)
+            : (() => {
+                const date = new Date();
+                date.setDate(date.getDate() - 365);
+                return date;
+              })();
+
+          // Lấy tất cả daily menu (không filter status) để đếm số ngày thực tế sử dụng
+          const allDailyMenuData = await getRecipesByDateAndStatus(
+            userId,
+            startDate,
+            endDate,
+            null
+          );
+
+          if (Array.isArray(allDailyMenuData)) {
+            allDailyMenuData.forEach((day) => {
+              if (day.date) {
+                uniqueDays.add(day.date.split("T")[0]); // Lấy ngày
+              }
+            });
+          }
+
+          // Lấy riêng món đã eaten để đếm số món đã phân tích
+          const eatenData = await getRecipesByDateAndStatus(userId, startDate, endDate, "eaten");
+          if (Array.isArray(eatenData)) {
+            eatenData.forEach((day) => {
+              if (day.recipes && Array.isArray(day.recipes)) {
+                day.recipes.forEach((item) => {
+                  const recipeId = item.recipeId?._id || item.recipeId;
+                  if (recipeId) {
+                    uniqueRecipes.add(recipeId);
+                  }
+                });
+              }
+            });
+          }
+
+          totalAnalyzedRecipes = uniqueRecipes.size;
+
+          // Số ngày sử dụng: ưu tiên số ngày thực tế có daily menu, nếu không có thì dùng số ngày từ khi đăng ký
+          totalDaysUsed = uniqueDays.size > 0 ? uniqueDays.size : daysSinceSignup;
+        } catch (error) {
+          console.error("Error loading history:", error);
+          // Nếu có lỗi, vẫn tính từ ngày đăng ký
+          if (currentUser.createdAt) {
+            const signupDate = new Date(currentUser.createdAt);
+            const endDate = new Date();
+            const diffTime = Math.abs(endDate - signupDate);
+            totalDaysUsed = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          }
+        }
+
+        setStatistics({
+          totalAnalyzedRecipes,
+          totalDaysUsed,
+          favoriteRecipes: favoriteRecipes.slice(0, 5), // Top 5 món yêu thích
+          totalFavorites,
+          loading: false,
+        });
+      } catch (error) {
+        console.error("Load statistics error:", error);
+        setStatistics((prev) => ({ ...prev, loading: false }));
+      }
+    };
+
+    if (currentUser) {
+      loadStatistics();
+    }
+  }, [currentUser]);
 
   // Calculate BMR (Basal Metabolic Rate)
   const calculateBMR = () => {
@@ -135,14 +327,17 @@ function Profile() {
   // Adjust calories based on goal
   const adjustByGoal = (calories, goal) => {
     switch (goal) {
-      case "giam_can":
       case "lose_weight":
+      case "giam_can": // Giữ lại để tương thích
         return calories - 500;
-      case "tang_co":
       case "gain_weight":
+      case "tang_co": // Giữ lại để tương thích
         return calories + 500;
-      case "maintain":
       case "maintain_weight":
+      case "maintain": // Giữ lại để tương thích
+      case "can_bang": // Giữ lại để tương thích
+      case "an_chay": // Giữ lại để tương thích
+      case "": // Không chọn
       default:
         return calories;
     }
@@ -204,8 +399,15 @@ function Profile() {
   };
 
   const handleSave = async () => {
-    if (!currentUser || !currentUser._id) {
+    if (!currentUser) {
       showError("Không tìm thấy thông tin người dùng");
+      return;
+    }
+
+    // Lấy userId từ _id hoặc id
+    const userId = currentUser._id || currentUser.id;
+    if (!userId) {
+      showError("Không tìm thấy ID người dùng");
       return;
     }
 
@@ -213,11 +415,18 @@ function Profile() {
       setSaving(true);
 
       // Convert allergies string to array if needed
-      const allergiesArray = Array.isArray(profile.allergies)
-        ? profile.allergies
-        : typeof profile.allergy === "string" && profile.allergy.trim()
-        ? profile.allergy.split(",").map((a) => a.trim()).filter(Boolean)
-        : [];
+      let allergiesArray = [];
+      if (Array.isArray(profile.allergies) && profile.allergies.length > 0) {
+        // Nếu đã là array và có dữ liệu, sử dụng trực tiếp
+        allergiesArray = profile.allergies.filter(Boolean); // Loại bỏ giá trị rỗng
+      } else if (typeof profile.allergy === "string" && profile.allergy.trim()) {
+        // Nếu là string, tách theo dấu phẩy hoặc xuống dòng
+        allergiesArray = profile.allergy
+          .split(/[,\n]/) // Tách theo dấu phẩy hoặc xuống dòng
+          .map((a) => a.trim()) // Loại bỏ khoảng trắng đầu/cuối
+          .filter(Boolean) // Loại bỏ giá trị rỗng
+          .filter((item, index, self) => self.indexOf(item) === index); // Loại bỏ trùng lặp
+      }
 
       // Prepare data for backend
       const updateData = {
@@ -237,25 +446,22 @@ function Profile() {
         }
       });
 
-      const token = getToken();
-      const response = await fetch(`http://localhost:3000/api/users/${currentUser._id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
-        body: JSON.stringify(updateData),
-      });
+      // Sử dụng updateUser từ userApi
+      const result = await updateUser(userId, updateData);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Không thể cập nhật thông tin");
-      }
-
-      const result = await response.json();
-      setCurrentUser(result.user || result);
+      // Xử lý response có thể là { user: {...} } hoặc trực tiếp là user object
+      const updatedUser = result.user || result;
+      setCurrentUser(updatedUser);
       setOriginalProfile({ ...profile });
       setIsEditing(false);
+
+      // Cập nhật localStorage với thông tin mới
+      const user = getUser();
+      if (user) {
+        const updatedUserInfo = { ...user, ...updatedUser };
+        localStorage.setItem("user", JSON.stringify(updatedUserInfo));
+      }
+
       showSuccess("Cập nhật thông tin thành công! Mục tiêu dinh dưỡng đã được tính toán lại.");
     } catch (error) {
       console.error("Save profile error:", error);
@@ -275,6 +481,11 @@ function Profile() {
   const nutritionGoals = calculateNutritionGoals();
 
   const goalLabels = {
+    lose_weight: "Giảm cân",
+    gain_weight: "Tăng cân",
+    maintain_weight: "Duy trì cân nặng",
+    "": "Không chọn",
+    // Giữ lại các giá trị cũ để tương thích
     giam_can: "Giảm cân",
     tang_co: "Tăng cơ",
     maintain: "Duy trì",
@@ -286,7 +497,14 @@ function Profile() {
     return (
       <DashboardLayout>
         <DashboardNavbar />
-        <MDBox py={3} px={2} display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <MDBox
+          py={3}
+          px={2}
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="400px"
+        >
           <CircularProgress />
         </MDBox>
       </DashboardLayout>
@@ -302,11 +520,23 @@ function Profile() {
           <Grid item xs={12} md={4}>
             <Card sx={{ p: 3, height: "100%" }}>
               {/* Avatar */}
-              <MDBox display="flex" flexDirection="column" alignItems="center" mb={3} position="relative">
+              <MDBox
+                display="flex"
+                flexDirection="column"
+                alignItems="center"
+                mb={3}
+                position="relative"
+              >
                 <Avatar
                   src={avatar}
                   alt="Avatar"
-                  sx={{ width: 120, height: 120, border: "3px solid", borderColor: "grey.300", mb: 2 }}
+                  sx={{
+                    width: 120,
+                    height: 120,
+                    border: "3px solid",
+                    borderColor: "grey.300",
+                    mb: 2,
+                  }}
                 />
                 {isEditing && (
                   <IconButton
@@ -332,7 +562,7 @@ function Profile() {
               <Divider sx={{ my: 2 }} />
 
               {/* Thông tin cá nhân */}
-            {!isEditing ? (
+              {!isEditing ? (
                 <>
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
                     Thông tin cá nhân
@@ -351,7 +581,11 @@ function Profile() {
                         Giới tính:
                       </MDTypography>
                       <MDTypography variant="button" color="text">
-                        {profile.gender === "male" ? "Nam" : profile.gender === "female" ? "Nữ" : "Khác"}
+                        {profile.gender === "male"
+                          ? "Nam"
+                          : profile.gender === "female"
+                          ? "Nữ"
+                          : "Khác"}
                       </MDTypography>
                     </MDBox>
                     <MDBox display="flex" justifyContent="space-between">
@@ -375,7 +609,11 @@ function Profile() {
                         BMI:
                       </MDTypography>
                       <MDBox display="flex" alignItems="center" gap={1}>
-                        <MDTypography variant="button" color={bmiCategory.color} fontWeight="medium">
+                        <MDTypography
+                          variant="button"
+                          color={bmiCategory.color}
+                          fontWeight="medium"
+                        >
                           {bmi}
                         </MDTypography>
                         <MDTypography variant="caption" color="text">
@@ -400,13 +638,13 @@ function Profile() {
                       <MDTypography variant="button" color="text" fontWeight="medium" mb={0.5}>
                         Dị ứng:
                       </MDTypography>
-                      <MDTypography variant="caption" color="text">
+                      <MDTypography variant="button" color="text" >
                         {Array.isArray(profile.allergies) && profile.allergies.length > 0
                           ? profile.allergies.join(", ")
                           : profile.allergy || "Không có"}
                       </MDTypography>
                     </MDBox>
-                </MDBox>
+                  </MDBox>
 
                   <MDButton
                     variant="gradient"
@@ -416,54 +654,68 @@ function Profile() {
                     onClick={() => setIsEditing(true)}
                     sx={{ mt: 3 }}
                   >
-                    Chỉnh sửa thông tin
+                    Chỉnh sửa
                   </MDButton>
                 </>
               ) : (
                 <>
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
-                  Thông tin cá nhân
-                </MDTypography>
-                <MDBox display="flex" flexDirection="column" gap={2}>
-                  <TextField
-                    label="Họ tên"
-                    fullWidth
-                    value={profile.name}
-                    onChange={handleChange("name")}
+                    Thông tin cá nhân
+                  </MDTypography>
+                  <MDBox display="flex" flexDirection="column" gap={2}>
+                    <TextField
+                      label="Họ tên"
+                      fullWidth
+                      value={profile.name}
+                      onChange={handleChange("name")}
                       size="small"
-                  />
-                  <TextField
-                    label="Tuổi"
-                    fullWidth
+                    />
+                    <TextField
+                      label="Tuổi"
+                      fullWidth
                       type="number"
-                    value={profile.age}
-                    onChange={handleChange("age")}
+                      value={profile.age}
+                      onChange={handleChange("age")}
                       size="small"
                       inputProps={{ min: 1, max: 120 }}
                     />
-                    <FormControl fullWidth size="small">
+                    <FormControl fullWidth variant="outlined">
                       <InputLabel>Giới tính</InputLabel>
-                      <Select value={profile.gender} onChange={handleChange("gender")} label="Giới tính">
+                      <Select
+                        value={profile.gender}
+                        onChange={handleChange("gender")}
+                        label="Giới tính"
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            minHeight: "56px",
+                          },
+                          "& .MuiSelect-select": {
+                            padding: "14px 14px",
+                            lineHeight: "2.9",
+                          },
+                          fontSize: "13px",
+                        }}
+                      >
                         <MenuItem value="male">Nam</MenuItem>
                         <MenuItem value="female">Nữ</MenuItem>
                         <MenuItem value="other">Khác</MenuItem>
                       </Select>
                     </FormControl>
-                  <TextField
-                    label="Chiều cao (cm)"
-                    fullWidth
+                    <TextField
+                      label="Chiều cao (cm)"
+                      fullWidth
                       type="number"
-                    value={profile.height}
-                    onChange={handleChange("height")}
+                      value={profile.height}
+                      onChange={handleChange("height")}
                       size="small"
                       inputProps={{ min: 50, max: 250 }}
-                  />
-                  <TextField
-                    label="Cân nặng (kg)"
-                    fullWidth
+                    />
+                    <TextField
+                      label="Cân nặng (kg)"
+                      fullWidth
                       type="number"
-                    value={profile.weight}
-                    onChange={handleChange("weight")}
+                      value={profile.weight}
+                      onChange={handleChange("weight")}
                       size="small"
                       inputProps={{ min: 1, max: 300 }}
                     />
@@ -482,51 +734,142 @@ function Profile() {
                         </MDTypography>
                       </MDBox>
                     )}
-                </MDBox>
+                  </MDBox>
 
                   <Divider sx={{ my: 2 }} />
 
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
-                  Mục tiêu dinh dưỡng
-                </MDTypography>
-                  <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-                    <InputLabel>Mục tiêu</InputLabel>
-                    <Select value={profile.goal} onChange={handleChange("goal")} label="Mục tiêu">
-                    <MenuItem value="giam_can">Giảm cân</MenuItem>
-                    <MenuItem value="tang_co">Tăng cơ</MenuItem>
-                      <MenuItem value="maintain">Duy trì</MenuItem>
-                    <MenuItem value="can_bang">Cân bằng</MenuItem>
-                    <MenuItem value="an_chay">Ăn chay</MenuItem>
-                  </Select>
-                </FormControl>
+                    Mục tiêu dinh dưỡng
+                  </MDTypography>
+                  <FormControl fullWidth variant="outlined" sx={{ mb: 2 }}>
+                    <InputLabel id="goal-label" sx={{ lineHeight: "1.5" }}>
+                      Mục tiêu
+                    </InputLabel>
+                    <Select
+                      labelId="goal-label"
+                      label="Mục tiêu"
+                      value={profile.goal}
+                      onChange={handleChange("goal")}
+                      sx={{
+                        minHeight: "48px",
+                        "& .MuiSelect-select": {
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "14px 14px !important",
+                          lineHeight: "1.5",
+                          minHeight: "20px",
+                        },
+                        "& .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "rgba(0, 0, 0, 0.23)",
+                          borderWidth: "1px",
+                        },
+                        "&:hover .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "rgba(0, 0, 0, 0.87)",
+                          borderWidth: "1px",
+                        },
+                        "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                          borderColor: "#1976d2",
+                          borderWidth: "1px",
+                        },
+                      }}
+                    >
+                      <MenuItem value="">Không chọn</MenuItem>
+                      <MenuItem value="lose_weight">Giảm cân</MenuItem>
+                      <MenuItem value="maintain_weight">Duy trì cân nặng</MenuItem>
+                      <MenuItem value="gain_weight">Tăng cân</MenuItem>
+                    </Select>
+                  </FormControl>
 
                   <Divider sx={{ my: 2 }} />
 
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
-                  Tiền sử dị ứng
-                </MDTypography>
-                <TextField
-                  label="Thực phẩm dị ứng"
-                  fullWidth
-                  multiline
-                  rows={3}
+                    Tiền sử dị ứng
+                  </MDTypography>
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    limitTags={0}
+                    options={ingredients.map((ingredient) => ingredient.name)}
                     value={
                       Array.isArray(profile.allergies) && profile.allergies.length > 0
-                        ? profile.allergies.join(", ")
-                        : profile.allergy || ""
+                        ? profile.allergies
+                        : []
                     }
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const allergiesArray = value
-                        .split(",")
-                        .map((a) => a.trim())
-                        .filter(Boolean);
-                      setProfile({ ...profile, allergies: allergiesArray, allergy: value });
+                    onChange={(event, newValue) => {
+                      // newValue là array các string (có thể là từ suggestions hoặc tự nhập)
+                      const allergiesArray = newValue
+                        .map((item) => (typeof item === "string" ? item.trim() : item))
+                        .filter(Boolean)
+                        .filter((item, index, self) => self.indexOf(item) === index); // Loại bỏ trùng lặp
+
+                      setProfile({
+                        ...profile,
+                        allergies: allergiesArray,
+                        allergy: allergiesArray.join(", "), // Giữ lại để tương thích
+                      });
                     }}
-                    size="small"
-                    placeholder="Ví dụ: Hải sản, Sữa bò, Đậu phộng"
-                    sx={{ mb: 2 }}
+                    loading={ingredientsLoading}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Thực phẩm dị ứng"
+                        size="small"
+                        placeholder="Chọn hoặc nhập tên nguyên liệu dị ứng"
+                      />
+                    )}
+                    renderTags={() => null}
+                    filterOptions={(options, params) => {
+                      const filtered = options.filter((option) =>
+                        option.toLowerCase().includes(params.inputValue.toLowerCase())
+                      );
+
+                      // Nếu giá trị nhập không có trong danh sách, thêm vào (freeSolo)
+                      if (params.inputValue && !filtered.includes(params.inputValue)) {
+                        return [params.inputValue, ...filtered];
+                      }
+
+                      return filtered;
+                    }}
                   />
+                  {/* Hiển thị Chip bên ngoài */}
+                  {Array.isArray(profile.allergies) && profile.allergies.length > 0 && (
+                    <MDBox
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 1,
+                        mt: 1,
+                        mb: 2,
+                        p: 1.5,
+                        borderRadius: 1,
+                        bgcolor: "grey.50",
+                        border: "1px solid",
+                        borderColor: "grey.300",
+                      }}
+                    >
+                      {profile.allergies.map((allergy, index) => (
+                        <Chip
+                          key={index}
+                          label={allergy}
+                          size="small"
+                          variant="outlined"
+                          onDelete={() => {
+                            const newAllergies = profile.allergies.filter((_, i) => i !== index);
+                            setProfile({
+                              ...profile,
+                              allergies: newAllergies,
+                              allergy: newAllergies.join(", "),
+                            });
+                          }}
+                          sx={{
+                            "& .MuiChip-deleteIcon": {
+                              fontSize: "16px",
+                            },
+                          }}
+                        />
+                      ))}
+                    </MDBox>
+                  )}
 
                   <MDBox display="flex" gap={1.5}>
                     <MDButton
@@ -543,7 +886,9 @@ function Profile() {
                       variant="gradient"
                       color="success"
                       fullWidth
-                      startIcon={saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />}
+                      startIcon={
+                        saving ? <CircularProgress size={16} color="inherit" /> : <SaveIcon />
+                      }
                       onClick={handleSave}
                       disabled={saving}
                     >
@@ -552,9 +897,9 @@ function Profile() {
                   </MDBox>
                 </>
               )}
-              </Card>
+            </Card>
           </Grid>
-          
+
           {/* Cột phải: Thông tin bổ sung */}
           <Grid item xs={12} md={8}>
             <Grid container spacing={3}>
@@ -637,7 +982,8 @@ function Profile() {
                   {calculateBMR() === 0 && (
                     <MDBox mt={2}>
                       <MDTypography variant="caption" color="warning.main">
-                        ⚠️ Vui lòng nhập đầy đủ thông tin (tuổi, giới tính, chiều cao, cân nặng) để tính toán mục tiêu dinh dưỡng chính xác.
+                        ⚠️ Vui lòng nhập đầy đủ thông tin (tuổi, giới tính, chiều cao, cân nặng) để
+                        tính toán mục tiêu dinh dưỡng chính xác.
                       </MDTypography>
                     </MDBox>
                   )}
@@ -650,34 +996,68 @@ function Profile() {
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
                     Thống kê hoạt động
                   </MDTypography>
-                  <MDBox display="flex" flexDirection="column" gap={2}>
-                    <MDBox display="flex" justifyContent="space-between" alignItems="center">
-                      <MDTypography variant="button" color="text">
-                        Tổng số món đã phân tích
-                      </MDTypography>
-                      <MDTypography variant="h6" color="info.main" fontWeight="bold">
-                        45
-                      </MDTypography>
+                  {statistics.loading ? (
+                    <MDBox display="flex" justifyContent="center" alignItems="center" py={4}>
+                      <CircularProgress size={24} />
                     </MDBox>
-                    <Divider />
-                    <MDBox display="flex" justifyContent="space-between" alignItems="center">
-                      <MDTypography variant="button" color="text">
-                        Số ngày sử dụng
-                      </MDTypography>
-                      <MDTypography variant="h6" color="success.main" fontWeight="bold">
-                        30 ngày
-                      </MDTypography>
+                  ) : (
+                    <MDBox display="flex" flexDirection="column" gap={2}>
+                      <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                        <MDTypography variant="button" color="text">
+                          Tổng số món đã phân tích
+                        </MDTypography>
+                        <MDTypography variant="h6" color="info.main" fontWeight="bold">
+                          {statistics.totalAnalyzedRecipes}
+                        </MDTypography>
+                      </MDBox>
+                      <Divider />
+                      <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                        <MDTypography variant="button" color="text">
+                          Số ngày sử dụng
+                        </MDTypography>
+                        <MDTypography variant="h6" color="success.main" fontWeight="bold">
+                          {statistics.totalDaysUsed}{" "}
+                          {statistics.totalDaysUsed === 1 ? "ngày" : "ngày"}
+                        </MDTypography>
+                      </MDBox>
+                      <Divider />
+                      <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                        <MDTypography variant="button" color="text">
+                          Tổng số món yêu thích
+                        </MDTypography>
+                        <MDTypography variant="h6" color="error.main" fontWeight="bold">
+                          {statistics.totalFavorites}
+                        </MDTypography>
+                      </MDBox>
+                      {statistics.favoriteRecipes.length > 0 && (
+                        <>
+                          <Divider />
+                          <MDBox display="flex" flexDirection="column" gap={1}>
+                            <MDTypography
+                              variant="button"
+                              color="text"
+                              fontWeight="medium"
+                              mb={0.5}
+                            >
+                              Top món ăn yêu thích:
+                            </MDTypography>
+                            <MDBox display="flex" flexDirection="column" gap={0.5}>
+                              {statistics.favoriteRecipes.map((recipe, index) => (
+                                <MDTypography
+                                  key={recipe._id || index}
+                                  variant="caption"
+                                  color="text"
+                                  sx={{ pl: 1 }}
+                                >
+                                  {index + 1}. {recipe.name || recipe.recipeId?.name || "Không tên"}
+                                </MDTypography>
+                              ))}
+                            </MDBox>
+                          </MDBox>
+                        </>
+                      )}
                     </MDBox>
-                    <Divider />
-                    <MDBox display="flex" justifyContent="space-between" alignItems="center">
-                      <MDTypography variant="button" color="text">
-                        Món ăn yêu thích
-                      </MDTypography>
-                      <MDTypography variant="button" color="text">
-                        Phở bò, Cơm gà
-                      </MDTypography>
-                    </MDBox>
-                  </MDBox>
+                  )}
                 </Card>
               </Grid>
             </Grid>

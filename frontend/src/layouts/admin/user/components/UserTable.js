@@ -59,8 +59,7 @@ function UserTable({ loading, users, onEdit, onDelete }) {
               <col style={{ width: 220 }} /> {/* Email */}
               <col style={{ width: 80 }} />  {/* Giới tính */}
               <col style={{ width: 70 }} />  {/* Tuổi */}
-              <col style={{ width: 80 }} />  {/* Chiều cao */}
-              <col style={{ width: 80 }} />  {/* Cân nặng */}
+              {/* Chiều cao và Cân nặng đã bị ẩn để bảo vệ quyền riêng tư */}
               <col style={{ width: 120 }} /> {/* Mục tiêu */}
               <col style={{ width: 150 }} /> {/* Dị ứng */}
               <col style={{ width: 90 }} />  {/* Thao tác */}
@@ -73,8 +72,8 @@ function UserTable({ loading, users, onEdit, onDelete }) {
                   "Email",
                   "Giới tính",
                   "Tuổi",
-                  "Chiều cao (cm)",
-                  "Cân nặng (kg)",
+                  // "Chiều cao (cm)", // Ẩn để bảo vệ quyền riêng tư
+                  // "Cân nặng (kg)", // Ẩn để bảo vệ quyền riêng tư
                   "Mục tiêu",
                   "Dị ứng",
                   "Thao tác",
@@ -87,12 +86,12 @@ function UserTable({ loading, users, onEdit, onDelete }) {
                       textAlign:
                         h === "Thao tác"
                           ? "center"
-                          : ["Tuổi", "Chiều cao (cm)", "Cân nặng (kg)"].includes(h)
+                          : h === "Tuổi"
                           ? "right"
                           : "left",
                       padding: "10px 12px",
                       borderBottom: "1px solid #d9d9d9",
-                      borderRight: i === 8 ? "none" : "1px solid #e6e6e6",
+                      borderRight: i === 5 ? "none" : "1px solid #e6e6e6",
                       fontWeight: 600,
                       whiteSpace: "nowrap",
                     }}
@@ -176,19 +175,8 @@ function UserTable({ loading, users, onEdit, onDelete }) {
                         </MDTypography>
                       </td>
 
-                      {/* Chiều cao */}
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
-                        <MDTypography variant="caption" color="text">
-                          {user.height ?? "-"}
-                        </MDTypography>
-                      </td>
-
-                      {/* Cân nặng */}
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
-                        <MDTypography variant="caption" color="text">
-                          {user.weight ?? "-"}
-                        </MDTypography>
-                      </td>
+                      {/* Chiều cao và Cân nặng đã bị ẩn để bảo vệ quyền riêng tư */}
+                      {/* Admin chỉ có thể xem khi chỉnh sửa user */}
 
                       {/* Mục tiêu */}
                       <td

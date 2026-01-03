@@ -6,10 +6,14 @@ import Profile from "layouts/user/profile";
 import SignIn from "layouts/user/authentication/sign-in";
 import SignUp from "layouts/user/authentication/sign-up";
 import ForgotPassword from "layouts/user/authentication/forgot-password";
+import VerifyEmail from "layouts/user/authentication/verify-email";
+import VerifyResetOTP from "layouts/user/authentication/verify-reset-otp";
+import ResetPassword from "layouts/user/authentication/reset-password/cover";
 import Analyze from "layouts/user/analyze-recipe";
 import MenuCreation from "layouts/user/menu";
 import MenuEditor from "layouts/user/menu/menu-editor";
 import RecipeDetail from "layouts/user/recipe-detail";
+import Favorites from "layouts/user/favorites";
 // @mui icons
 import Icon from "@mui/material/Icon";
 import { ROLES } from "constants/roles";
@@ -18,13 +22,26 @@ import IngredientManagement from "layouts/admin/ingredient/index.js";
 import RecipeManagement from "layouts/admin/recipe/index.js";
 import AdminRecipeDetail from "layouts/admin/recipe/recipe-detail/index.js";
 import UserManagement from "layouts/admin/user/index.js";
+import AuditLogManagement from "layouts/admin/audit-log/index.js";
 const routes = [
+  {
+    type: "collapse",
+    name: "Quản trị",
+    key: "admin-dashboard",
+    icon: <Icon fontSize="small">admin_panel_settings</Icon>,
+    route: "/admin",
+    component: <AdminDashboard />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.ADMIN],
+    layout: "admin",
+    showInSidebar: true,
+  },
   {
     type: "collapse",
     name: "Món ăn",
     key: "admin-recipes",
     icon: <Icon fontSize="small">science</Icon>,
-    route: "/admin/recipres",
+    route: "/admin/recipes",
     component: <RecipeManagement />,
     requiresAuth: true,
     allowedRoles: [ROLES.ADMIN],
@@ -55,13 +72,14 @@ const routes = [
     layout: "admin",
     showInSidebar: true,
   },
+
   {
     type: "collapse",
-    name: "Quản trị",
-    key: "admin-dashboard",
-    icon: <Icon fontSize="small">admin_panel_settings</Icon>,
-    route: "/admin",
-    component: <AdminDashboard />,
+    name: "Lịch sử hoạt động",
+    key: "admin-audit-logs",
+    icon: <Icon fontSize="small">history</Icon>,
+    route: "/admin/audit-logs",
+    component: <AuditLogManagement />,
     requiresAuth: true,
     allowedRoles: [ROLES.ADMIN],
     layout: "admin",
@@ -75,7 +93,7 @@ const routes = [
     route: "/dashboard",
     component: <Dashboard />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: true,
   },
@@ -85,7 +103,7 @@ const routes = [
     route: "/edit-menu",
     component: <MenuEditor />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: false, // trang “ẩn”, chỉ mở khi redirect
   },
@@ -97,7 +115,7 @@ const routes = [
     route: "/detect-food",
     component: <FoodDetect />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: true,
   },
@@ -109,7 +127,7 @@ const routes = [
     route: "/analyze-recipe",
     component: <Analyze />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: true,
   },
@@ -121,7 +139,7 @@ const routes = [
     route: "/meal-plan",
     component: <Recommendation />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: true,
   },
@@ -133,7 +151,19 @@ const routes = [
     route: "/history",
     component: <History />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
+    layout: "user",
+    showInSidebar: true,
+  },
+  {
+    type: "collapse",
+    name: "Món ăn yêu thích",
+    key: "favorites",
+    icon: <Icon fontSize="small">favorite</Icon>,
+    route: "/favorites",
+    component: <Favorites />,
+    requiresAuth: true,
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: true,
   },
@@ -145,7 +175,7 @@ const routes = [
     route: "/profile",
     component: <Profile />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: true,
   },
@@ -183,6 +213,39 @@ const routes = [
     layout: "auth",
     showInSidebar: false,
   },
+  {
+    type: "collapse",
+    name: "Verify Email",
+    key: "verify-email",
+    icon: <Icon fontSize="small">email</Icon>,
+    route: "/authentication/verify-email",
+    component: <VerifyEmail />,
+    requiresAuth: false,
+    layout: "auth",
+    showInSidebar: false,
+  },
+  {
+    type: "collapse",
+    name: "Verify Reset OTP",
+    key: "verify-reset-otp",
+    icon: <Icon fontSize="small">lock_reset</Icon>,
+    route: "/authentication/verify-reset-otp",
+    component: <VerifyResetOTP />,
+    requiresAuth: false,
+    layout: "auth",
+    showInSidebar: false,
+  },
+  {
+    type: "collapse",
+    name: "Reset Password",
+    key: "reset-password",
+    icon: <Icon fontSize="small">lock_reset</Icon>,
+    route: "/authentication/reset-password",
+    component: <ResetPassword />,
+    requiresAuth: false,
+    layout: "auth",
+    showInSidebar: false,
+  },
   // Route chi tiết (không show sidebar)
   {
     key: "recipe-detail",
@@ -191,7 +254,7 @@ const routes = [
     breadcrumb: "Chi tiết món ăn",
     component: <RecipeDetail />,
     requiresAuth: true,
-    allowedRoles: [ROLES.USER, ROLES.ADMIN],
+    allowedRoles: [ROLES.USER],
     layout: "user",
     showInSidebar: false,
   },

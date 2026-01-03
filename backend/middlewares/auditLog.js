@@ -2,16 +2,36 @@ const AuditLog = require("../models/AuditLog");
 
 /**
  * Hàm để ghi audit log
+ * @param {Object} req - Express request object
+ * @param {String} action - Hành động (CREATE, UPDATE, DELETE, LOGIN, etc.)
+ * @param {String} resourceType - Loại tài nguyên (User, Recipe, etc.)
+ * @param {String|ObjectId} resourceId - ID của tài nguyên (optional)
+ * @param {Object} oldData - Dữ liệu cũ (optional)
+ * @param {Object} newData - Dữ liệu mới (optional)
+ * @param {String} reason - Lý do (optional)
+ * @param {String|ObjectId} userIdOverride - User ID override (dùng khi req.user chưa có, như LOGIN)
+ * @param {String} userEmailOverride - User email override (dùng khi req.user chưa có)
  */
-async function logAction(req, action, resourceType, resourceId, oldData, newData, reason) {
+async function logAction(req, action, resourceType, resourceId, oldData, newData, reason, userIdOverride = null, userEmailOverride = null) {
   try {
-    // Lấy thông tin user từ request
-    const userId = req.user?.id || req.user?._id || null;
-    const userEmail = req.user?.email || "anonymous";
+    // Lấy thông tin user từ request hoặc override
+    let userId = userIdOverride || req.user?.id || req.user?._id || null;
+    let userEmail = userEmailOverride || req.user?.email || "anonymous";
+    
+    // Nếu vẫn không có userId và action là LOGIN, dùng resourceId làm userId
+    if (!userId && action === "LOGIN" && resourceId) {
+      userId = resourceId;
+    }
+    
+    // Nếu vẫn không có userId, không thể tạo audit log (required field)
+    if (!userId) {
+      console.warn("⚠️  Cannot create audit log: userId is required but not available");
+      return;
+    }
     
     // Lấy thông tin request
     const ipAddress = req.ip || req.connection?.remoteAddress || req.headers["x-forwarded-for"] || "unknown";
-    const userAgent = req.get("user-agent") || "unknown";
+    const userAgent = req?.get?.("user-agent") || "unknown";
     
     // Lấy resource name nếu có
     let resourceName = null;

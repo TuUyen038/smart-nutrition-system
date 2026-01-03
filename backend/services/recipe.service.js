@@ -149,3 +149,16 @@ exports.getVerifiedRecipes = async () => {
     );
   }
 };
+
+/**
+ * Hybrid Image→Text→Search
+ * Tìm kiếm recipes dựa trên tên món ăn đã được detect từ ảnh
+ * @param {string} foodName - Tên món ăn đã được detect từ ảnh
+ * @param {Object} options - Options cho pagination
+ * @returns {Promise<Object>} Kết quả tìm kiếm với recipes, total, page, limit
+ */
+exports.searchRecipesByImage = async (foodName, options = {}) => {
+  // Sử dụng lại function searchRecipesByIngredientName đã có
+  // vì nó tìm trong name và ingredients.name, phù hợp cho tên món ăn
+  return await exports.searchRecipesByIngredientName(foodName, options);
+};

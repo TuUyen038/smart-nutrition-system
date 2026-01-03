@@ -7,6 +7,7 @@ const {
   saveRecipeToDB,
   getVerifiedRecipes,
   searchRecipesByIngredientName,
+  searchRecipesByImage,
 } = require("../services/recipe.service");
 // Sửa import: Lấy tất cả các hàm mới
 const {
@@ -151,6 +152,85 @@ const detectImage = async (req, res, next) => {
   } catch (error) {
     console.error("🚨 Global Error:", error);
     // Nếu có lỗi, luôn dọn dẹp và gọi next() để middleware xử lý lỗi
+    next(error);
+  } finally {
+    // Dọn file tạm
+    if (imageFile && fs.existsSync(imageFile.path)) {
+      fs.unlink(imageFile.path, (err) => {
+        if (err) console.error("Lỗi khi xóa file tạm:", err);
+      });
+    }
+  }
+};
+
+/**
+ * Hybrid Image→Text→Search
+ * Tìm kiếm recipes trong database dựa trên ảnh món ăn
+ * 1. Detect tên món từ ảnh (dùng Gemini)
+ * 2. Text search trong database với tên món vừa detect
+ * 3. Return kết quả
+ */
+const searchByImage = async (req, res, next) => {
+  const imageFile = req.file;
+  const { page = 1, limit = 20 } = req.query;
+
+  // Hàm Parse an toàn
+  const safeParse = (text, defaultVal = {}) => {
+    if (typeof text !== "string") return defaultVal;
+    try {
+      return JSON.parse(text.replace(/```json|```/g, "").trim());
+    } catch (e) {
+      console.warn(`⚠️ Lỗi Parse JSON: ${e.message}`);
+      return { error: `Lỗi Parse JSON: ${e.message}`, rawText: text };
+    }
+  };
+
+  if (!imageFile) {
+    return res.status(400).json({ message: "Vui lòng cung cấp file ảnh." });
+  }
+
+  try {
+    console.log("🔍 [Hybrid Search] Bắt đầu tìm kiếm món ăn bằng ảnh...");
+
+    // Bước 1: Detect tên món từ ảnh
+    console.log("   → Bước 1: Nhận diện tên món từ ảnh...");
+    const detectionJsonString = await identifyFoodName(imageFile);
+    const parsedDetection = safeParse(detectionJsonString);
+    const foodName = parsedDetection.foodName || null;
+
+    if (!foodName || foodName === "Không xác định" || parsedDetection.error) {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể nhận diện món ăn trong hình ảnh.",
+        rawDetection: parsedDetection,
+      });
+    }
+
+    console.log(`   ✅ Tên món được nhận diện: "${foodName}"`);
+
+    // Bước 2: Text search trong database
+    console.log(`   → Bước 2: Tìm kiếm "${foodName}" trong database...`);
+    const searchResult = await searchRecipesByImage(foodName, {
+      page: Number(page),
+      limit: Number(limit),
+    });
+
+    console.log(`   ✅ Tìm thấy ${searchResult.recipes.length} kết quả`);
+
+    // Bước 3: Return kết quả
+    res.status(200).json({
+      success: true,
+      detectedFoodName: foodName,
+      data: searchResult.recipes,
+      pagination: {
+        page: searchResult.page,
+        limit: searchResult.limit,
+        total: searchResult.total,
+        totalPages: Math.ceil(searchResult.total / searchResult.limit),
+      },
+    });
+  } catch (error) {
+    console.error("🚨 [Hybrid Search] Error:", error);
     next(error);
   } finally {
     // Dọn file tạm
@@ -550,6 +630,7 @@ const deleteRecipe = async (req, res) => {
 
 module.exports = {
   searchByIngredientName,
+  searchByImage,
   getAllRecipe,
   detectImage,
   findRecipeByName,

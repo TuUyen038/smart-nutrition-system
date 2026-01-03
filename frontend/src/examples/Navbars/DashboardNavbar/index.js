@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // react-router components
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // prop-types is a library for typechecking of props.
 import PropTypes from "prop-types";
@@ -11,7 +11,10 @@ import AppBar from "@mui/material/AppBar";
 import Toolbar from "@mui/material/Toolbar";
 import IconButton from "@mui/material/IconButton";
 import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
 import Icon from "@mui/material/Icon";
+import Typography from "@mui/material/Typography";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -38,12 +41,18 @@ import {
   setOpenConfigurator,
 } from "context";
 
+// Services
+import { logout, getUser } from "services/authApi";
+
 function DashboardNavbar({ absolute, light, isMini }) {
   const [navbarType, setNavbarType] = useState();
   const [controller, dispatch] = useMaterialUIController();
   const { miniSidenav, transparentNavbar, fixedNavbar, openConfigurator, darkMode } = controller;
   const [openMenu, setOpenMenu] = useState(false);
+  const [openUserMenu, setOpenUserMenu] = useState(null);
   const route = useLocation().pathname.split("/").slice(1);
+  const navigate = useNavigate();
+  const user = getUser();
 
   useEffect(() => {
     // Setting the navbar type
@@ -75,6 +84,14 @@ function DashboardNavbar({ absolute, light, isMini }) {
   const handleConfiguratorOpen = () => setOpenConfigurator(dispatch, !openConfigurator);
   const handleOpenMenu = (event) => setOpenMenu(event.currentTarget);
   const handleCloseMenu = () => setOpenMenu(false);
+  const handleOpenUserMenu = (event) => setOpenUserMenu(event.currentTarget);
+  const handleCloseUserMenu = () => setOpenUserMenu(null);
+
+  const handleLogout = () => {
+    logout();
+    handleCloseUserMenu();
+    navigate("/authentication/sign-in");
+  };
 
   // Render the notifications menu
   const renderMenu = () => (
@@ -92,6 +109,46 @@ function DashboardNavbar({ absolute, light, isMini }) {
       <NotificationItem icon={<Icon>email</Icon>} title="Check new messages" />
       <NotificationItem icon={<Icon>podcasts</Icon>} title="Manage Podcast sessions" />
       <NotificationItem icon={<Icon>shopping_cart</Icon>} title="Payment successfully completed" />
+    </Menu>
+  );
+
+  // Render the user menu
+  const renderUserMenu = () => (
+    <Menu
+      anchorEl={openUserMenu}
+      anchorOrigin={{
+        vertical: "bottom",
+        horizontal: "right",
+      }}
+      transformOrigin={{
+        vertical: "top",
+        horizontal: "right",
+      }}
+      open={Boolean(openUserMenu)}
+      onClose={handleCloseUserMenu}
+      sx={{ mt: 1.5 }}
+    >
+      {user && (
+        <>
+          <MenuItem disabled>
+            <MDBox>
+              <Typography variant="body2" fontWeight="medium">
+                {user.name || user.email}
+              </Typography>
+              {user.email && (
+                <Typography variant="caption" color="text">
+                  {user.email}
+                </Typography>
+              )}
+            </MDBox>
+          </MenuItem>
+          <Divider />
+        </>
+      )}
+      <MenuItem onClick={handleLogout}>
+        <Icon sx={{ mr: 1 }}>logout</Icon>
+        Đăng xuất
+      </MenuItem>
     </Menu>
   );
 
@@ -124,11 +181,17 @@ function DashboardNavbar({ absolute, light, isMini }) {
               <MDInput label="Search here" fullWidth />
             </MDBox> */}
             <MDBox color={light ? "white" : "inherit"}>
-              <Link to="/authentication/sign-in/basic">
-                <IconButton sx={navbarIconButton} size="small" disableRipple>
-                  <Icon sx={iconsStyle}>account_circle</Icon>
-                </IconButton>
-              </Link>
+              <IconButton
+                sx={navbarIconButton}
+                size="small"
+                disableRipple
+                onClick={handleOpenUserMenu}
+                aria-controls="user-menu"
+                aria-haspopup="true"
+              >
+                <Icon sx={iconsStyle}>account_circle</Icon>
+              </IconButton>
+              {renderUserMenu()}
               <IconButton
                 size="small"
                 disableRipple

@@ -2,6 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const {
   searchByIngredientName,
+  searchByImage,
   getAllRecipe,
   findRecipeByName,
   detectImage,
@@ -22,6 +23,7 @@ const upload = multer({ dest: "uploads/" });
 
 // Public routes
 router.get("/search-by-ingredient", searchByIngredientName);
+router.post("/search-by-image", upload.single("foodImage"), searchByImage); // Hybrid Image→Text→Search
 router.get("/stats", getRecipeStats);
 router.get("/check-duplicate", checkDuplicateName);
 router.post("/ingredients", findIngredientsByAi);

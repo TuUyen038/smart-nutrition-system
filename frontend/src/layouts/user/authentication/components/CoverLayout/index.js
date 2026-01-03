@@ -22,7 +22,7 @@ function CoverLayout({ coverHeight, image, children }) {
         mx={2}
         my={2}
         pt={6}
-        pb={28}
+        pb={20}
         sx={{
           backgroundImage: ({ functions: { linearGradient, rgba }, palette: { gradients } }) =>
             image &&
@@ -31,13 +31,13 @@ function CoverLayout({ coverHeight, image, children }) {
               rgba(gradients.dark.state, 0.4)
             )}, url(${image})`,
           backgroundSize: "cover",
-          backgroundPosition: "center",
+          backgroundPosition: "center 65%", // Cao hơn bottom một chút (85% từ trên xuống)
           backgroundRepeat: "no-repeat",
         }}
       />
-      <MDBox mt={{ xs: -20, lg: -18 }} px={1} width="calc(100% - 2rem)" mx="auto">
+      <MDBox mt={{ xs: -18, lg: -25 }} px={1} width="calc(100% - 2rem)" mx="auto">
         <Grid container spacing={1} justifyContent="center">
-          <Grid item xs={11} sm={9} md={5} lg={4} xl={3}>
+          <Grid item xs={11} sm={9} md={7} lg={4}>
             {children}
           </Grid>
         </Grid>

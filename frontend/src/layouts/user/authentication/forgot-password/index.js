@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 // @mui material components
 import Card from "@mui/material/Card";
@@ -21,11 +21,11 @@ import { forgotPassword } from "services/authApi";
 import bgImage from "assets/images/bg-sign-in-basic.jpeg";
 
 function ForgotPassword() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
-  const [resetToken, setResetToken] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,9 +37,13 @@ function ForgotPassword() {
       const data = await forgotPassword(email);
       setSuccess(true);
       
-      // Trong development, hiển thị token (chỉ để test)
-      if (data.resetToken) {
-        setResetToken(data.resetToken);
+      // Nếu cần verify OTP, redirect đến trang verify
+      if (data.requiresOTPVerification) {
+        setTimeout(() => {
+          navigate("/authentication/verify-reset-otp", {
+            state: { email },
+          });
+        }, 1500);
       }
     } catch (err) {
       setError(err.message || "Không thể gửi yêu cầu reset password");
@@ -74,18 +78,7 @@ function ForgotPassword() {
           )}
           {success && (
             <Alert severity="success" sx={{ mb: 2 }}>
-              {resetToken ? (
-                <>
-                  <MDTypography variant="body2" mb={1}>
-                    Link reset password đã được gửi đến email của bạn.
-                  </MDTypography>
-                  <MDTypography variant="caption" color="text">
-                    Token (chỉ để test): {resetToken}
-                  </MDTypography>
-                </>
-              ) : (
-                "Link reset password đã được gửi đến email của bạn."
-              )}
+              Mã OTP đã được gửi đến email của bạn. Đang chuyển đến trang xác thực...
             </Alert>
           )}
           {!success ? (
