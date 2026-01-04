@@ -17,6 +17,7 @@ const {
   getSubstitutionsAndWarnings,
   getRecipeStream,
   getIngredients,
+  getIngredientSubstitutions: getIngredientSubstitutionsAI,
 } = require("../utils/ai_providers/aiInterface");
 const Analysis = require("../models/Analysis");
 const recipeService = require("../services/recipe.service");
@@ -331,6 +332,7 @@ const findIngrAndInstrByAi = async (req, res, next) => {
       name: foodName,
       ingredients: aiData.ingredients || [],
       instructions: aiData.instructions || [],
+      servings: aiData.servings || 1,
     };
     if (
       (result.ingredients && result.ingredients.length > 0) ||
@@ -356,23 +358,33 @@ const findIngrAndInstrByAi = async (req, res, next) => {
   }
 };
 const findIngredientsByAi = async (req, res, next) => {
-  const { recipe } = req.body;
+  const { recipe, servings } = req.body;
 
   if (!recipe) {
     return res.status(400).json({ message: "Thiếu recipe" });
   }
 
   try {
-    console.log("Bắt đầu tìm nguyên liệu bởi AI");
+    console.log(
+      "Bắt đầu tìm nguyên liệu bởi AI",
+      servings ? `(servings: ${servings})` : ""
+    );
 
-    const aiRaw = await getIngredients(recipe);
+    const aiRaw = await getIngredients(recipe, servings);
     const aiData = typeof aiRaw === "string" ? safeParse(aiRaw) : aiRaw || {};
     const result = {
       ingredients: aiData.ingredients || [],
     };
+    // Trả về servings nếu có từ AI response
+    if (aiData.servings) {
+      result.servings = aiData.servings;
+    }
     const dataToSave = {
       ingredients: result.ingredients,
     };
+    if (result.servings) {
+      dataToSave.servings = result.servings;
+    }
     return res.status(200).json(dataToSave);
   } catch (error) {
     console.error("Global Error:", error);
@@ -628,6 +640,111 @@ const deleteRecipe = async (req, res) => {
   }
 };
 
+/**
+ * Gợi ý nguyên liệu thay thế
+ */
+const getIngredientSubstitutions = async (req, res) => {
+  try {
+    const {
+      ingredientsToSubstitute,
+      allIngredients,
+      userGoal,
+      instructions,
+      dishName,
+    } = req.body;
+
+    // LOG: Request từ frontend
+    console.log("🔵 [Controller] ===== REQUEST TỪ FRONTEND =====");
+    console.log(
+      "📦 ingredientsToSubstitute count:",
+      ingredientsToSubstitute?.length || 0
+    );
+    console.log("📋 allIngredients count:", allIngredients?.length || 0);
+    console.log("🎯 userGoal:", userGoal);
+    console.log("🍽️ dishName:", dishName);
+    console.log("📝 instructions length:", instructions?.length || 0);
+    if (ingredientsToSubstitute && ingredientsToSubstitute.length > 0) {
+      console.log(
+        "📄 ingredientsToSubstitute details:",
+        JSON.stringify(ingredientsToSubstitute, null, 2)
+      );
+    }
+
+    if (
+      !ingredientsToSubstitute ||
+      !Array.isArray(ingredientsToSubstitute) ||
+      ingredientsToSubstitute.length === 0
+    ) {
+      console.log(
+        "❌ [Controller] Validation failed: ingredientsToSubstitute is empty"
+      );
+      return res.status(400).json({
+        success: false,
+        message: "Danh sách nguyên liệu cần thay thế là bắt buộc",
+      });
+    }
+
+    if (
+      !allIngredients ||
+      !Array.isArray(allIngredients) ||
+      allIngredients.length === 0
+    ) {
+      console.log("❌ [Controller] Validation failed: allIngredients is empty");
+      return res.status(400).json({
+        success: false,
+        message: "Danh sách tất cả nguyên liệu là bắt buộc",
+      });
+    }
+
+    if (!userGoal) {
+      console.log("❌ [Controller] Validation failed: userGoal is missing");
+      return res.status(400).json({
+        success: false,
+        message: "Mục tiêu của người dùng là bắt buộc",
+      });
+    }
+
+    const result = await getIngredientSubstitutionsAI(
+      ingredientsToSubstitute,
+      allIngredients,
+      userGoal,
+      instructions || "",
+      dishName || ""
+    );
+
+    // Parse JSON result
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(result);
+      console.log("✅ [Controller] ===== KẾT QUẢ TRẢ VỀ FRONTEND =====");
+      console.log("📦 parsedResult:", JSON.stringify(parsedResult, null, 2));
+      console.log(
+        "🔢 substitutions count:",
+        parsedResult.substitutions?.length || 0
+      );
+      console.log("==========================================");
+    } catch (parseError) {
+      console.error("❌ [Controller] Lỗi parse JSON từ AI:", parseError);
+      console.error("📄 Raw result:", result);
+      return res.status(500).json({
+        success: false,
+        message: "Lỗi khi xử lý kết quả từ AI",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: parsedResult,
+    });
+  } catch (error) {
+    console.error("getIngredientSubstitutions error:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Lỗi khi gợi ý nguyên liệu thay thế",
+    });
+  }
+};
+
 module.exports = {
   searchByIngredientName,
   searchByImage,
@@ -643,4 +760,5 @@ module.exports = {
   checkDuplicateName,
   updateRecipe,
   deleteRecipe,
+  getIngredientSubstitutions,
 };

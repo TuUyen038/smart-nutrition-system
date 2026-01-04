@@ -13,6 +13,7 @@ import {
   Chip,
   TextField,
   InputAdornment,
+  IconButton,
 } from "@mui/material";
 import FoodCard from "./FoodCard";
 import MDButton from "components/MDButton";
@@ -25,6 +26,7 @@ import {
   Close as CloseIcon,
   Search as SearchIcon,
   PhotoCamera as PhotoCameraIcon,
+  Remove as RemoveIcon,
 } from "@mui/icons-material";
 import { getRecipesByIngredients, searchRecipesByImage } from "services/recipeApi";
 
@@ -39,6 +41,7 @@ export default function MenuModal({
   getDayName,
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
+  const [portionMap, setPortionMap] = useState({}); // { recipeId: portion }
   const [searchTerm, setSearchTerm] = useState("");
   const [searchImageFile, setSearchImageFile] = useState(null);
   const [searchResults, setSearchResults] = useState(recipes);
@@ -122,7 +125,19 @@ export default function MenuModal({
     if (!open) return;
 
     // currentMenu là menu đã lưu của ngày đó
-    setSelectedItems(Array.isArray(currentMenu) ? currentMenu : []);
+    const menuArray = Array.isArray(currentMenu) ? currentMenu : [];
+    setSelectedItems(menuArray);
+    
+    // Khôi phục portion từ currentMenu
+    const portions = {};
+    menuArray.forEach((item) => {
+      const itemId = item.id || item._id || item.recipeId;
+      if (itemId) {
+        portions[itemId] = item.portion || 1;
+      }
+    });
+    setPortionMap(portions);
+    
     setSearchTerm("");
     setSearchError(null);
     setDetectedFoodName(null);
@@ -130,7 +145,7 @@ export default function MenuModal({
 
     // khi mới mở modal: hiển thị list recipes gốc mà parent truyền xuống
     setSearchResults(recipes);
-  }, [open, date, mode]);
+  }, [open, date, mode, currentMenu]);
   useEffect(() => {
     if (!open) return;
 
@@ -189,23 +204,54 @@ export default function MenuModal({
         recipe.image ||
         "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
     };
+    const recipeId = recipe.id || recipe._id;
+    
     setSelectedItems((prev) => {
       const exists = prev.some((item) => {
         const itemId = item.id || item._id || item.recipeId;
-        const recipeId = recipe.id || recipe._id;
         return itemId === recipeId;
       });
 
       if (exists) {
+        // Xóa món và xóa portion
+        setPortionMap((prevPortions) => {
+          const newPortions = { ...prevPortions };
+          delete newPortions[recipeId];
+          return newPortions;
+        });
         return prev.filter((item) => {
           const itemId = item.id || item._id || item.recipeId;
-          const recipeId = recipe.id || recipe._id;
           return itemId !== recipeId;
         });
       } else {
+        // Thêm món với portion mặc định = 1
+        setPortionMap((prevPortions) => ({
+          ...prevPortions,
+          [recipeId]: 1,
+        }));
         return [...prev, formattedRecipe];
       }
     });
+  };
+
+  const updatePortion = (recipeId, newPortion) => {
+    const portion = Math.max(1, Math.floor(newPortion) || 1); // Đảm bảo >= 1 và là số nguyên
+    setPortionMap((prev) => ({
+      ...prev,
+      [recipeId]: portion,
+    }));
+  };
+
+  const incrementPortion = (recipeId) => {
+    const current = portionMap[recipeId] || 1;
+    updatePortion(recipeId, current + 1);
+  };
+
+  const decrementPortion = (recipeId) => {
+    const current = portionMap[recipeId] || 1;
+    if (current > 1) {
+      updatePortion(recipeId, current - 1);
+    }
   };
 
   const removeLocal = (recipeId) => {
@@ -215,19 +261,36 @@ export default function MenuModal({
         return itemId !== recipeId;
       })
     );
+    // Xóa portion khi xóa món
+    setPortionMap((prev) => {
+      const newPortions = { ...prev };
+      delete newPortions[recipeId];
+      return newPortions;
+    });
   };
 
   const handleSaveLocal = () => {
     if (typeof onSave === "function") {
-      onSave(selectedItems, date);
+      // Gửi kèm portion cho mỗi món
+      const itemsWithPortion = selectedItems.map((item) => {
+        const itemId = item.id || item._id || item.recipeId;
+        return {
+          ...item,
+          portion: portionMap[itemId] || 1,
+        };
+      });
+      onSave(itemsWithPortion, date);
     }
     onClose?.();
   };
 
-  const totalCalories = selectedItems.reduce(
-    (sum, r) => sum + (r?.calories || r?.totalNutrition?.calories || 0),
-    0
-  );
+  // Tính tổng calo = sum(calories × portion)
+  const totalCalories = selectedItems.reduce((sum, r) => {
+    const itemId = r.id || r._id || r.recipeId;
+    const portion = portionMap[itemId] || 1;
+    const calories = r?.calories || r?.totalNutrition?.calories || 0;
+    return sum + calories * portion;
+  }, 0);
   const dedupById = (list) => {
     const map = new Map();
     list.forEach((r) => {
@@ -305,27 +368,88 @@ export default function MenuModal({
             {selectedItems.length > 0 ? (
               <Grid container spacing={2} mb={3}>
                 {selectedItems.map((item) => {
-                  const itemId = item.id;
+                  const itemId = item.id || item._id || item.recipeId;
+                  const portion = portionMap[itemId] || 1;
+                  const itemCalories = item.calories || item.totalNutrition?.calories || 0;
+                  const totalCaloriesForItem = itemCalories * portion;
+                  
                   return (
                     <Grid item xs={12} sm={6} md={3} key={itemId}>
                       {/* md={3} -> 4 món / hàng trên màn hình rộng */}
                       <FoodCard
                         title={item.name}
-                        calories={item.calories || item.totalNutrition?.calories || 0}
+                        calories={totalCaloriesForItem}
+                        portion={portion}
                         image={
                           item.image ||
                           "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
                         }
                       >
-                        <MDButton
-                          size="small"
-                          color="error"
-                          variant="outlined"
-                          startIcon={<DeleteIcon />}
-                          onClick={() => removeLocal(itemId)}
-                        >
-                          Xóa
-                        </MDButton>
+                        <Box sx={{ width: "100%" }}>
+                          {/* Số lượng */}
+                          <Box
+                            display="flex"
+                            alignItems="center"
+                            justifyContent="space-between"
+                            mb={1}
+                            sx={{
+                              border: "1px solid",
+                              borderColor: "divider",
+                              borderRadius: 1,
+                              px: 1,
+                              py: 0.5,
+                            }}
+                          >
+                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
+                              Số lượng:
+                            </Typography>
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                              <IconButton
+                                size="small"
+                                onClick={() => decrementPortion(itemId)}
+                                disabled={portion <= 1}
+                                sx={{ p: 0.5, minWidth: "auto" }}
+                              >
+                                <RemoveIcon fontSize="small" />
+                              </IconButton>
+                              <TextField
+                                type="number"
+                                value={portion}
+                                onChange={(e) => updatePortion(itemId, parseInt(e.target.value) || 1)}
+                                inputProps={{
+                                  min: 1,
+                                  style: { textAlign: "center", padding: "4px", width: "50px" },
+                                }}
+                                sx={{
+                                  "& .MuiOutlinedInput-root": {
+                                    "& fieldset": { border: "none" },
+                                  },
+                                  width: "60px",
+                                }}
+                                size="small"
+                              />
+                              <IconButton
+                                size="small"
+                                onClick={() => incrementPortion(itemId)}
+                                sx={{ p: 0.5, minWidth: "auto" }}
+                              >
+                                <AddIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </Box>
+                          
+                          {/* Nút xóa */}
+                          <MDButton
+                            fullWidth
+                            size="small"
+                            color="error"
+                            variant="outlined"
+                            startIcon={<DeleteIcon />}
+                            onClick={() => removeLocal(itemId)}
+                          >
+                            Xóa
+                          </MDButton>
+                        </Box>
                       </FoodCard>
                     </Grid>
                   );
@@ -442,9 +566,9 @@ export default function MenuModal({
                     // if (recipe.matchByName && recipe.matchByIngredient) {
                     //   return `Tên & nguyên liệu có: "${keyword}"`;
                     // }
-                    if (recipe.matchByName) {
-                      return `Tên món có: "${keyword}"`;
-                    }
+                    // if (recipe.matchByName) {
+                    //   return `Tên món có: "${keyword}"`;
+                    // }
                     if (recipe.matchByIngredient) {
                       const ingNames = recipe.matchedIngredientNames?.slice(0, 2).join(", ");
                       return `Có nguyên liệu: ${ingNames}`;

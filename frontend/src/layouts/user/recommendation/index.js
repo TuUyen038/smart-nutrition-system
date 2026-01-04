@@ -39,6 +39,8 @@ function MealPlannerTabs() {
     weekThisStart,
     weekNextStart,
     createWeekDates,
+    fetchDailyData,
+    fetchWeeklyData,
   } = useMealPlanner(userId, currentMode);
 
   useEffect(() => {
@@ -98,35 +100,28 @@ function MealPlannerTabs() {
       name: r.name,
       calories: r.calories || 0,
       image: r.image || "default_url",
+      portion: r.portion || 1, // Lưu portion
     }));
 
-    if (currentMode === "day") {
-      await saveDayMenus(date, formattedItems);
-
-      if (editingWeekStart) {
-        setWeekMenus((prev) => ({
-          ...prev,
-          [editingWeekStart]: {
-            ...prev[editingWeekStart],
-            [date]: formattedItems,
-          },
-        }));
+    try {
+      if (currentMode === "day") {
+        await saveDayMenus(date, formattedItems);
+        // Reload data từ API để có đầy đủ mealId và status
+        if (fetchDailyData) {
+          await fetchDailyData();
+        }
       }
-      setMenus((prev) => ({
-        ...prev,
-        [date]: formattedItems,
-      }));
-    }
 
-    if (currentMode === "week") {
-      await saveWeekMenus(date, formattedItems);
-      setWeekMenus((prev) => ({
-        ...prev,
-        [editingWeekStart]: {
-          ...prev[editingWeekStart],
-          [date]: formattedItems,
-        },
-      }));
+      if (currentMode === "week") {
+        await saveWeekMenus(date, formattedItems);
+        // Reload data từ API để có đầy đủ mealId và status
+        if (fetchWeeklyData) {
+          await fetchWeeklyData();
+        }
+      }
+    } catch (error) {
+      console.error("Error saving menu:", error);
+      throw error;
     }
   };
 
@@ -182,6 +177,7 @@ function MealPlannerTabs() {
                 handleOpenModal={handleOpenModal}
                 handleDelete={handleDelete}
                 getDayName={getDayName}
+                fetchDailyData={fetchDailyData}
               />
             )}
 
@@ -198,6 +194,7 @@ function MealPlannerTabs() {
                 handleOpenModal={handleOpenModalForWeekDay}
                 getDayName={getDayName}
                 userId={userId}
+                fetchWeeklyData={fetchWeeklyData}
               />
             )}
           </>

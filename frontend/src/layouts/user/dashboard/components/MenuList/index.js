@@ -10,12 +10,15 @@ import {
 import MDTypography from "components/MDTypography";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
-import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
+import { getRecipesByDateAndStatus, updateMealStatus } from "services/dailyMenuApi";
+import { useToast } from "context/ToastContext";
 
 const myId = "68f4394c4d4cc568e6bc5daa";
 
 const MenuList = () => {
+  const { showSuccess, showError } = useToast();
   const [foodData, setFoodData] = useState([]);
+  const [updatingMealIds, setUpdatingMealIds] = useState(new Set()); // Track meals being updated
 
   useEffect(() => {
     const fetchData = async () => {
@@ -30,7 +33,8 @@ const MenuList = () => {
         // Flatten recipes và thêm property 'eaten'
         const flatData = data.flatMap((dailyMenu) =>
           dailyMenu.recipes.map((r) => ({
-            id: r.recipeId,
+            id: r.recipeId?._id || r.recipeId, // Recipe ID
+            mealId: r._id, // Meal ID để update status - từ backend service đã trả về
             name: r.name,
             calories: r.totalNutrition?.calories || 0,
             protein: r.totalNutrition?.protein || 0,
@@ -47,12 +51,59 @@ const MenuList = () => {
     fetchData();
   }, []);
 
-  const handleToggleEaten = (id) => {
-    setFoodData((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, eaten: !item.eaten } : item
-      )
-    );
+  const handleToggleEaten = async (mealId, currentStatus) => {
+    if (!mealId) {
+      console.error("mealId is missing. Available data:", foodData);
+      showError("Không tìm thấy ID món ăn. Vui lòng thử lại.");
+      return;
+    }
+
+    // Chặn double click - nếu đang update thì bỏ qua
+    if (updatingMealIds.has(mealId)) {
+      return;
+    }
+
+    const newStatus = currentStatus === "eaten" ? "planned" : "eaten";
+
+    // Đánh dấu đang update
+    setUpdatingMealIds((prev) => new Set(prev).add(mealId));
+
+    try {
+      // Optimistic update - cập nhật UI ngay
+      setFoodData((prev) =>
+        prev.map((item) =>
+          item.mealId === mealId
+            ? { ...item, eaten: newStatus === "eaten" }
+            : item
+        )
+      );
+
+      // Gọi API để cập nhật status
+      await updateMealStatus(mealId, newStatus);
+
+      showSuccess(
+        newStatus === "eaten"
+          ? "Đã đánh dấu món ăn đã ăn"
+          : "Đã bỏ đánh dấu món ăn"
+      );
+    } catch (error) {
+      // Rollback nếu có lỗi
+      setFoodData((prev) =>
+        prev.map((item) =>
+          item.mealId === mealId
+            ? { ...item, eaten: currentStatus === "eaten" }
+            : item
+        )
+      );
+      showError(error.message || "Không thể cập nhật trạng thái món ăn");
+    } finally {
+      // Xóa khỏi danh sách đang update
+      setUpdatingMealIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(mealId);
+        return newSet;
+      });
+    }
   };
 
   // Tính toán tiến độ kcal
@@ -163,13 +214,18 @@ const MenuList = () => {
 
               {/* IconButton luôn giữ nguyên kích thước */}
               <IconButton
-                onClick={() => handleToggleEaten(meal.id)}
+                onClick={() => handleToggleEaten(meal.mealId, meal.eaten ? "eaten" : "planned")}
+                disabled={updatingMealIds.has(meal.mealId)}
                 color={meal.eaten ? "success" : "default"}
                 sx={{
                   ml: 1,
                   transition: "0.2s",
                   "&:hover": {
                     color: meal.eaten ? "success.dark" : "primary.main",
+                  },
+                  "&:disabled": {
+                    opacity: 0.6,
+                    cursor: "not-allowed",
                   },
                 }}
               >

@@ -278,14 +278,16 @@ exports.getRecipesByDateAndStatus = async (data) => {
     const history = dailyMenus.map((menu) => {
       const recipes = menu.recipes
         .filter((r) => (isFilteringByStatus ? r.status === status : true))
-        .map(({ recipeId, portion, note, status }) => ({
-          recipeId: recipeId,
-          name: recipeId?.name,
-          imageUrl: recipeId?.imageUrl,
-          totalNutrition: recipeId?.totalNutrition,
-          description: recipeId?.description,
-          portion,
-          status,
+        .map((r) => ({
+          _id: r._id, // Meal ID để update status - QUAN TRỌNG
+          recipeId: r.recipeId,
+          name: r.recipeId?.name,
+          imageUrl: r.recipeId?.imageUrl,
+          totalNutrition: r.recipeId?.totalNutrition,
+          description: r.recipeId?.description,
+          portion: r.portion,
+          note: r.note,
+          status: r.status,
         }));
 
       return {
@@ -434,38 +436,76 @@ async function checkAndUpdateMealPlanStatus(mealPlanId) {
   }
 }
 exports.updateMealStatus = async (mealId, newStatus) => {
-  const meal = await Meal.findById(mealId);
-
-  if (!meal) {
-    throw new Error("Meal not found");
-  }
-
-  const validStatuses = [
-    "suggested",
-    "selected",
-    "edited",
-    "done",
-    "cancelled",
-    "archived_suggestion",
-  ];
+  // mealId là _id của một recipe item trong array recipes của DailyMenu
+  // Cần tìm DailyMenu chứa recipe item này và cập nhật status
+  
+  const validStatuses = ["planned", "eaten", "deleted"];
   if (!validStatuses.includes(newStatus)) {
-    throw new Error(`Invalid status: ${newStatus}`);
+    throw new Error(`Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(", ")}`);
   }
 
-  const oldStatus = meal.status;
-  meal.status = newStatus;
+  // Tìm DailyMenu chứa recipe item có _id = mealId
+  const dailyMenu = await DailyMenu.findOne({
+    "recipes._id": mealId,
+  });
 
-  await meal.save();
-
-  if (
-    meal.mealPlanId &&
-    (newStatus === "done" || newStatus === "cancelled") &&
-    oldStatus !== newStatus
-  ) {
-    await checkAndUpdateMealPlanStatus(meal.mealPlanId);
+  if (!dailyMenu) {
+    throw new Error("Recipe item not found in daily menu");
   }
 
-  return meal;
+  // Validation: Kiểm tra window 7 ngày và chặn ngày tương lai
+  const STATUS_UPDATE_WINDOW_DAYS = 7;
+  const menuDate = new Date(dailyMenu.date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  menuDate.setHours(0, 0, 0, 0);
+  
+  // Chặn tick "đã ăn" cho ngày tương lai
+  if (menuDate > today) {
+    throw new Error("Không thể đánh dấu đã ăn cho ngày tương lai.");
+  }
+  
+  const diffTime = today - menuDate;
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays > STATUS_UPDATE_WINDOW_DAYS) {
+    throw new Error(
+      `Không thể cập nhật status. Ngày này đã quá ${STATUS_UPDATE_WINDOW_DAYS} ngày và đã được đóng băng để đảm bảo tính chính xác của báo cáo.`
+    );
+  }
+
+  // Tìm và cập nhật status của recipe item
+  const recipeItem = dailyMenu.recipes.id(mealId);
+  if (!recipeItem) {
+    throw new Error("Recipe item not found");
+  }
+
+  const oldStatus = recipeItem.status;
+  recipeItem.status = newStatus;
+
+  // Lưu DailyMenu để cập nhật recipe item
+  await dailyMenu.save();
+
+  // Populate recipeId để trả về đầy đủ thông tin
+  await dailyMenu.populate({
+    path: "recipes.recipeId",
+    model: "Recipe",
+  });
+
+  // Trả về recipe item đã được cập nhật
+  const updatedRecipeItem = dailyMenu.recipes.id(mealId);
+  
+  return {
+    _id: updatedRecipeItem._id,
+    recipeId: updatedRecipeItem.recipeId,
+    name: updatedRecipeItem.recipeId?.name,
+    imageUrl: updatedRecipeItem.recipeId?.imageUrl,
+    totalNutrition: updatedRecipeItem.recipeId?.totalNutrition,
+    description: updatedRecipeItem.recipeId?.description,
+    portion: updatedRecipeItem.portion,
+    note: updatedRecipeItem.note,
+    status: updatedRecipeItem.status,
+  };
 };
 
 exports.updateMeal = async (mealId, updateData, userId) => {

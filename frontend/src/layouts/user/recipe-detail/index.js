@@ -1,5 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Box, Grid, Divider, Typography, Card, Chip, Breadcrumbs, IconButton, Tooltip } from "@mui/material";
+import {
+  Box,
+  Grid,
+  Divider,
+  Typography,
+  Card,
+  Chip,
+  Breadcrumbs,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
 import FavoriteIcon from "@mui/icons-material/Favorite";
 import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
 import MDBox from "components/MDBox";
@@ -69,32 +79,41 @@ function RecipeDetail() {
     }
   };
 
-  if (isLoading) return <DashboardLayout><DashboardNavbar /><Box p={2}>Loading...</Box></DashboardLayout>;
-  if (!recipe) return <DashboardLayout><DashboardNavbar /><Box p={2}>Không tìm thấy món ăn</Box></DashboardLayout>;
+  if (isLoading)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <Box p={2}>Loading...</Box>
+      </DashboardLayout>
+    );
+  if (!recipe)
+    return (
+      <DashboardLayout>
+        <DashboardNavbar />
+        <Box p={2}>Không tìm thấy món ăn</Box>
+      </DashboardLayout>
+    );
 
-  const { name, imageUrl, description, ingredients = [], instructions = [], totalNutrition = {}, servings = 1 } = recipe;
+  const {
+    name,
+    imageUrl,
+    description,
+    ingredients = [],
+    instructions = [],
+    totalNutrition = {},
+    servings = 1,
+  } = recipe;
 
   return (
     <DashboardLayout>
       <DashboardNavbar />
 
       <Box pt={2} px={3}>
-        {/* Header với nút Favorite */}
+        {/* Header */}
         <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <MDTypography variant="h4" fontWeight="bold">
             {name || "Chi tiết món ăn"}
           </MDTypography>
-          <Tooltip title={isFavorite ? "Xóa khỏi yêu thích" : "Thêm vào yêu thích"}>
-            <MDButton
-              variant={isFavorite ? "contained" : "outlined"}
-              color="error"
-              startIcon={isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-              onClick={handleToggleFavorite}
-              disabled={isTogglingFavorite}
-            >
-              {isFavorite ? "Đã yêu thích" : "Yêu thích"}
-            </MDButton>
-          </Tooltip>
         </MDBox>
 
         {/* Tên + hình + mô tả */}
@@ -107,11 +126,11 @@ function RecipeDetail() {
                 title={name || "Không có tên"}
                 description={description || ""}
               />
-              {/* Nút Favorite trên ảnh (optional - có thể bỏ nếu đã có ở header) */}
+              {/* Nút Favorite góc dưới bên phải */}
               <Box
                 sx={{
                   position: "absolute",
-                  top: 8,
+                  bottom: 8,
                   right: 8,
                   zIndex: 10,
                 }}
@@ -146,55 +165,62 @@ function RecipeDetail() {
                 <MDTypography variant="h6">Thông tin dinh dưỡng</MDTypography>
                 <Divider sx={{ mb: 1 }} />
                 <Grid container spacing={1}>
-                  {totalNutrition && Object.entries(totalNutrition).map(([key, value]) => (
-                    <Grid item xs={6} sm={4} md={3} key={key}>
-                      <MDTypography variant="button" color="text">
-                        {key.charAt(0).toUpperCase() + key.slice(1)}: {value?.toFixed?.(1) || value}
-                      </MDTypography>
-                    </Grid>
-                  ))}
+                  {totalNutrition &&
+                    Object.entries(totalNutrition).map(([key, value]) => (
+                      <Grid item xs={6} sm={4} md={3} key={key}>
+                        <MDTypography variant="button" color="text">
+                          {key.charAt(0).toUpperCase() + key.slice(1)}:{" "}
+                          {value?.toFixed?.(1) || value}
+                        </MDTypography>
+                      </Grid>
+                    ))}
                   <Grid item xs={6}>
-                    <MDTypography variant="button" color="text">Servings: {servings}</MDTypography>
+                    <MDTypography variant="button" color="text">
+                      Servings: {servings}
+                    </MDTypography>
                   </Grid>
                 </Grid>
               </MDBox>
 
               {/* Nguyên liệu */}
-              <MDBox mb={3}  px={2}>
+              <MDBox mb={3} px={2}>
                 <MDTypography variant="h6">Nguyên liệu</MDTypography>
                 <Divider sx={{ mb: 1 }} />
-                  <Grid container spacing={2}>
-                    {ingredients.length > 0 ? (
-                      ingredients.map((item, index) => (
-                        <Grid item xs={6} key={index}>
-                          <MDTypography variant="button" color="text">
-                            {item.name || "Nguyên liệu"} {item.quantity?.amount ? `${item.quantity.amount} ${item.quantity.unit || "g"}` : item.quantity || ""}
-                          </MDTypography>
-                        </Grid>
-                      ))
-                    ) : (
-                      <Grid item xs={12}>
-                        <MDTypography variant="caption" color="text">
-                          Chưa có thông tin nguyên liệu
+                <Grid container spacing={2}>
+                  {ingredients.length > 0 ? (
+                    ingredients.map((item, index) => (
+                      <Grid item xs={6} key={index}>
+                        <MDTypography variant="button" color="text">
+                          {item.name || "Nguyên liệu"}{" "}
+                          {item.quantity?.amount
+                            ? `${item.quantity.amount} ${item.quantity.unit || "g"}`
+                            : item.quantity || ""}
                         </MDTypography>
                       </Grid>
-                    )}
-                  </Grid>  
+                    ))
+                  ) : (
+                    <Grid item xs={12}>
+                      <MDTypography variant="caption" color="text">
+                        Chưa có thông tin nguyên liệu
+                      </MDTypography>
+                    </Grid>
+                  )}
+                </Grid>
               </MDBox>
 
               {/* Hướng dẫn */}
-              <MDBox mb={3}  px={2}>
+              <MDBox mb={3} px={2}>
                 <MDTypography variant="h6">Công thức nấu</MDTypography>
                 <Divider sx={{ mb: 1 }} />
-                  <Grid container spacing={2}>
-                    {instructions.map((item, index) => (
-                      <Grid item xs={12} key={index}>
-                        <MDTypography variant="button" color="text">
-                          {item}
-                        </MDTypography>
-                      </Grid>
-                    ))}
-                  </Grid>
+                <Grid container spacing={2}>
+                  {instructions.map((item, index) => (
+                    <Grid item xs={12} key={index}>
+                      <MDTypography variant="button" color="text">
+                        {item}
+                      </MDTypography>
+                    </Grid>
+                  ))}
+                </Grid>
               </MDBox>
             </Card>
           </Grid>

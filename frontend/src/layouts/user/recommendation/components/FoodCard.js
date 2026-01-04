@@ -5,7 +5,7 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import PropTypes from "prop-types";
 import MDTypography from "components/MDTypography";
 
-const FoodCard = ({ title, calories, image, children }) => {
+const FoodCard = ({ title, calories, image, portion, children }) => {
   // Nếu image là string (URL) thì render <img>, nếu là JSX thì render trực tiếp
   const renderAvatarContent =
     typeof image === "string" ? (
@@ -66,21 +66,35 @@ const FoodCard = ({ title, calories, image, children }) => {
             >
               {title}
             </MDTypography>
-            <Chip
-              label={`${calories} kcal`}
-              size="small"
-              variant="outlined" // outline
-              icon={<LocalFireDepartmentIcon />}
-              color="warning"
-              sx={{
-                fontSize: "0.75rem",
-                height: 20,
-                mt: 0.5,
-                borderColor: "rgba(255, 165, 0, 0.5)",
-                color: "rgba(255, 140, 0, 0.8)",
-                backgroundColor: "rgba(255, 255, 255, 0.1)",
-              }}
-            />
+            <Box display="flex" alignItems="center" gap={0.5} mt={0.5} flexWrap="wrap">
+              <Chip
+                label={`${calories} kcal`}
+                size="small"
+                variant="outlined" // outline
+                icon={<LocalFireDepartmentIcon />}
+                color="warning"
+                sx={{
+                  fontSize: "0.75rem",
+                  height: 20,
+                  borderColor: "rgba(255, 165, 0, 0.5)",
+                  color: "rgba(255, 140, 0, 0.8)",
+                  backgroundColor: "rgba(255, 255, 255, 0.1)",
+                }}
+              />
+              {portion && portion > 1 && (
+                <Chip
+                  label={`${portion} phần`}
+                  size="small"
+                  variant="outlined"
+                  sx={{
+                    fontSize: "0.7rem",
+                    height: 20,
+                    borderColor: "rgba(0, 0, 0, 0.2)",
+                    color: "text.secondary",
+                  }}
+                />
+              )}
+            </Box>
           </Box>
         </Box>
       </CardContent>
@@ -93,6 +107,7 @@ FoodCard.propTypes = {
   title: PropTypes.string.isRequired,
   calories: PropTypes.number.isRequired,
   image: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
+  portion: PropTypes.number,
   children: PropTypes.node,
 };
 

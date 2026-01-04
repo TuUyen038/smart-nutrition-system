@@ -129,22 +129,20 @@ function DashboardNavbar({ absolute, light, isMini }) {
       sx={{ mt: 1.5 }}
     >
       {user && (
-        <>
-          <MenuItem disabled>
-            <MDBox>
-              <Typography variant="body2" fontWeight="medium">
-                {user.name || user.email}
+        <MenuItem disabled>
+          <MDBox>
+            <Typography variant="body2" fontWeight="medium">
+              {user.name || user.email}
+            </Typography>
+            {user.email && (
+              <Typography variant="caption" color="text">
+                {user.email}
               </Typography>
-              {user.email && (
-                <Typography variant="caption" color="text">
-                  {user.email}
-                </Typography>
-              )}
-            </MDBox>
-          </MenuItem>
-          <Divider />
-        </>
+            )}
+          </MDBox>
+        </MenuItem>
       )}
+      {user && <Divider />}
       <MenuItem onClick={handleLogout}>
         <Icon sx={{ mr: 1 }}>logout</Icon>
         Đăng xuất

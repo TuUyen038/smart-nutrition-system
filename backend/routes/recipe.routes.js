@@ -15,6 +15,7 @@ const {
   checkDuplicateName,
   updateRecipe,
   deleteRecipe,
+  getIngredientSubstitutions,
 } = require("../controllers/recipe.controller");
 
 const router = express.Router();
@@ -28,6 +29,7 @@ router.get("/stats", getRecipeStats);
 router.get("/check-duplicate", checkDuplicateName);
 router.post("/ingredients", findIngredientsByAi);
 router.post("/detect", upload.single("foodImage"), detectImage);
+router.post("/substitutions", getIngredientSubstitutions);
 router.get("/rcm/:foodName", findIngrAndInstrByAi);
 router.post("/back-up-nutrition", getBackUpNutrition);
 

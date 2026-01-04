@@ -98,3 +98,27 @@ export const createDailyMenu = async ({ userId, date, recipes }) => {
     throw err;
   }
 };
+
+/**
+ * Cập nhật status của một meal trong daily menu
+ * @param {string} mealId - ID của meal cần update
+ * @param {string} newStatus - Status mới ("eaten" hoặc "pending")
+ * @returns {Promise<Object>} Updated meal object
+ */
+export const updateMealStatus = async (mealId, newStatus) => {
+  try {
+    const res = await fetch(`${API_BASE_URL}/${mealId}/status`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ newStatus }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Cập nhật trạng thái thất bại");
+
+    return data;
+  } catch (err) {
+    console.error("updateMealStatus error:", err);
+    throw err;
+  }
+};

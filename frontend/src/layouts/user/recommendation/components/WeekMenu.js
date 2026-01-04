@@ -10,14 +10,18 @@ import {
   Dialog,
   DialogActions,
   Skeleton,
+  IconButton,
+  Tooltip,
 } from "@mui/material";
-import { Edit, Restaurant as RestaurantIcon } from "@mui/icons-material";
+import { Edit, Restaurant as RestaurantIcon, CheckCircle, CheckCircleOutline } from "@mui/icons-material";
 import MDButton from "components/MDButton";
 import FoodCard from "./FoodCard";
 import MDTypography from "components/MDTypography";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import { createMealPlan } from "services/mealPlanApi";
 import { createRecommendMealPlan, getWeekDailyMenuStatus } from "services/mealPlanApi";
+import { updateMealStatus } from "services/dailyMenuApi";
+import { useToast } from "context/ToastContext";
 
 const formatDate = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(
@@ -34,9 +38,11 @@ const WeekMenu = ({
   handleOpenModal,
   getDayName,
   userId,
+  fetchWeeklyData,
 }) => {
   if (!weekStarts.length) return null;
 
+  const { showSuccess, showError } = useToast();
   const [modeDialogOpen, setModeDialogOpen] = useState(false);
   const [pendingWeekStart, setPendingWeekStart] = useState(null); // start date tuần đang chọn
   const [loadingCreate, setLoadingCreate] = useState(false);
@@ -46,6 +52,26 @@ const WeekMenu = ({
   const [confirmWeekStart, setConfirmWeekStart] = useState(null);
   // tuần đang show skeleton
   const [creatingWeekStart, setCreatingWeekStart] = useState(null);
+  const [updatingMealIds, setUpdatingMealIds] = useState(new Set()); // Track meals being updated
+
+  // Helper function: Check if date is within allowed range for ticking (today and up to 7 days ago)
+  const canTickForDate = (dateString) => {
+    if (!dateString) return false;
+    const menuDate = new Date(dateString);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    menuDate.setHours(0, 0, 0, 0);
+    
+    // Không cho phép tick cho ngày tương lai
+    if (menuDate > today) return false;
+    
+    // Không cho phép tick cho ngày quá 7 ngày trong quá khứ
+    const diffTime = today - menuDate;
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 7) return false;
+    
+    return true;
+  };
 
   const handleOpenConfirmDialog = (weekStart) => {
     setConfirmWeekStart(weekStart);
@@ -83,26 +109,35 @@ const WeekMenu = ({
         mode, // "reuse" hoặc "overwrite"
       });
 
-      const formattedMenus = {};
-      plan?.dailyMenuIds?.forEach((d) => {
-        const dateKey = d.date; // "yyyy-mm-dd"
-        formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
-          id: r.recipeId?._id,
-          name: r.recipeId.name,
-          calories: r.recipeId.totalNutrition?.calories || 0,
-          image:
-            r.recipeId.imageUrl ||
-            "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
-        }));
-      });
+      // Reload data từ API để có đầy đủ mealId và status
+      if (fetchWeeklyData) {
+        await fetchWeeklyData();
+      } else {
+        // Fallback: update local state nếu không có fetchWeeklyData
+        const formattedMenus = {};
+        plan?.dailyMenuIds?.forEach((d) => {
+          const dateKey = d.date; // "yyyy-mm-dd"
+          formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
+            id: r.recipeId?._id,
+            mealId: r._id, // Lưu mealId từ response
+            name: r.recipeId.name,
+            calories: r.recipeId.totalNutrition?.calories || 0,
+            portion: r.portion || 1,
+            status: r.status || "planned",
+            image:
+              r.recipeId.imageUrl ||
+              "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
+          }));
+        });
 
-      setWeekMenus((prev) => ({
-        ...prev,
-        [targetWeekStart]: {
-          ...(prev[targetWeekStart] || {}),
-          ...formattedMenus, // ghi đè các ngày mà AI gợi ý
-        },
-      }));
+        setWeekMenus((prev) => ({
+          ...prev,
+          [targetWeekStart]: {
+            ...(prev[targetWeekStart] || {}),
+            ...formattedMenus, // ghi đè các ngày mà AI gợi ý
+          },
+        }));
+      }
     } catch (err) {
       console.error("Create daily meal plan error:", err);
       alert(err.message || "Tạo thực đơn thất bại");
@@ -132,29 +167,37 @@ const WeekMenu = ({
 
       console.log("✅ Weekly plan created:", plan);
 
-      // ------- CHUYỂN RESPONSE -> DỮ LIỆU weekMenus -------
-      const formattedMenus = {};
-      plan?.dailyMenuIds.forEach((d) => {
-        const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
-        formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
-          id: r.recipeId._id,
-          name: r.recipeId.name,
-          calories: r.recipeId.totalNutrition?.calories || 0,
-          image:
-            r.recipeId.imageUrl ||
-            "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
-        }));
-      });
+      // Reload data từ API để có đầy đủ mealId và status
+      if (fetchWeeklyData) {
+        await fetchWeeklyData();
+      } else {
+        // Fallback: update local state nếu không có fetchWeeklyData
+        const formattedMenus = {};
+        plan?.dailyMenuIds.forEach((d) => {
+          const dateKey = d.date; // đảm bảo là "yyyy-mm-dd"
+          formattedMenus[dateKey] = (d.recipes || []).map((r) => ({
+            id: r.recipeId._id,
+            mealId: r._id, // Lưu mealId từ response
+            name: r.recipeId.name,
+            calories: r.recipeId.totalNutrition?.calories || 0,
+            portion: r.portion || 1,
+            status: r.status || "planned",
+            image:
+              r.recipeId.imageUrl ||
+              "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
+          }));
+        });
 
-      // 3) Gộp vào weekMenus theo đúng pattern bạn dùng trong saveWeekMenus
-      setWeekMenus((prev) => ({
-        ...prev,
-        [targetWeekStart]: {
-          // giữ lại nếu tuần đó đã có ngày nào đó (trường hợp backend chỉ trả một vài ngày)
-          ...(prev[targetWeekStart] || {}),
-          ...formattedMenus, // ghi đè các ngày mà AI vừa gợi ý
-        },
-      }));
+        // 3) Gộp vào weekMenus theo đúng pattern bạn dùng trong saveWeekMenus
+        setWeekMenus((prev) => ({
+          ...prev,
+          [targetWeekStart]: {
+            // giữ lại nếu tuần đó đã có ngày nào đó (trường hợp backend chỉ trả một vài ngày)
+            ...(prev[targetWeekStart] || {}),
+            ...formattedMenus, // ghi đè các ngày mà AI vừa gợi ý
+          },
+        }));
+      }
     } catch (error) {
       console.error("❌ Error in handleConfirmCreateWeekPlan:", error);
       alert(error.message || "Tạo thực đơn thất bại");
@@ -193,6 +236,93 @@ const WeekMenu = ({
     }
   };
 
+  // Handle toggle eaten status for individual meal
+  const handleToggleEaten = async (mealId, currentStatus, weekStart, date, itemIndex) => {
+    if (updatingMealIds.has(mealId)) return; // Prevent double-clicking
+
+    const newStatus = currentStatus === "eaten" ? "planned" : "eaten";
+
+    try {
+      setUpdatingMealIds((prev) => new Set(prev).add(mealId));
+
+      // Optimistic update
+      setWeekMenus((prev) => {
+        const updated = { ...prev };
+        if (updated[weekStart] && updated[weekStart][date]) {
+          updated[weekStart] = { ...updated[weekStart] };
+          updated[weekStart][date] = [...updated[weekStart][date]];
+          updated[weekStart][date][itemIndex] = {
+            ...updated[weekStart][date][itemIndex],
+            status: newStatus,
+          };
+        }
+        return updated;
+      });
+
+      await updateMealStatus(mealId, newStatus);
+
+      showSuccess(newStatus === "eaten" ? "Đã đánh dấu đã ăn" : "Đã bỏ đánh dấu");
+    } catch (error) {
+      console.error("Error updating meal status:", error);
+      showError(error.message || "Không thể cập nhật trạng thái");
+
+      // Rollback optimistic update
+      setWeekMenus((prev) => {
+        const updated = { ...prev };
+        if (updated[weekStart] && updated[weekStart][date]) {
+          updated[weekStart] = { ...updated[weekStart] };
+          updated[weekStart][date] = [...updated[weekStart][date]];
+          updated[weekStart][date][itemIndex] = {
+            ...updated[weekStart][date][itemIndex],
+            status: currentStatus,
+          };
+        }
+        return updated;
+      });
+    } finally {
+      setUpdatingMealIds((prev) => {
+        const next = new Set(prev);
+        next.delete(mealId);
+        return next;
+      });
+    }
+  };
+
+  // Handle tick all for a day
+  const handleTickAll = async (weekStart, date, menuItems) => {
+    const plannedItems = menuItems.filter((item) => item.status !== "eaten" && item.mealId);
+    if (plannedItems.length === 0) {
+      showError("Không có món nào cần đánh dấu");
+      return;
+    }
+
+    try {
+      // Update all items optimistically
+      setWeekMenus((prev) => {
+        const updated = { ...prev };
+        if (updated[weekStart] && updated[weekStart][date]) {
+          updated[weekStart] = { ...updated[weekStart] };
+          updated[weekStart][date] = updated[weekStart][date].map((item) =>
+            item.mealId && item.status !== "eaten"
+              ? { ...item, status: "eaten" }
+              : item
+          );
+        }
+        return updated;
+      });
+
+      // Call API for all items
+      await Promise.all(
+        plannedItems.map((item) => updateMealStatus(item.mealId, "eaten"))
+      );
+
+      showSuccess(`Đã đánh dấu ${plannedItems.length} món đã ăn`);
+    } catch (error) {
+      console.error("Error updating all meal statuses:", error);
+      showError("Không thể cập nhật trạng thái cho tất cả món");
+    }
+  };
+
   return (
     <Box>
       {weekStarts.map(({ start, label }) => {
@@ -207,9 +337,14 @@ const WeekMenu = ({
         const weekEnd = weekDates[6];
         const hasMealPlan = Object.keys(week).length > 0;
 
+        // Tính tổng calo = sum(calories × portion)
         const totalWeekCal = Object.values(week)
           .flatMap((dayMeals) => dayMeals || [])
-          .reduce((sum, meal) => sum + (meal?.calories || 0), 0);
+          .reduce((sum, meal) => {
+            const portion = meal?.portion || 1;
+            const calories = meal?.calories || 0;
+            return sum + calories * portion;
+          }, 0);
 
         const totalDishes = Object.values(week)
           .flatMap((dayMeals) => dayMeals || [])
@@ -314,7 +449,12 @@ const WeekMenu = ({
                     const dayMenu = week[date] || [];
                     const validItems = (dayMenu || []).filter(Boolean);
 
-                    const dayCal = validItems.reduce((sum, item) => sum + (item.calories || 0), 0);
+                    // Tính tổng calo = sum(calories × portion)
+                    const dayCal = validItems.reduce((sum, item) => {
+                      const portion = item.portion || 1;
+                      const calories = item.calories || 0;
+                      return sum + calories * portion;
+                    }, 0);
 
                     return (
                       <Box key={date} mb={2}>
@@ -356,7 +496,18 @@ const WeekMenu = ({
                             </Box>
 
                             {isEditingWeek && (
-                              <Box alignItems="center">
+                              <Box display="flex" gap={1} alignItems="center">
+                                {canTickForDate(date) && (
+                                  <MDButton
+                                    variant="outlined"
+                                    color="success"
+                                    size="small"
+                                    onClick={() => handleTickAll(start, date, validItems)}
+                                    disabled={updatingMealIds.size > 0}
+                                  >
+                                    Đánh dấu tất cả
+                                  </MDButton>
+                                )}
                                 <MDButton
                                   variant="outlined"
                                   startIcon={<Edit />}
@@ -378,15 +529,71 @@ const WeekMenu = ({
                           {validItems.length > 0 ? (
                             <Grid container spacing={2} p={2}>
                               {validItems.map((item, idx) => {
-                                const calories = item.calories || 0;
+                                const portion = item.portion || 1;
+                                const itemCalories = item.calories || 0;
+                                const totalCalories = itemCalories * portion;
                                 const imageUrl =
                                   item.image ||
                                   "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg";
                                 const name = item.name || "Unknown";
+                                const isEaten = item.status === "eaten";
+                                const mealId = item.mealId;
+                                const isUpdating = mealId && updatingMealIds.has(mealId);
 
                                 return (
-                                  <Grid item xs={12} sm={6} md={3} key={item._id || idx}>
-                                    <FoodCard title={name} calories={calories} image={imageUrl} />
+                                  <Grid item xs={12} sm={6} md={3} key={item._id || item.id || idx}>
+                                    <Box sx={{ position: "relative" }}>
+                                      <FoodCard
+                                        title={name}
+                                        calories={totalCalories}
+                                        portion={portion}
+                                        image={imageUrl}
+                                      />
+                                      {/* Tickbox góc dưới bên phải - chỉ hiển thị nếu ngày trong phạm vi cho phép */}
+                                      {mealId && canTickForDate(date) && (
+                                        <Box
+                                          sx={{
+                                            position: "absolute",
+                                            bottom: 8,
+                                            right: 8,
+                                            zIndex: 10,
+                                          }}
+                                        >
+                                          <Tooltip title={isEaten ? "Bỏ đánh dấu đã ăn" : "Đánh dấu đã ăn"}>
+                                            <IconButton
+                                              onClick={() =>
+                                                handleToggleEaten(
+                                                  mealId,
+                                                  item.status || "planned",
+                                                  start,
+                                                  date,
+                                                  idx
+                                                )
+                                              }
+                                              disabled={isUpdating}
+                                              sx={{
+                                                bgcolor: "rgba(255, 255, 255, 0.9)",
+                                                "&:hover": {
+                                                  bgcolor: "rgba(255, 255, 255, 1)",
+                                                },
+                                                "&:disabled": {
+                                                  opacity: 0.6,
+                                                },
+                                              }}
+                                              size="small"
+                                            >
+                                              {isEaten ? (
+                                                <CheckCircle sx={{ color: "success.main", fontSize: 28 }} />
+                                              ) : (
+                                                <CheckCircleOutline
+                                                  sx={{ color: "text.secondary", fontSize: 28 }}
+                                                />
+                                              )}
+                                            </IconButton>
+                                          </Tooltip>
+                                        </Box>
+                                      )}
+                                    </Box>
                                   </Grid>
                                 );
                               })}
@@ -482,6 +689,7 @@ WeekMenu.propTypes = {
   handleOpenModal: PropTypes.func.isRequired,
   getDayName: PropTypes.func.isRequired,
   userId: PropTypes.string.isRequired,
+  fetchWeeklyData: PropTypes.func,
 };
 
 export default WeekMenu;

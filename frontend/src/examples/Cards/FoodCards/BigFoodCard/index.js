@@ -7,16 +7,9 @@ import CardActions from "@mui/material/CardActions";
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
-import { Chip, Divider, Grid, IconButton } from "@mui/material";
-import FavoriteIcon from "@mui/icons-material/Favorite";
-import { useState } from "react";
+import { Chip, Divider, Grid } from "@mui/material";
 
 function BigFoodCard({ image, label, title, description, category, action }) {
-  const [liked, setLiked] = useState(false);
-
-  const handleToggle = () => {
-    setLiked(!liked);
-  };
   return (
     <Card
       sx={{
@@ -105,7 +98,7 @@ function BigFoodCard({ image, label, title, description, category, action }) {
           </MDBox>
 
           {category && <Chip label={category} color="success" variant="outline" sx={{ mt: 2 }} />}
-          <Grid container spacing={1} sx={{ mt: 1 }} gap={1} flexDirection='row' justifyContent="space-between">
+          <Grid container spacing={1} sx={{ mt: 1 }} gap={1} flexDirection='row' justifyContent="flex-start">
             <Grid item>
               <MDBox display="flex" gap={2}>
                 {/* <MDButton
@@ -121,17 +114,6 @@ function BigFoodCard({ image, label, title, description, category, action }) {
                   Thêm vào thực đơn
                 </MDButton>
               </MDBox>
-              
-            </Grid>
-            <Grid item>
-              <IconButton onClick={handleToggle}>
-                <FavoriteIcon
-                  sx={{
-                    color: liked ? "red" : "gray",
-                    transition: "color 0.2s ease",
-                  }}
-                />
-              </IconButton>
             </Grid>
           </Grid>
 

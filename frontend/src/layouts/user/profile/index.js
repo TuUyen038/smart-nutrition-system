@@ -32,6 +32,7 @@ import { getFavoriteRecipes } from "services/favoriteApi";
 import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
 import { getIngredients } from "services/ingredientApi";
 import { useToast } from "context/ToastContext";
+import { calculateDailyCalorieGoal, calculateDailyNutritionLimits } from "helpers/nutritionUtils";
 
 function Profile() {
   const { showSuccess, showError } = useToast();
@@ -343,29 +344,60 @@ function Profile() {
     }
   };
 
-  // Calculate nutrition goals
+  // Calculate nutrition goals using new formula (AMDR compliant)
   const calculateNutritionGoals = () => {
-    const bmr = calculateBMR();
-    if (bmr === 0) {
+    const age = parseFloat(profile.age);
+    const height = parseFloat(profile.height);
+    const weight = parseFloat(profile.weight);
+    const gender = profile.gender;
+    const goal = profile.goal;
+
+    if (!age || !height || !weight || !gender) {
       // Fallback values if missing data
       return {
         calories: 2000,
-        protein: 150,
-        fat: 65,
-        carbs: 250,
+        protein: 0,
+        fat: 0,
+        carbs: 0,
+        fiber: 0,
+        sodium: 0,
+        sugar: 0,
       };
     }
 
-    const caloriesTarget = Math.round(adjustByGoal(bmr, profile.goal));
-    const proteinTarget = Math.round((caloriesTarget * 0.3) / 4); // 30% calories, 4 cal/g
-    const fatTarget = Math.round((caloriesTarget * 0.25) / 9); // 25% calories, 9 cal/g
-    const carbTarget = Math.round((caloriesTarget * 0.45) / 4); // 45% calories, 4 cal/g
+    // Calculate daily calorie goal using new formula
+    const dailyCalorieGoal = calculateDailyCalorieGoal(age, gender, height, weight, goal);
+
+    if (dailyCalorieGoal === 0) {
+      return {
+        calories: 2000,
+        protein: 0,
+        fat: 0,
+        carbs: 0,
+        fiber: 0,
+        sodium: 0,
+        sugar: 0,
+      };
+    }
+
+    // Calculate nutrition limits using new formula (AMDR compliant)
+    const userInfo = {
+      age,
+      gender,
+      height,
+      weight,
+      goal,
+    };
+    const nutritionLimits = calculateDailyNutritionLimits(userInfo, dailyCalorieGoal);
 
     return {
-      calories: caloriesTarget,
-      protein: proteinTarget,
-      fat: fatTarget,
-      carbs: carbTarget,
+      calories: dailyCalorieGoal,
+      protein: nutritionLimits.protein,
+      fat: nutritionLimits.fat,
+      carbs: nutritionLimits.carbs,
+      fiber: nutritionLimits.fiber,
+      sodium: nutritionLimits.sodium,
+      sugar: nutritionLimits.sugar,
     };
   };
 
@@ -460,6 +492,21 @@ function Profile() {
       if (user) {
         const updatedUserInfo = { ...user, ...updatedUser };
         localStorage.setItem("user", JSON.stringify(updatedUserInfo));
+      }
+
+      // Tính lại và cache daily calorie goal khi profile thay đổi
+      const newCalorieGoal = calculateDailyCalorieGoal(
+        updatedUser.age || profile.age,
+        updatedUser.gender || profile.gender,
+        updatedUser.height || profile.height,
+        updatedUser.weight || profile.weight,
+        updatedUser.goal || profile.goal
+      );
+
+      if (newCalorieGoal > 0) {
+        const cacheKey = `dailyCalorieGoal_${userId}`;
+        localStorage.setItem(cacheKey, newCalorieGoal.toString());
+        console.log("✅ Đã cập nhật daily calorie goal:", newCalorieGoal);
       }
 
       showSuccess("Cập nhật thông tin thành công! Mục tiêu dinh dưỡng đã được tính toán lại.");
@@ -638,7 +685,7 @@ function Profile() {
                       <MDTypography variant="button" color="text" fontWeight="medium" mb={0.5}>
                         Dị ứng:
                       </MDTypography>
-                      <MDTypography variant="button" color="text" >
+                      <MDTypography variant="button" color="text">
                         {Array.isArray(profile.allergies) && profile.allergies.length > 0
                           ? profile.allergies.join(", ")
                           : profile.allergy || "Không có"}
@@ -909,34 +956,46 @@ function Profile() {
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
                     Mục tiêu dinh dưỡng hàng ngày
                   </MDTypography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={6} sm={3}>
+
+                  {/* Calories - Hàng riêng */}
+                  <Grid container spacing={2} mb={2}>
+                    <Grid item xs={12}>
                       <MDBox
                         sx={{
-                          p: 2,
+                          p: 3,
                           borderRadius: 2,
                           bgcolor: "info.lighter",
                           textAlign: "center",
                         }}
                       >
-                        <MDTypography variant="h4" color="info.main" fontWeight="bold">
+                        <MDTypography variant="h3" color="info.main" fontWeight="bold">
                           {nutritionGoals.calories}
                         </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          kcal
+                        <MDTypography variant="body1" color="text" fontWeight="medium">
+                          kcal/ngày
                         </MDTypography>
                       </MDBox>
                     </Grid>
-                    <Grid item xs={6} sm={3}>
+                  </Grid>
+
+                  {/* 6 chất còn lại - Hàng dưới */}
+                  <Grid container spacing={2}>
+                    {/* Protein */}
+                    <Grid item xs={6} sm={4} md={2}>
                       <MDBox
                         sx={{
-                          p: 2,
+                          p: 1.5,
                           borderRadius: 2,
                           bgcolor: "success.lighter",
                           textAlign: "center",
                         }}
                       >
-                        <MDTypography variant="h4" color="success.main" fontWeight="bold">
+                        <MDTypography
+                          variant="h5"
+                          color="success.main"
+                          fontWeight="bold"
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
                           {nutritionGoals.protein}g
                         </MDTypography>
                         <MDTypography variant="caption" color="text">
@@ -944,16 +1003,22 @@ function Profile() {
                         </MDTypography>
                       </MDBox>
                     </Grid>
-                    <Grid item xs={6} sm={3}>
+                    {/* Fat */}
+                    <Grid item xs={6} sm={4} md={2}>
                       <MDBox
                         sx={{
-                          p: 2,
+                          p: 1.5,
                           borderRadius: 2,
                           bgcolor: "warning.lighter",
                           textAlign: "center",
                         }}
                       >
-                        <MDTypography variant="h4" color="warning.main" fontWeight="bold">
+                        <MDTypography
+                          variant="h5"
+                          color="warning.main"
+                          fontWeight="bold"
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
                           {nutritionGoals.fat}g
                         </MDTypography>
                         <MDTypography variant="caption" color="text">
@@ -961,20 +1026,95 @@ function Profile() {
                         </MDTypography>
                       </MDBox>
                     </Grid>
-                    <Grid item xs={6} sm={3}>
+                    {/* Carbs */}
+                    <Grid item xs={6} sm={4} md={2}>
                       <MDBox
                         sx={{
-                          p: 2,
+                          p: 1.5,
                           borderRadius: 2,
                           bgcolor: "error.lighter",
                           textAlign: "center",
                         }}
                       >
-                        <MDTypography variant="h4" color="error.main" fontWeight="bold">
+                        <MDTypography
+                          variant="h5"
+                          color="error.main"
+                          fontWeight="bold"
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
                           {nutritionGoals.carbs}g
                         </MDTypography>
                         <MDTypography variant="caption" color="text">
                           Carbs
+                        </MDTypography>
+                      </MDBox>
+                    </Grid>
+                    {/* Fiber */}
+                    <Grid item xs={6} sm={4} md={2}>
+                      <MDBox
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: "secondary.lighter",
+                          textAlign: "center",
+                        }}
+                      >
+                        <MDTypography
+                          variant="h5"
+                          color="secondary.main"
+                          fontWeight="bold"
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
+                          {nutritionGoals.fiber}g
+                        </MDTypography>
+                        <MDTypography variant="caption" color="text">
+                          Fiber
+                        </MDTypography>
+                      </MDBox>
+                    </Grid>
+                    {/* Sodium */}
+                    <Grid item xs={6} sm={4} md={2}>
+                      <MDBox
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: "dark.lighter",
+                          textAlign: "center",
+                        }}
+                      >
+                        <MDTypography
+                          variant="h5"
+                          color="dark.main"
+                          fontWeight="bold"
+                          sx={{ whiteSpace: "nowrap", fontSize: { xs: "1.1rem", sm: "1.25rem" } }}
+                        >
+                          {nutritionGoals.sodium}mg
+                        </MDTypography>
+                        <MDTypography variant="caption" color="text">
+                          Sodium
+                        </MDTypography>
+                      </MDBox>
+                    </Grid>
+                    {/* Sugar */}
+                    <Grid item xs={6} sm={4} md={2}>
+                      <MDBox
+                        sx={{
+                          p: 1.5,
+                          borderRadius: 2,
+                          bgcolor: "primary.lighter",
+                          textAlign: "center",
+                        }}
+                      >
+                        <MDTypography
+                          variant="h5"
+                          color="primary.main"
+                          fontWeight="bold"
+                          sx={{ whiteSpace: "nowrap" }}
+                        >
+                          {nutritionGoals.sugar}g
+                        </MDTypography>
+                        <MDTypography variant="caption" color="text">
+                          Sugar
                         </MDTypography>
                       </MDBox>
                     </Grid>
@@ -1004,15 +1144,6 @@ function Profile() {
                     <MDBox display="flex" flexDirection="column" gap={2}>
                       <MDBox display="flex" justifyContent="space-between" alignItems="center">
                         <MDTypography variant="button" color="text">
-                          Tổng số món đã phân tích
-                        </MDTypography>
-                        <MDTypography variant="h6" color="info.main" fontWeight="bold">
-                          {statistics.totalAnalyzedRecipes}
-                        </MDTypography>
-                      </MDBox>
-                      <Divider />
-                      <MDBox display="flex" justifyContent="space-between" alignItems="center">
-                        <MDTypography variant="button" color="text">
                           Số ngày sử dụng
                         </MDTypography>
                         <MDTypography variant="h6" color="success.main" fontWeight="bold">
@@ -1021,41 +1152,34 @@ function Profile() {
                         </MDTypography>
                       </MDBox>
                       <Divider />
-                      <MDBox display="flex" justifyContent="space-between" alignItems="center">
-                        <MDTypography variant="button" color="text">
-                          Tổng số món yêu thích
-                        </MDTypography>
-                        <MDTypography variant="h6" color="error.main" fontWeight="bold">
-                          {statistics.totalFavorites}
-                        </MDTypography>
-                      </MDBox>
-                      {statistics.favoriteRecipes.length > 0 && (
-                        <>
-                          <Divider />
-                          <MDBox display="flex" flexDirection="column" gap={1}>
-                            <MDTypography
-                              variant="button"
-                              color="text"
-                              fontWeight="medium"
-                              mb={0.5}
-                            >
-                              Top món ăn yêu thích:
-                            </MDTypography>
-                            <MDBox display="flex" flexDirection="column" gap={0.5}>
-                              {statistics.favoriteRecipes.map((recipe, index) => (
-                                <MDTypography
-                                  key={recipe._id || index}
-                                  variant="caption"
-                                  color="text"
-                                  sx={{ pl: 1 }}
-                                >
-                                  {index + 1}. {recipe.name || recipe.recipeId?.name || "Không tên"}
-                                </MDTypography>
-                              ))}
-                            </MDBox>
+                      <MDBox display="flex" flexDirection="column" gap={1}>
+                        <MDBox display="flex" justifyContent="space-between" alignItems="center">
+                          <MDTypography variant="button" color="text">
+                            Tổng số món yêu thích
+                          </MDTypography>
+                          <MDTypography variant="h6" color="error.main" fontWeight="bold">
+                            {statistics.totalFavorites}
+                          </MDTypography>
+                        </MDBox>
+                        {statistics.favoriteRecipes.length > 0 && (
+                          <MDBox
+                            display="flex"
+                            flexDirection="column"
+                            gap={0.5}
+                            sx={{ pl: 1, mt: 0.5 }}
+                          >
+                            {statistics.favoriteRecipes.map((recipe, index) => (
+                              <MDTypography
+                                key={recipe._id || index}
+                                variant="caption"
+                                color="text"
+                              >
+                                {index + 1}. {recipe.name || recipe.recipeId?.name || "Không tên"}
+                              </MDTypography>
+                            ))}
                           </MDBox>
-                        </>
-                      )}
+                        )}
+                      </MDBox>
                     </MDBox>
                   )}
                 </Card>

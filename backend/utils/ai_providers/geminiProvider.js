@@ -58,6 +58,7 @@ class GeminiService {
             : [{ role: "user", parts: [{ text: prompt }] }]; // Trường hợp chỉ có text
 
         try {
+            console.log(`🤖 [Gemini] Đang gọi API với model: ${model}`);
             const response = await this.aiClient.models.generateContent({
                 model: model, 
                 contents: contents,
@@ -69,16 +70,19 @@ class GeminiService {
 
             // Xử lý và làm sạch kết quả
             const resultText = response.text;
+            console.log(`✅ [Gemini] Thành công với model: ${model}`);
             return resultText.replace(/```json|```/g, '').trim(); 
             
         } catch (error) {
-            console.error("Lỗi trong analyzeWithGemini/analyze:", error);
+            console.error(`❌ [Gemini] Lỗi với model ${model}:`, error.message);
+            console.error("Chi tiết lỗi:", error);
         
         // ⚠️ BẮT BUỘC: Tạo đối tượng lỗi rõ ràng và JSON.stringify nó.
         const errorObject = { 
             foodName: "Lỗi API/Không xác định",
             errorMessage: error.message || "Lỗi không xác định khi gọi AI",
-            statusCode: error.response?.status || 500
+            statusCode: error.status || error.response?.status || 500,
+            provider: "gemini"
         };
 
         // Trả về CHUỖI JSON HỢP LỆ (string)

@@ -108,8 +108,15 @@ export const detectFood = async (imageFile) => {
 
     // 1. Xử lý lỗi HTTP (ví dụ: 400, 500)
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || `Lỗi HTTP: ${response.status}`);
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (e) {
+        errorData = { message: `Lỗi HTTP: ${response.status}` };
+      }
+      const error = new Error(errorData.message || `Lỗi HTTP: ${response.status}`);
+      error.status = response.status; // Thêm status code vào error object
+      throw error;
     }
 
     const data = await response.json();
@@ -240,14 +247,73 @@ export const getIngredientsAndInstructionsInAi = async (foodName) => {
     throw error;
   }
 };
-export const getIngredientsInAi = async (recipe) => {
+/**
+ * Gợi ý nguyên liệu thay thế từ AI
+ * @param {Array} ingredientsToSubstitute - Danh sách nguyên liệu cần thay thế [{ingredient: {...}, reason: string, priority: string, reasonType: string}, ...]
+ * @param {Array} allIngredients - Danh sách tất cả nguyên liệu [{name: "Thịt heo", quantity: {...}}, ...]
+ * @param {String} userGoal - Mục tiêu của user (lose_weight, gain_weight, maintain_weight)
+ * @param {String} instructions - Công thức nấu ăn (optional)
+ * @param {String} dishName - Tên món ăn (optional)
+ * @returns {Promise<Object>} {substitutions: [{original: "Thịt heo", reason: "...", suggestions: ["Đậu phụ", "Nấm"]}]}
+ */
+export const getIngredientSubstitutions = async (
+  ingredientsToSubstitute,
+  allIngredients,
+  userGoal,
+  instructions = "",
+  dishName = ""
+) => {
   try {
+    const token = getToken();
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/substitutions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        ingredientsToSubstitute,
+        allIngredients,
+        userGoal,
+        instructions,
+        dishName,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        message: "Không thể đọc lỗi từ server.",
+      }));
+      throw new Error(
+        errorData.message || `Lỗi HTTP ${response.status} khi lấy gợi ý nguyên liệu thay thế`
+      );
+    }
+
+    const data = await response.json();
+    return data.data || { substitutions: [] };
+  } catch (error) {
+    console.error("Lỗi khi lấy gợi ý nguyên liệu thay thế:", error.message);
+    throw error;
+  }
+};
+
+export const getIngredientsInAi = async (recipe, servings = null) => {
+  try {
+    const body = { recipe };
+    if (servings && servings > 0) {
+      body.servings = servings;
+    }
+
     const response = await fetch(`${API_BASE_URL}/ingredients`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ recipe }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {
