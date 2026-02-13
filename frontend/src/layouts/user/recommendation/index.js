@@ -1,4 +1,3 @@
-// pages/MealPlannerTabs.js
 import React, { useState, useMemo, useEffect } from "react";
 import { Box, Paper, Tabs, Tab } from "@mui/material";
 import { CalendarToday, DateRange } from "@mui/icons-material";
@@ -24,6 +23,7 @@ function MealPlannerTabs() {
   const [editingWeekStart, setEditingWeekStart] = useState(null);
 
   const {
+    totalCalories: totalCaloriesState,
     recipes,
     isLoadingRecipes,
     menus,
@@ -65,8 +65,8 @@ function MealPlannerTabs() {
     return days[new Date(dateString).getDay()];
   };
 
-  const handleOpenModal = async ({ mode, date, menu, isEdit }) => {
-    setCurrentMode(mode);
+  const handleOpenModalForDay = async ({ date, menu }) => {
+    setCurrentMode("day");
     setEditingDate(date);
     if (menu?.length > 0) {
       setCurrentMenu(menu);
@@ -77,11 +77,13 @@ function MealPlannerTabs() {
   };
 
   const handleOpenModalForWeekDay = ({ date, weekStart }) => {
+    setCurrentMode("week");
     setEditingDate(date);
     setEditingWeekStart(weekStart);
 
     const dayMenu = weekMenus[weekStart]?.[date];
-    console.log("dayMenu", dayMenu);
+    console.log("🔍 [index] weekMenus[weekStart]:", weekMenus[weekStart]);
+    console.log("🔍 [index] dayMenu from weekMenus:", dayMenu);
     setCurrentMenu(dayMenu?.length > 0 ? dayMenu : []);
     setOpenModal(true);
   };
@@ -93,20 +95,29 @@ function MealPlannerTabs() {
 
   // SAVE
   const handleSave = async (updatedItems, date) => {
-    if (!updatedItems) return;
+    if (!updatedItems || updatedItems.length === 0) {
+      // Nếu không có items, vẫn gọi API để xóa thực đơn (nếu cần)
+      // Hoặc return sớm nếu không muốn làm gì
+      return;
+    }
 
-    const formattedItems = updatedItems.map((r) => ({
-      id: r.id || r._id || r.recipeId,
-      name: r.name,
-      calories: r.calories || 0,
-      image: r.image || "default_url",
-      portion: r.portion || 1, // Lưu portion
-    }));
+    const formattedItems = updatedItems.map((r) => {
+      const itemId = r.id || r._id || r.recipeId?._id || r.recipeId;
+      return {
+        id: itemId,
+        name: r.name,
+        calories: r.calories || r.totalNutrition?.calories || 0,
+        imageUrl: r.imageUrl,
+        portion: r.portion || 1, // Lưu portion
+        status: r.status || "planned", // Giữ nguyên status nếu có
+        note: r.note || "",
+        servingTime: r.servingTime || "other",
+      };
+    });
 
     try {
       if (currentMode === "day") {
         await saveDayMenus(date, formattedItems);
-        // Reload data từ API để có đầy đủ mealId và status
         if (fetchDailyData) {
           await fetchDailyData();
         }
@@ -114,7 +125,6 @@ function MealPlannerTabs() {
 
       if (currentMode === "week") {
         await saveWeekMenus(date, formattedItems);
-        // Reload data từ API để có đầy đủ mealId và status
         if (fetchWeeklyData) {
           await fetchWeeklyData();
         }
@@ -168,13 +178,14 @@ function MealPlannerTabs() {
           <>
             {tabValue === "day" && (
               <DayMenu
+                totalCalories={totalCaloriesState}
                 menus={menus}
                 setMenus={setMenus}
                 days={[
                   { date: today, label: "Hôm nay" },
                   { date: tomorrow, label: "Ngày mai" },
                 ]}
-                handleOpenModal={handleOpenModal}
+                handleOpenModal={handleOpenModalForDay}
                 handleDelete={handleDelete}
                 getDayName={getDayName}
                 fetchDailyData={fetchDailyData}

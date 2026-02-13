@@ -171,4 +171,3 @@ export const checkFavorite = async (recipeId) => {
     return false;
   }
 };
-

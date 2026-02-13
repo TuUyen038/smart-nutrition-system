@@ -22,7 +22,6 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import CloseIcon from "@mui/icons-material/Close";
 
 import MDBox from "components/MDBox";
@@ -130,6 +129,7 @@ export default function RecipeIngredientsEditor({
 
   // track signature of AI raw list to auto-run mapping only when raw names change
   const lastRawSigRef = useRef("");
+  const hasRunMappingRef = useRef(false);
 
   // raw list = only AI rows (manual rows not shown here to keep "nguồn gốc mapping" rõ ràng)
   const rawRows = useMemo(() => {
@@ -178,14 +178,20 @@ export default function RecipeIngredientsEditor({
 
   const handlePickIngredient = (index, opt) => {
     const next = [...mappedRows];
+    const ingredientName = opt ? opt.name || opt.name_en || "" : "";
+
     next[index] = {
       ...next[index],
       ingredientId: opt?._id || opt?.id || null,
-      ingredientLabel: opt ? opt.name || opt.name_en || "" : "",
+      ingredientLabel: ingredientName,
       // hiển thị mappingName theo DB sau khi chọn
-      mappingName: opt
-        ? opt.name || opt.name_en || next[index].mappingName || ""
-        : next[index].mappingName,
+      mappingName: opt ? ingredientName || next[index].mappingName || "" : next[index].mappingName,
+      // ✅ Tự động set name từ ingredientLabel nếu name đang rỗng (cho manual ingredients)
+      // Giữ nguyên name hiện tại nếu đã có, chỉ set nếu rỗng
+      name:
+        next[index].name && next[index].name.trim()
+          ? next[index].name
+          : ingredientName || next[index].name || "",
     };
     onChange(next);
     stopEdit();
@@ -334,19 +340,32 @@ export default function RecipeIngredientsEditor({
           autoIngredientLabel = top.name_vi || top.name || "";
         }
 
+        // ✅ Chỉ update mapping fields nếu chưa có ingredientId (chưa được user chọn)
+        // Nếu user đã chọn rồi (có ingredientId), giữ nguyên data đã chỉnh sửa
+        const hasUserSelection = !!next[targetIdx].ingredientId;
+
         next[targetIdx] = {
           ...next[targetIdx],
-          mappingName,
-          mappingCandidates: candidates,
-          mappingScore,
-          // Auto-set ingredientId if exact match or high score
-          ingredientId: autoIngredientId || next[targetIdx].ingredientId || null,
-          ingredientLabel: autoIngredientLabel || next[targetIdx].ingredientLabel || "",
-          quantity: {
-            amount: grams !== "" ? grams : q.unit === "g" ? q.amount : "",
-            unit: "g",
-            estimate: Boolean(q.estimate),
-          },
+          // ✅ Chỉ update mapping fields nếu chưa có user selection
+          mappingName: hasUserSelection ? next[targetIdx].mappingName : mappingName,
+          mappingCandidates: hasUserSelection ? next[targetIdx].mappingCandidates : candidates,
+          mappingScore: hasUserSelection ? next[targetIdx].mappingScore : mappingScore,
+          // Auto-set ingredientId if exact match or high score (chỉ khi chưa có)
+          ingredientId: hasUserSelection
+            ? next[targetIdx].ingredientId
+            : autoIngredientId || next[targetIdx].ingredientId || null,
+          ingredientLabel: hasUserSelection
+            ? next[targetIdx].ingredientLabel
+            : autoIngredientLabel || next[targetIdx].ingredientLabel || "",
+          // ✅ Chỉ update quantity nếu chưa có user selection
+          quantity:
+            hasUserSelection && next[targetIdx].quantity?.amount
+              ? next[targetIdx].quantity
+              : {
+                  amount: grams !== "" ? grams : q.unit === "g" ? q.amount : "",
+                  unit: "g",
+                  estimate: Boolean(q.estimate),
+                },
         };
 
         // apply alias auto select if exists (only if not already set from mapping)
@@ -374,20 +393,44 @@ export default function RecipeIngredientsEditor({
   // auto trigger mapping when raw names signature changes
   useEffect(() => {
     const sig = rawRows.map((r) => normalizeText(r.name)).join("|");
-    if (!sig) return;
-
-    // Only when signature changes, and not during aiLoading
-    if (sig !== lastRawSigRef.current && !aiLoading) {
-      lastRawSigRef.current = sig;
-      runAutoMapping();
+    if (!sig) {
+      // Reset refs when no raw rows
+      lastRawSigRef.current = "";
+      hasRunMappingRef.current = false;
+      return;
     }
-  }, [rawRows, aiLoading]);
 
-  const handleRefreshMapping = async () => {
-    const sig = rawRows.map((r) => normalizeText(r.name)).join("|");
-    lastRawSigRef.current = sig || lastRawSigRef.current;
-    await runAutoMapping();
-  };
+    // ✅ Kiểm tra xem đã có mapping data chưa (tránh chạy lại khi remount)
+    const hasMappingData = mappedRows.some(
+      (r) => r.mappingName || r.mappingCandidates?.length > 0 || r.mappingScore !== null
+    );
+
+    // ✅ Chỉ chạy mapping khi:
+    // 1. Signature thay đổi (rawRows từ AI mới) và không đang loading
+    // 2. Chưa có mapping data (lần đầu) và không đang loading
+    // 3. KHÔNG chạy lại khi remount với cùng signature và đã có mapping data
+    if (sig !== lastRawSigRef.current && !aiLoading) {
+      // Signature thay đổi: chỉ chạy khi thực sự có thay đổi từ AI
+      lastRawSigRef.current = sig;
+      hasRunMappingRef.current = true;
+      runAutoMapping();
+    } else if (
+      sig === lastRawSigRef.current &&
+      !hasMappingData &&
+      !hasRunMappingRef.current &&
+      !aiLoading
+    ) {
+      // Lần đầu mount với signature này và chưa có mapping data: chạy mapping một lần
+      hasRunMappingRef.current = true;
+      runAutoMapping();
+    } else if (sig === lastRawSigRef.current) {
+      // Signature giống: cập nhật ref để giữ sync, nhưng không chạy mapping lại
+      // (tránh overwrite data đã chỉnh sửa khi remount)
+      if (!hasRunMappingRef.current && hasMappingData) {
+        hasRunMappingRef.current = true; // Đánh dấu đã có mapping data
+      }
+    }
+  }, [rawRows, aiLoading, mappedRows]);
 
   const progressPercent =
     summary.totalMapped > 0 ? Math.round((summary.chosenDb / summary.totalMapped) * 100) : 0;
@@ -525,21 +568,6 @@ export default function RecipeIngredientsEditor({
                 </MDTypography>
               </MDBox>
               <MDBox display="flex" gap={1} flexWrap="wrap">
-                <Tooltip title="Chạy lại mapping">
-                  <span>
-                    <MDButton
-                      variant="outlined"
-                      color="info"
-                      size="small"
-                      startIcon={<RefreshIcon />}
-                      onClick={handleRefreshMapping}
-                      disabled={mappingLoading || rawRows.length === 0}
-                    >
-                      Refresh
-                    </MDButton>
-                  </span>
-                </Tooltip>
-
                 <MDButton
                   color="info"
                   variant="outlined"
@@ -713,7 +741,18 @@ export default function RecipeIngredientsEditor({
                               onChange={(e) => handleChangeGram(actualIndex, e.target.value)}
                               error={!row.quantity?.amount || Number(row.quantity?.amount) <= 0}
                               InputProps={{
-                                endAdornment: <InputAdornment position="end">g</InputAdornment>,
+                                endAdornment: (
+                                  <InputAdornment
+                                    position="end"
+                                    sx={{
+                                      fontSize: "0.25rem",
+                                      fontWeight: 100,
+                                      color: "text.secondary",
+                                    }}
+                                  >
+                                    g
+                                  </InputAdornment>
+                                ),
                               }}
                               inputProps={{ min: 0, step: 0.1 }}
                             />

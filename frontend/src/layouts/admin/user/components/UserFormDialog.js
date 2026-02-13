@@ -41,8 +41,9 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
     reason: "", // Lý do chỉnh sửa (cho admin)
   });
   const [allergyInput, setAllergyInput] = useState("");
-
+  const [submitted, setSubmitted] = useState(false);
   useEffect(() => {
+    setSubmitted(false);
     if (user) {
       setForm({
         name: user.name || "",
@@ -71,6 +72,15 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
     setAllergyInput("");
   }, [user, open]);
 
+  const sensitiveFieldsChanged =
+    user &&
+    (form.age !== (user?.age ?? "") ||
+      form.gender !== (user?.gender || "") ||
+      form.height !== (user?.height ?? "") ||
+      form.weight !== (user?.weight ?? ""));
+
+  const isReasonMissing = sensitiveFieldsChanged && !form.reason.trim();
+
   const handleChange = (field) => (e) => {
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
   };
@@ -93,27 +103,19 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
   };
 
   const handleSubmit = () => {
-    if (!form.name.trim()) {
-      alert("Tên người dùng là bắt buộc");
-      return;
-    }
-    if (!form.email.trim()) {
-      alert("Email là bắt buộc");
-      return;
-    }
+    setSubmitted(true);
 
-    // Kiểm tra nếu chỉnh sửa thông tin nhạy cảm thì yêu cầu lý do
-    const sensitiveFieldsChanged = 
-      (form.age !== (user?.age ?? "")) ||
-      (form.gender !== (user?.gender || "")) ||
-      (form.height !== (user?.height ?? "")) ||
-      (form.weight !== (user?.weight ?? ""));
+    const isNameInvalid = !form.name.trim();
+    const isEmailInvalid = !form.email.trim();
     
-    if (user && sensitiveFieldsChanged && !form.reason.trim()) {
-      alert("Vui lòng nhập lý do khi chỉnh sửa thông tin nhạy cảm (tuổi, giới tính, chiều cao, cân nặng)");
+    const isNumbersInvalid =
+      (form.age !== "" && form.age < 0) ||
+      (form.height !== "" && form.height < 0) ||
+      (form.weight !== "" && form.weight < 0);
+
+    if (isNameInvalid || isEmailInvalid || isReasonMissing || isNumbersInvalid) {
       return;
     }
-
     const payload = {
       name: form.name.trim(),
       email: form.email.trim(),
@@ -123,9 +125,8 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
       weight: form.weight === "" ? undefined : Number(form.weight),
       goal: form.goal || undefined,
       allergies: form.allergies,
-      reason: form.reason.trim() || undefined, // Gửi lý do nếu có
+      reason: form.reason.trim() || undefined,
     };
-
     onSubmit(payload);
   };
 
@@ -155,6 +156,8 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               label="Tên"
               value={form.name}
               onChange={handleChange("name")}
+              error={submitted && !form.name.trim()}
+              helperText={submitted && !form.name.trim() ? "Tên không được để trống" : ""}
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -177,6 +180,8 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               value={form.age}
               onChange={handleChange("age")}
               inputProps={{ min: 0, max: 150 }}
+              error={submitted && (form.age === "" || form.age < 0 || form.age > 150)}
+              helperText={submitted && !form.age ? "Tuổi không được để trống" : ""}
             />
           </Grid>
           <Grid item xs={12} md={4}>
@@ -186,6 +191,8 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               label="Giới tính"
               value={form.gender}
               onChange={handleChange("gender")}
+              error={submitted && !form.gender}
+              helperText={submitted && !form.gender ? "Giới tính không được để trống" : ""}
             >
               {GENDER_OPTIONS.map((opt) => (
                 <MenuItem key={opt.value} value={opt.value}>
@@ -201,6 +208,8 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               label="Mục tiêu"
               value={form.goal}
               onChange={handleChange("goal")}
+              error={submitted && !form.goal}
+              helperText={submitted && !form.goal ? "Mục tiêu không được để trống" : ""}
             >
               <MenuItem value="">Không có</MenuItem>
               {GOAL_OPTIONS.map((opt) => (
@@ -219,6 +228,10 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               value={form.height}
               onChange={handleChange("height")}
               inputProps={{ min: 0, step: "any" }}
+              error={submitted && form.height !== "" && form.height < 0}
+              helperText={
+                submitted && form.height !== "" && form.height < 0 ? "Chiều cao không hợp lệ" : ""
+              }
             />
           </Grid>
           <Grid item xs={12} md={6}>
@@ -229,6 +242,10 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
               value={form.weight}
               onChange={handleChange("weight")}
               inputProps={{ min: 0, step: "any" }}
+              error={submitted && form.weight !== "" && form.weight < 0}
+              helperText={
+                submitted && form.weight !== "" && form.weight < 0 ? "Cân nặng không hợp lệ" : ""
+              }
             />
           </Grid>
 
@@ -275,11 +292,20 @@ function UserFormDialog({ open, onClose, onSubmit, user }) {
                 fullWidth
                 multiline
                 rows={2}
-                label="Lý do chỉnh sửa (bắt buộc khi thay đổi tuổi, giới tính, chiều cao, cân nặng)"
+                label="Lý do chỉnh sửa"
                 value={form.reason}
                 onChange={handleChange("reason")}
-                placeholder="Ví dụ: User yêu cầu sửa thông tin, Sửa lỗi nhập liệu, Hỗ trợ user..."
-                helperText="Vui lòng ghi rõ lý do để tuân thủ quy định bảo vệ dữ liệu cá nhân"
+                placeholder="Ví dụ: User yêu cầu sửa thông tin..."
+                error={submitted}
+                // Đổi text hướng dẫn thành text báo lỗi nếu cần
+                helperText={
+                  submitted
+                    ? "BẮT BUỘC: Vui lòng nhập lý do chỉnh sửa các thông tin nhạy cảm"
+                    : "Ghi rõ lý do để tuân thủ quy định bảo vệ dữ liệu cá nhân"
+                }
+                FormHelperTextProps={{
+                  error: submitted,
+                }}
               />
             </Grid>
           )}
@@ -315,4 +341,3 @@ UserFormDialog.propTypes = {
 };
 
 export default UserFormDialog;
-

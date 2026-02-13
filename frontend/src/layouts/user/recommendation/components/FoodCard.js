@@ -5,17 +5,17 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import PropTypes from "prop-types";
 import MDTypography from "components/MDTypography";
 
-const FoodCard = ({ title, calories, image, portion, children }) => {
+const FoodCard = ({ title, calories, imageUrl, portion, children }) => {
   // Nếu image là string (URL) thì render <img>, nếu là JSX thì render trực tiếp
   const renderAvatarContent =
-    typeof image === "string" ? (
+    typeof imageUrl === "string" ? (
       <img
-        src={image}
+        src={imageUrl}
         alt={title}
         style={{ width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
       />
     ) : (
-      image
+      imageUrl
     );
 
   return (
@@ -24,7 +24,7 @@ const FoodCard = ({ title, calories, image, portion, children }) => {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        bgcolor: "white",           // giữ trắng
+        bgcolor: "white", // giữ trắng
         border: "1px solid rgba(0,0,0,0.08)", // viền nhẹ tách card
         borderRadius: 2,
         boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
@@ -32,11 +32,9 @@ const FoodCard = ({ title, calories, image, portion, children }) => {
           boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
           transform: "translateY(-2px)",
           transition: "all 0.2s ease-in-out",
-        }
-
+        },
       }}
     >
-
       <CardContent sx={{ flexGrow: 1, pb: 1 }}>
         <Box display="flex" alignItems="center" mb={1}>
           <Avatar
@@ -52,7 +50,6 @@ const FoodCard = ({ title, calories, image, portion, children }) => {
           </Avatar>
           <Box>
             <MDTypography
-
               variant="h6"
               textTransform="capitalize"
               sx={{
@@ -81,19 +78,6 @@ const FoodCard = ({ title, calories, image, portion, children }) => {
                   backgroundColor: "rgba(255, 255, 255, 0.1)",
                 }}
               />
-              {portion && portion > 1 && (
-                <Chip
-                  label={`${portion} phần`}
-                  size="small"
-                  variant="outlined"
-                  sx={{
-                    fontSize: "0.7rem",
-                    height: 20,
-                    borderColor: "rgba(0, 0, 0, 0.2)",
-                    color: "text.secondary",
-                  }}
-                />
-              )}
             </Box>
           </Box>
         </Box>
@@ -106,7 +90,7 @@ const FoodCard = ({ title, calories, image, portion, children }) => {
 FoodCard.propTypes = {
   title: PropTypes.string.isRequired,
   calories: PropTypes.number.isRequired,
-  image: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
+  imageUrl: PropTypes.oneOfType([PropTypes.string, PropTypes.node]),
   portion: PropTypes.number,
   children: PropTypes.node,
 };

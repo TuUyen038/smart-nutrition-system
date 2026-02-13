@@ -1,16 +1,25 @@
 import { normalizeDateVN } from "../helpers/date";
+import { getToken } from "./authApi";
+
 const API_BASE_URL = "http://localhost:3000/api/meal-plans";
 
-const userId = "68f4394c4d4cc568e6bc5daa";
-
 export const getWeekDailyMenuStatus = async ({ startDate, days = 7 }) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+  }
+
   const startDateStr = normalizeDateVN(startDate);
 
-  const url = `${API_BASE_URL}/status?userId=${userId}&startDate=${encodeURIComponent(
+  const url = `${API_BASE_URL}/status?startDate=${encodeURIComponent(
     startDateStr
   )}&days=${days}`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || "Kiểm tra tuần thất bại");
   return data; // { hasExisting: boolean, existingDates: string[] }
@@ -22,8 +31,12 @@ export const createRecommendMealPlan = async ({
   mode = "reuse", // hoặc "overwrite"
 }) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const payload = {
-      userId,
       startDate: startDate, // "YYYY-MM-DD"
       days,
       mode, // "reuse" | "overwrite"
@@ -31,7 +44,10 @@ export const createRecommendMealPlan = async ({
 
     const res = await fetch(`${API_BASE_URL}/suggest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
@@ -44,11 +60,19 @@ export const createRecommendMealPlan = async ({
   }
 };
 
-export const createMealPlan = async (payload) => {
+export const createDailyPlan = async (payload) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const res = await fetch(`${API_BASE_URL}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
@@ -61,13 +85,19 @@ export const createMealPlan = async (payload) => {
 };
 
 //get by startDate
-export const getPlanByStartDate = async (userId, startDate) => {
+export const getPlanByStartDate = async (startDate) => {
   try {
-    const res = await fetch(`${API_BASE_URL}/by-startdate?startDate=${startDate}`, {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
+    const startDateStr = normalizeDateVN(startDate);
+    const res = await fetch(`${API_BASE_URL}/by-startdate?startDate=${startDateStr}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        // 'Authorization': `Bearer ${localStorage.getItem('token')}`
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -83,11 +113,16 @@ export const getPlanByStartDate = async (userId, startDate) => {
 //lay danh sach cua user
 export const getMealPlans = async () => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const res = await fetch(`${API_BASE_URL}`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`, // nếu dùng JWT
+        Authorization: `Bearer ${token}`,
       },
     });
 
@@ -103,11 +138,16 @@ export const getMealPlans = async () => {
 //cap nhat trang thai paln
 export const updatePlanStatus = async (planId, newStatus) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const res = await fetch(`${API_BASE_URL}/${planId}/status`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ newStatus }),
     });

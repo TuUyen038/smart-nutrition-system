@@ -18,7 +18,7 @@ import BasicLayout from "layouts/user/authentication/components/BasicLayout";
 import { forgotPassword } from "services/authApi";
 
 // Images
-import bgImage from "assets/images/bg-sign-in-basic.jpeg";
+const bgImage = "https://res.cloudinary.com/denhj5ubh/image/upload/v1767413364/bgr_vom478.jpg";
 
 function ForgotPassword() {
   const navigate = useNavigate();
@@ -93,7 +93,7 @@ function ForgotPassword() {
                   required
                 />
               </MDBox>
-              <MDBox mt={4} mb={1}>
+              <MDBox mt={12} mb={1}>
                 <MDButton
                   variant="gradient"
                   color="info"

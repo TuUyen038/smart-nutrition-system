@@ -21,7 +21,15 @@ import configs from "examples/Charts/DoughnutCharts/DefaultDoughnutChart/configs
 ChartJS.register(ArcElement, Tooltip, Legend);
 
 function DefaultDoughnutChart({ icon, title, description, height, chart }) {
-  const { data, options } = configs(chart.labels || [], chart.datasets || {}, chart.cutout);
+  // Kiểm tra xem có dữ liệu không (tất cả giá trị = 0)
+  const chartData = chart.datasets?.data || [];
+  const hasData = chartData.some((value) => value > 0);
+
+  const { data, options } = configs(
+    chart.labels || [], 
+    chart.datasets || {}, 
+    chart.cutout
+  );
 
   const renderChart = (
     <MDBox py={2} pr={2} pl={icon.component ? 1 : 2}>
@@ -57,11 +65,28 @@ function DefaultDoughnutChart({ icon, title, description, height, chart }) {
       ) : null}
       {useMemo(
         () => (
-          <MDBox height={height}>
+          <MDBox height={height} position="relative">
+            {!hasData && (
+              <MDBox
+                position="absolute"
+                top="50%"
+                left="50%"
+                sx={{
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 10,
+                  textAlign: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <MDTypography variant="body2" color="text" fontWeight="medium">
+                  Chưa có dữ liệu
+                </MDTypography>
+              </MDBox>
+            )}
             <Doughnut data={data} options={options} redraw />
           </MDBox>
         ),
-        [chart, height]
+        [chart, height, hasData, data, options]
       )}
     </MDBox>
   );

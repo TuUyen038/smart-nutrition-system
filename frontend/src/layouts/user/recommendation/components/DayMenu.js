@@ -9,7 +9,6 @@ import {
   DialogContent,
   DialogTitle,
   Dialog,
-  Checkbox,
   IconButton,
   Tooltip,
 } from "@mui/material";
@@ -26,11 +25,11 @@ import { createRecommendDailyMenu, updateMealStatus } from "services/dailyMenuAp
 import { useToast } from "context/ToastContext";
 
 const DayMenu = ({
+  totalCalories,
   menus,
   setMenus,
   days,
   handleOpenModal,
-  handleDelete,
   getDayName,
   fetchDailyData,
 }) => {
@@ -40,7 +39,6 @@ const DayMenu = ({
   const [loadingCreate, setLoadingCreate] = useState(false);
   const [updatingMealIds, setUpdatingMealIds] = useState(new Set()); // Track meals being updated
 
-  // Helper function: Check if date is within allowed range for ticking (today and up to 7 days ago)
   const canTickForDate = (dateString) => {
     if (!dateString) return false;
     const menuDate = new Date(dateString);
@@ -89,19 +87,19 @@ const DayMenu = ({
           ...prevMenus,
           [selectedDate]: (plan.recipes || []).map((r) => ({
             id: r.recipeId?._id || r.recipeId,
-            mealId: r._id, // Lưu mealId từ response
+            _id: r._id, // Lưu mealId từ response
             name: r.recipeId?.name || "Unknown",
             calories: r.recipeId?.totalNutrition?.calories || 0,
             portion: r.portion || 1,
             status: r.status || "planned",
-            image:
+            imageUrl:
               r.recipeId?.imageUrl ||
               "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
           })),
         }));
       }
     } catch (error) {
-      console.error("❌ Error in handleConfirmCreateDailyMenu:", error);
+      console.error("Error in handleConfirmCreateDailyMenu:", error);
       alert(error.message || "Tạo thực đơn thất bại");
     } finally {
       setLoadingCreate(false);
@@ -109,14 +107,13 @@ const DayMenu = ({
     }
   };
 
-  // Handle toggle eaten status for individual meal
-  const handleToggleEaten = async (mealId, currentStatus, date, itemIndex) => {
-    if (updatingMealIds.has(mealId)) return; // Prevent double-clicking
+  const handleToggleEaten = async (_id, currentStatus, date, itemIndex) => {
+    if (updatingMealIds.has(_id)) return; // Prevent double-clicking
 
     const newStatus = currentStatus === "eaten" ? "planned" : "eaten";
 
     try {
-      setUpdatingMealIds((prev) => new Set(prev).add(mealId));
+      setUpdatingMealIds((prev) => new Set(prev).add(_id));
 
       // Optimistic update
       setMenus((prev) => {
@@ -131,7 +128,7 @@ const DayMenu = ({
         return updated;
       });
 
-      await updateMealStatus(mealId, newStatus);
+      await updateMealStatus(_id, newStatus);
 
       showSuccess(newStatus === "eaten" ? "Đã đánh dấu đã ăn" : "Đã bỏ đánh dấu");
     } catch (error) {
@@ -153,42 +150,37 @@ const DayMenu = ({
     } finally {
       setUpdatingMealIds((prev) => {
         const next = new Set(prev);
-        next.delete(mealId);
+        next.delete(_id);
         return next;
       });
     }
   };
 
-  // Handle tick all for a day
   const handleTickAll = async (date, menuItems) => {
-    const plannedItems = menuItems.filter((item) => item.status !== "eaten" && item.mealId);
+    const plannedItems = menuItems.filter((item) => item.status !== "eaten" && item._id);
     if (plannedItems.length === 0) {
-      showError("Không có món nào cần đánh dấu");
+      showSuccess("Không có món nào cần đánh dấu");
       return;
     }
 
     try {
-      // Update all items optimistically
       setMenus((prev) => {
         const updated = { ...prev };
         if (updated[date]) {
           updated[date] = updated[date].map((item) =>
-            item.mealId && item.status !== "eaten" ? { ...item, status: "eaten" } : item
+            item._id && item.status !== "eaten" ? { ...item, status: "eaten" } : item
           );
         }
         return updated;
       });
 
       // Call API for all items
-      await Promise.all(plannedItems.map((item) => updateMealStatus(item.mealId, "eaten")));
+      await Promise.all(plannedItems.map((item) => updateMealStatus(item._id, "eaten")));
 
-      showSuccess(`Đã đánh dấu ${plannedItems.length} món đã ăn`);
+      showSuccess(`Đã cập nhật thêm ${plannedItems.length} món đã ăn`);
     } catch (error) {
       console.error("Error updating all meal statuses:", error);
       showError("Không thể cập nhật trạng thái cho tất cả món");
-
-      // Rollback - reload data
-      // Could fetch again or revert state
     }
   };
 
@@ -197,14 +189,6 @@ const DayMenu = ({
       {days.map(({ date, label }) => {
         const menu = menus[date] || [];
         const hasMenu = menu.length > 0;
-        // Tính tổng calo = sum(calories × portion)
-        const totalCal = hasMenu
-          ? menu.reduce((sum, item) => {
-              const portion = item.portion || 1;
-              const calories = item?.calories || 0;
-              return sum + calories * portion;
-            }, 0)
-          : 0;
         const totalDishes = menu.length;
 
         return (
@@ -219,7 +203,7 @@ const DayMenu = ({
                   {hasMenu && (
                     <Chip
                       icon={<RestaurantIcon />}
-                      label={`${totalDishes} món - ${totalCal} kcal`}
+                      label={`${totalDishes} món - ${totalCalories[date]} kcal`}
                       size="small"
                     />
                   )}
@@ -245,7 +229,7 @@ const DayMenu = ({
                       color="info"
                       startIcon={<Edit />}
                       size="small"
-                      onClick={() => handleOpenModal({ mode: "day", date, menu, isEdit: true })}
+                      onClick={() => handleOpenModal({ date, menu })}
                     >
                       Chỉnh sửa
                     </MDButton>
@@ -257,7 +241,7 @@ const DayMenu = ({
                       color="info"
                       startIcon={<RestaurantIcon />}
                       size="small"
-                      onClick={() => handleOpenModal({ mode: "day", date })}
+                      onClick={() => handleOpenModal({ date, menu: [] })}
                     >
                       Tạo menu
                     </MDButton>
@@ -279,30 +263,21 @@ const DayMenu = ({
               <Grid container spacing={2}>
                 {menu.map((item, index) => {
                   const isEaten = item.status === "eaten";
-                  const mealId = item.mealId;
-                  const isUpdating = mealId && updatingMealIds.has(mealId);
-
+                  const _id = item._id;
+                  const isUpdating = _id && updatingMealIds.has(_id);
                   return (
-                    <Grid
-                      item
-                      xs={12}
-                      sm={6}
-                      md={4}
-                      lg={3}
-                      key={item.id || item.recipeId || item._id}
-                    >
+                    <Grid item xs={12} sm={6} md={4} lg={3} key={item._id}>
                       <Box sx={{ position: "relative" }}>
                         <FoodCard
                           title={item.name}
-                          calories={(item?.calories || 0) * (item.portion || 1)}
-                          portion={item.portion || 1}
-                          image={
-                            item.image ||
+                          calories={item?.calories || 0}
+                          imageUrl={
+                            item.imageUrl ||
                             "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
                           }
                         />
-                        {/* Tickbox góc dưới bên phải - chỉ hiển thị nếu ngày trong phạm vi cho phép */}
-                        {mealId && canTickForDate(date) && (
+
+                        {_id && canTickForDate(date) && (
                           <Box
                             sx={{
                               position: "absolute",
@@ -314,7 +289,7 @@ const DayMenu = ({
                             <Tooltip title={isEaten ? "Bỏ đánh dấu đã ăn" : "Đánh dấu đã ăn"}>
                               <IconButton
                                 onClick={() =>
-                                  handleToggleEaten(mealId, item.status || "planned", date, index)
+                                  handleToggleEaten(_id, item.status || "planned", date, index)
                                 }
                                 disabled={isUpdating}
                                 sx={{
@@ -354,12 +329,7 @@ const DayMenu = ({
         <DialogContent dividers>
           <MDTypography mb={1}>
             Bạn có chắc chắn muốn để hệ thống gợi ý thực đơn cho ngày này?
-            {/* {" "}
-            <strong>{selectedDate}</strong>? */}
           </MDTypography>
-          {/* <MDTypography variant="body2" color="text" mb={3}>
-            Thực đơn sẽ được tạo tự động cho ngày này.
-          </MDTypography> */}
         </DialogContent>
         <DialogActions>
           <MDButton
@@ -385,7 +355,7 @@ const DayMenu = ({
 };
 
 DayMenu.propTypes = {
-  // menus là object dạng { [date]: [array món] }
+  totalCalories: PropTypes.objectOf(PropTypes.number).isRequired,
   menus: PropTypes.objectOf(PropTypes.array).isRequired,
   setMenus: PropTypes.func.isRequired,
   days: PropTypes.arrayOf(

@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Chip, IconButton, LinearProgress, Tooltip } from "@mui/material";
+import { Box, IconButton, LinearProgress, Tooltip } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MDTypography from "components/MDTypography";
@@ -7,40 +7,16 @@ import PropTypes from "prop-types";
 import { EllipsisText } from "helpers/ellipsisText";
 import Pagination from "components/shared/Pagination";
 
-const CATEGORY_LABELS = {
-  protein: "Protein",
-  carb: "Carb",
-  fat: "Chất béo",
-  vegetable: "Rau củ",
-  fruit: "Trái cây",
-  dairy: "Sữa & chế phẩm",
-  seasoning: "Gia vị",
-  beverage: "Thức uống",
-  other: "Khác",
-};
-
-const CATEGORY_COLORS = {
-  protein: "primary",
-  carb: "success",
-  fat: "warning",
-  vegetable: "success",
-  fruit: "secondary",
-  dairy: "info",
-  seasoning: "default",
-  beverage: "info",
-  other: "default",
-};
-
-function IngredientTable({ 
-  loading, 
-  ingredients, 
+function IngredientTable({
+  loading,
+  ingredients,
   pagination,
   sortBy,
   sortOrder,
   onSort,
-  onEdit, 
+  onEdit,
   onDelete,
-  onPageChange 
+  onPageChange,
 }) {
   const handleSort = (field) => {
     if (onSort) {
@@ -68,7 +44,7 @@ function IngredientTable({
         </th>
       );
     }
-    
+
     return (
       <th
         style={{
@@ -85,9 +61,7 @@ function IngredientTable({
       >
         <Box display="flex" alignItems="center" gap={0.5}>
           {children}
-          {sortBy === field && (
-            <span>{sortOrder === "asc" ? "↑" : "↓"}</span>
-          )}
+          {sortBy === field && <span>{sortOrder === "asc" ? "↑" : "↓"}</span>}
         </Box>
       </th>
     );
@@ -118,9 +92,9 @@ function IngredientTable({
           >
             <colgroup>
               <col style={{ width: 200 }} />
-              <col style={{ width: 200 }} />
+              <col style={{ width: 180 }} />
               <col style={{ width: 80 }} />
-              <col style={{ width: 60 }} />
+              <col style={{ width: 55 }} />
               <col style={{ width: 55 }} />
               <col style={{ width: 55 }} />
               <col style={{ width: 55 }} />
@@ -144,12 +118,7 @@ function IngredientTable({
                 </SortableHeader>
                 <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9" }}>
                   <MDTypography variant="button" fontWeight="medium">
-                    Nhóm
-                  </MDTypography>
-                </th>
-                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9" }}>
-                  <MDTypography variant="button" fontWeight="medium">
-                    Đơn vị
+                    Nguồn
                   </MDTypography>
                 </th>
                 <SortableHeader field="calories" textAlign="right">
@@ -158,31 +127,72 @@ function IngredientTable({
                   </MDTypography>
                 </SortableHeader>
                 <SortableHeader field="protein" textAlign="right">
-                  <MDTypography variant="button" fontWeight="medium">
-                    P (g)
-                  </MDTypography>
+                  <Tooltip title="Protein (Đạm)" placement="top">
+                    <MDTypography variant="button" fontWeight="medium" sx={{ cursor: "help" }}>
+                      P (g)
+                    </MDTypography>
+                  </Tooltip>
                 </SortableHeader>
                 <SortableHeader field="carbs" textAlign="right">
-                  <MDTypography variant="button" fontWeight="medium">
-                    C (g)
-                  </MDTypography>
+                  <Tooltip title="Carbohydrate (Tinh bột)" placement="top">
+                    <MDTypography variant="button" fontWeight="medium" sx={{ cursor: "help" }}>
+                      C (g)
+                    </MDTypography>
+                  </Tooltip>
                 </SortableHeader>
                 <SortableHeader field="fat" textAlign="right">
-                  <MDTypography variant="button" fontWeight="medium">
-                    F (g)
-                  </MDTypography>
+                  <Tooltip title="Fat (Chất béo)" placement="top">
+                    <MDTypography variant="button" fontWeight="medium" sx={{ cursor: "help" }}>
+                      F (g)
+                    </MDTypography>
+                  </Tooltip>
                 </SortableHeader>
-                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9", textAlign: "right" }}>
-                  <MDTypography variant="button" fontWeight="medium">
-                    Đường (g)
-                  </MDTypography>
+                <th
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid #d9d9d9",
+                    textAlign: "right",
+                  }}
+                >
+                  <Tooltip title="Fiber (Chất xơ)" placement="top">
+                    <MDTypography variant="button" fontWeight="medium" sx={{ cursor: "help" }}>
+                      Fi (g)
+                    </MDTypography>
+                  </Tooltip>
                 </th>
-                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9", textAlign: "right" }}>
-                  <MDTypography variant="button" fontWeight="medium">
-                    Na (mg)
-                  </MDTypography>
+                <th
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid #d9d9d9",
+                    textAlign: "right",
+                  }}
+                >
+                  <Tooltip title="Sugar (Đường)" placement="top">
+                    <MDTypography variant="button" fontWeight="medium" sx={{ cursor: "help" }}>
+                      S (g)
+                    </MDTypography>
+                  </Tooltip>
                 </th>
-                <th style={{ padding: "10px 12px", borderBottom: "1px solid #d9d9d9", textAlign: "center" }}>
+                <th
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid #d9d9d9",
+                    textAlign: "right",
+                  }}
+                >
+                  <Tooltip title="Sodium (Natri)" placement="top">
+                    <MDTypography variant="button" fontWeight="medium" sx={{ cursor: "help" }}>
+                      Na (mg)
+                    </MDTypography>
+                  </Tooltip>
+                </th>
+                <th
+                  style={{
+                    padding: "10px 12px",
+                    borderBottom: "1px solid #d9d9d9",
+                    textAlign: "center",
+                  }}
+                >
                   <MDTypography variant="button" fontWeight="medium">
                     Thao tác
                   </MDTypography>
@@ -201,7 +211,6 @@ function IngredientTable({
                 </tr>
               ) : (
                 ingredients.map((ing, idx) => {
-                  const cat = ing.category || "other";
                   return (
                     <tr
                       key={ing._id || idx}
@@ -240,65 +249,99 @@ function IngredientTable({
                           borderRight: "1px solid #eee",
                         }}
                       >
-                        <Chip
-                          label={CATEGORY_LABELS[cat] || "Khác"}
-                          color={CATEGORY_COLORS[cat] || "default"}
-                          size="small"
-                          variant="outlined"
+                        <EllipsisText
+                          text={ing.nutrition?.source || ing.source || "-"}
+                          variant="caption"
                         />
                       </td>
 
                       <td
                         style={{
-                          display: "table-cell",
-                          boxSizing: "border-box",
                           padding: "10px 12px",
                           borderRight: "1px solid #eee",
-                          whiteSpace: "nowrap",
+                          textAlign: "right",
                         }}
                       >
-                        <MDTypography variant="caption" color="text">
-                          {ing.unit || "g"}
-                        </MDTypography>
-                      </td>
-
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.calories ?? "-"}
                         </MDTypography>
                       </td>
 
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          borderRight: "1px solid #eee",
+                          textAlign: "right",
+                        }}
+                      >
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.protein ?? "-"}
                         </MDTypography>
                       </td>
 
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          borderRight: "1px solid #eee",
+                          textAlign: "right",
+                        }}
+                      >
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.carbs ?? "-"}
                         </MDTypography>
                       </td>
 
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          borderRight: "1px solid #eee",
+                          textAlign: "right",
+                        }}
+                      >
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.fat ?? "-"}
                         </MDTypography>
                       </td>
 
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          borderRight: "1px solid #eee",
+                          textAlign: "right",
+                        }}
+                      >
+                        <MDTypography variant="caption" color="text">
+                          {ing.nutrition?.fiber ?? "-"}
+                        </MDTypography>
+                      </td>
+
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          borderRight: "1px solid #eee",
+                          textAlign: "right",
+                        }}
+                      >
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.sugar ?? "-"}
                         </MDTypography>
                       </td>
 
-                      <td style={{ padding: "10px 12px", borderRight: "1px solid #eee", textAlign: "right" }}>
+                      <td
+                        style={{
+                          padding: "10px 12px",
+                          borderRight: "1px solid #eee",
+                          textAlign: "right",
+                        }}
+                      >
                         <MDTypography variant="caption" color="text">
                           {ing.nutrition?.sodium ?? "-"}
                         </MDTypography>
                       </td>
 
-                      <td style={{ padding: "6px 12px", textAlign: "center", whiteSpace: "nowrap" }}>
+                      <td
+                        style={{ padding: "6px 12px", textAlign: "center", whiteSpace: "nowrap" }}
+                      >
                         <Tooltip title="Chỉnh sửa">
                           <IconButton size="small" onClick={() => onEdit(ing)}>
                             <EditIcon fontSize="small" />

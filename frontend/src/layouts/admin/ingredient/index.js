@@ -13,7 +13,6 @@ import MDTypography from "components/MDTypography";
 import IngredientFilters from "./components/IngredientFilters";
 import IngredientTable from "./components/IngredientTable";
 import IngredientFormDialog from "./components/IngredientFormDialog";
-import IngredientStatsCards from "./components/IngredientStatsCards";
 import DeleteConfirmDialog from "components/shared/DeleteConfirmDialog";
 
 import {
@@ -53,7 +52,7 @@ const normalizeIngredientForForm = (ingredient) => {
 
 function IngredientManagement() {
   const { showSuccess, showError } = useToast();
-  
+
   const [ingredients, setIngredients] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -61,7 +60,6 @@ function IngredientManagement() {
 
   // Filters và pagination
   const [search, setSearch] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
   const [sortBy, setSortBy] = useState("name");
@@ -87,7 +85,6 @@ function IngredientManagement() {
       setLoading(true);
       const result = await getIngredients({
         search,
-        category: categoryFilter,
         page,
         limit,
         sortBy,
@@ -124,7 +121,7 @@ function IngredientManagement() {
 
   useEffect(() => {
     fetchData();
-  }, [search, categoryFilter, page, sortBy, sortOrder]);
+  }, [search, page, sortBy, sortOrder]);
 
   useEffect(() => {
     fetchStats();
@@ -133,7 +130,7 @@ function IngredientManagement() {
   // Reset page khi filter thay đổi
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, sortBy, sortOrder]);
+  }, [search, sortBy, sortOrder]);
 
   const handleAddClick = () => {
     setEditingIngredient(null);
@@ -184,10 +181,7 @@ function IngredientManagement() {
       }
 
       // Check duplicate
-      const isDuplicate = await checkDuplicateName(
-        formData.name.trim(),
-        editingIngredient?._id
-      );
+      const isDuplicate = await checkDuplicateName(formData.name.trim(), editingIngredient?._id);
 
       if (isDuplicate) {
         showError(`Nguyên liệu "${formData.name}" đã tồn tại`);
@@ -222,7 +216,7 @@ function IngredientManagement() {
         await createIngredient(formData);
         showSuccess("Thêm nguyên liệu thành công");
       }
-      
+
       await fetchData();
       await fetchStats();
       handleDialogClose();
@@ -271,26 +265,18 @@ function IngredientManagement() {
           </Tooltip>
         </MDBox>
 
-        {/* Statistics Cards */}
-        <IngredientStatsCards stats={stats} loading={statsLoading} />
-
         {/* Filter + bảng */}
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <Card sx={{ p: 3 }}>
-              <IngredientFilters
-                search={search}
-                onSearchChange={setSearch}
-                category={categoryFilter}
-                onCategoryChange={setCategoryFilter}
-              />
+              <IngredientFilters search={search} onSearchChange={setSearch} />
 
               <Grid item xs={12} sx={{ textAlign: "right", mb: 1 }}>
                 <MDTypography variant="caption" color="text">
                   * Dữ liệu dinh dưỡng được tính theo trên 100g nguyên liệu
                 </MDTypography>
               </Grid>
-              
+
               <IngredientTable
                 loading={loading}
                 ingredients={ingredients}

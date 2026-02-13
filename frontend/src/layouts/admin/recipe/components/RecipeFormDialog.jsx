@@ -16,7 +16,12 @@ import {
   Divider,
   Alert,
   Box,
+  Typography,
+  IconButton,
 } from "@mui/material";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import ImageIcon from "@mui/icons-material/Image";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
@@ -25,6 +30,8 @@ import MDButton from "components/MDButton";
 import RecipeIngredientsEditor from "./RecipeIngredientsEditor";
 
 import { getIngredientsInAi } from "services/recipeApi";
+import { uploadImage } from "services/uploadApi";
+import { useToast } from "context/ToastContext";
 import PropTypes from "prop-types";
 
 const CATEGORY_OPTIONS = [
@@ -95,21 +102,30 @@ export default function RecipeFormDialog({
   const [form, setForm] = useState(emptyForm);
   const [activeStep, setActiveStep] = useState(0);
   const [aiLoading, setAiLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const { showSuccess, showError } = useToast();
 
   useEffect(() => {
     if (!open) return;
 
     setActiveStep(0);
+    setImagePreview(null);
     if (recipe) {
+      const imageUrl = recipe.imageUrl || recipe.image || "";
       setForm({
         name: recipe.name || "",
         description: recipe.description || "",
         category: recipe.category || "main",
         servings: recipe.servings || 1,
-        imageUrl: recipe.imageUrl || recipe.image || "",
+        imageUrl,
         instructionsText: recipe.instructionsText || "",
         ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
       });
+      if (imageUrl) {
+        setImagePreview(imageUrl);
+      }
     } else {
       setForm(emptyForm);
     }
@@ -124,6 +140,73 @@ export default function RecipeFormDialog({
 
   const handleIngredientsChange = (ingredients) => {
     setForm((p) => ({ ...p, ingredients }));
+  };
+
+  const validateAndUploadFile = async (file) => {
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      showError("Chỉ chấp nhận file ảnh: JPG, PNG, WEBP");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      showError("Kích thước ảnh không được vượt quá 5MB");
+      return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+
+    // Upload to Cloudinary
+    try {
+      setUploadingImage(true);
+      const result = await uploadImage(file, "recipe");
+      handleChange("imageUrl", result.url);
+      showSuccess("Upload ảnh thành công");
+    } catch (error) {
+      console.error("Upload error:", error);
+      showError(error.message || "Lỗi khi upload ảnh");
+      setImagePreview(null);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    await validateAndUploadFile(file);
+    // Reset input để có thể chọn lại cùng file
+    if (e.target) e.target.value = "";
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    await validateAndUploadFile(file);
   };
 
   const handleAnalyzeByAI = async () => {
@@ -241,13 +324,165 @@ export default function RecipeFormDialog({
                       />
                     </Grid>
 
+                    {/* Upload Area */}
+                    <Grid item xs={12}>
+                      <MDBox>
+                        <MDTypography variant="button" fontWeight="medium" mb={1.5}>
+                          Ảnh món ăn
+                        </MDTypography>
+
+                        {/* Preview ảnh */}
+                        {imagePreview && (
+                          <MDBox
+                            mb={3}
+                            sx={{
+                              position: "relative",
+                              display: "block",
+                              width: "100%",
+                              maxWidth: 400,
+                            }}
+                          >
+                            <Box
+                              component="img"
+                              src={imagePreview}
+                              alt="Preview"
+                              sx={{
+                                width: "100%",
+                                maxWidth: 400,
+                                height: 250,
+                                objectFit: "cover",
+                                borderRadius: 2,
+                                border: "1px solid",
+                                borderColor: "grey.300",
+                                boxShadow: 2,
+                                display: "block",
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = "none";
+                              }}
+                            />
+                            {form.imageUrl && (
+                              <Tooltip title="Xóa ảnh">
+                                <IconButton
+                                  onClick={() => {
+                                    handleChange("imageUrl", "");
+                                    setImagePreview(null);
+                                  }}
+                                  sx={{
+                                    position: "absolute",
+                                    top: 8,
+                                    right: 8,
+                                    bgcolor: "error.main",
+                                    color: "white",
+                                    "&:hover": {
+                                      bgcolor: "error.dark",
+                                    },
+                                    boxShadow: 2,
+                                  }}
+                                  size="small"
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            )}
+                          </MDBox>
+                        )}
+
+                        {/* Upload Dropzone */}
+                        <Box
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          sx={{
+                            border: "2px dashed",
+                            borderColor: isDragging ? "info.main" : "grey.300",
+                            borderRadius: 2,
+                            p: 3,
+                            textAlign: "center",
+                            bgcolor: isDragging ? "info.lighter" : "grey.50",
+                            cursor: uploadingImage ? "not-allowed" : "pointer",
+                            transition: "all 0.3s ease",
+                            "&:hover": {
+                              borderColor: uploadingImage ? "grey.300" : "info.main",
+                              bgcolor: uploadingImage ? "grey.50" : "info.lighter",
+                            },
+                            opacity: uploadingImage ? 0.6 : 1,
+                          }}
+                        >
+                          <input
+                            type="file"
+                            id="image-upload-input"
+                            hidden
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            onChange={handleImageFileChange}
+                            disabled={uploadingImage}
+                          />
+                          <label
+                            htmlFor="image-upload-input"
+                            style={{
+                              cursor: uploadingImage ? "not-allowed" : "pointer",
+                              display: "block",
+                            }}
+                          >
+                            {uploadingImage ? (
+                              <MDBox>
+                                <Box
+                                  sx={{
+                                    width: 48,
+                                    height: 48,
+                                    border: "3px solid",
+                                    borderColor: "info.main",
+                                    borderTopColor: "transparent",
+                                    borderRadius: "50%",
+                                    animation: "spin 1s linear infinite",
+                                    margin: "0 auto 16px",
+                                    "@keyframes spin": {
+                                      "0%": { transform: "rotate(0deg)" },
+                                      "100%": { transform: "rotate(360deg)" },
+                                    },
+                                  }}
+                                />
+                                <Typography variant="body2" color="text">
+                                  Đang upload ảnh...
+                                </Typography>
+                              </MDBox>
+                            ) : (
+                              <MDBox>
+                                <CloudUploadIcon
+                                  sx={{
+                                    fontSize: 48,
+                                    color: "info.main",
+                                    mb: 1,
+                                  }}
+                                />
+                                <Typography variant="body1" fontWeight="medium" mb={0.5}>
+                                  Kéo thả ảnh vào đây hoặc click để chọn
+                                </Typography>
+                                <Typography variant="caption" color="text">
+                                  Hỗ trợ: JPG, PNG, WEBP (tối đa 5MB)
+                                </Typography>
+                              </MDBox>
+                            )}
+                          </label>
+                        </Box>
+                      </MDBox>
+                    </Grid>
+
+                    {/* URL Input - Separate Row */}
                     <Grid item xs={12}>
                       <TextField
                         fullWidth
-                        label="Ảnh món (URL)"
+                        label="Hoặc nhập URL ảnh"
                         placeholder="https://..."
                         value={form.imageUrl}
-                        onChange={(e) => handleChange("imageUrl", e.target.value)}
+                        onChange={(e) => {
+                          handleChange("imageUrl", e.target.value);
+                          setImagePreview(e.target.value || null);
+                        }}
+                        disabled={uploadingImage}
+                        InputProps={{
+                          startAdornment: <ImageIcon sx={{ mr: 1, color: "text.secondary" }} />,
+                        }}
                       />
                     </Grid>
 
@@ -401,7 +636,7 @@ export default function RecipeFormDialog({
                           <MDTypography variant="caption" color="text" fontWeight="medium">
                             Khẩu phần:
                           </MDTypography>
-                          <MDTypography variant="body1" fontWeight="medium">
+                          <MDTypography variant="body2" color="text">
                             {form.servings || 1} người
                           </MDTypography>
                         </MDBox>
@@ -538,8 +773,14 @@ export default function RecipeFormDialog({
                     }}
                   >
                     <Grid container spacing={1}>
-                      {form.ingredients.map((ing, idx) => (
-                        <Grid item xs={12} sm={6} md={4} key={idx}>
+                      {form.ingredients.map((ing) => (
+                        <Grid
+                          item
+                          xs={12}
+                          sm={6}
+                          md={4}
+                          key={ing.id || ing._id || `ing-${ing.name}-${ing.quantity?.amount}`}
+                        >
                           <MDBox
                             sx={{
                               p: 1,
@@ -550,9 +791,9 @@ export default function RecipeFormDialog({
                             }}
                           >
                             <MDTypography variant="caption" fontWeight="medium">
-                              {ing.name ||
-                                ing.ingredientLabel ||
+                              {ing.ingredientLabel ||
                                 ing.mappingName ||
+                                ing.name ||
                                 "(Chưa có tên)"}
                             </MDTypography>
                             {ing.quantity?.amount && (

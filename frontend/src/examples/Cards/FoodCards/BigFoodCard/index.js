@@ -98,24 +98,6 @@ function BigFoodCard({ image, label, title, description, category, action }) {
           </MDBox>
 
           {category && <Chip label={category} color="success" variant="outline" sx={{ mt: 2 }} />}
-          <Grid container spacing={1} sx={{ mt: 1 }} gap={1} flexDirection='row' justifyContent="flex-start">
-            <Grid item>
-              <MDBox display="flex" gap={2}>
-                {/* <MDButton
-                  variant="outlined"
-                  color="info"
-                >
-                  Phân tích dinh dưỡng
-                </MDButton> */}
-                <MDButton
-                  variant="outlined"
-                  color="info"
-                >
-                  Thêm vào thực đơn
-                </MDButton>
-              </MDBox>
-            </Grid>
-          </Grid>
 
         </MDBox>
       </CardContent>

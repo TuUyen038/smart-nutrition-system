@@ -14,9 +14,14 @@ import UserFilters from "./components/UserFilters";
 import UserTable from "./components/UserTable";
 import UserFormDialog from "./components/UserFormDialog";
 
-import { getUsers, updateUser, deleteUser } from "services/userApi";
+import { getUsers, updateUser, softDeleteUser } from "services/userApi";
+import DeleteUserDialog from "./components/DeleteDialog";
+import { handleError } from "utils/errorHandler";
+import { useToast } from "context/ToastContext";
 
 function UserManagement() {
+  const { showSuccess, showError } = useToast();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -26,6 +31,9 @@ function UserManagement() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filteredUsers = useMemo(() => {
     let data = [...users];
@@ -33,8 +41,7 @@ function UserManagement() {
     if (search.trim()) {
       const q = search.toLowerCase();
       data = data.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(q) || item.email?.toLowerCase().includes(q)
+        (item) => item.name?.toLowerCase().includes(q) || item.email?.toLowerCase().includes(q)
       );
     }
 
@@ -70,14 +77,25 @@ function UserManagement() {
     setDialogOpen(true);
   };
 
-  const handleDeleteClick = async (user) => {
-    if (!window.confirm(`Xóa người dùng "${user.name}" (${user.email})?`)) return;
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setDeleteDialogOpen(true);
+  };
+  const handleDeleteConfirm = async (reason) => {
+    if (!userToDelete) return;
+
     try {
-      await deleteUser(user._id);
+      setDeleting(true);
+      await softDeleteUser(userToDelete._id, reason);
+      showSuccess(`Đã xóa người dùng "${userToDelete.name}"`);
       await fetchData();
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
     } catch (err) {
-      console.error("Delete user error:", err);
-      alert("Không thể xóa người dùng. Vui lòng thử lại.");
+      const errorMessage = handleError(err);
+      showError(errorMessage);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -95,7 +113,6 @@ function UserManagement() {
       handleDialogClose();
     } catch (err) {
       console.error("Save user error:", err);
-      alert("Không thể lưu thông tin người dùng. Vui lòng thử lại.");
     }
   };
 
@@ -145,9 +162,19 @@ function UserManagement() {
         onSubmit={handleDialogSubmit}
         user={editingUser}
       />
+      <DeleteUserDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setUserToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Xác nhận xóa người dùng"
+        itemName={userToDelete?.name}
+        loading={deleting}
+      />
     </DashboardLayout>
   );
 }
 
 export default UserManagement;
-

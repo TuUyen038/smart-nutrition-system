@@ -240,7 +240,7 @@ export default function App() {
           <>
             <Sidenav
               color={sidenavColor}
-              brand={(transparentSidenav && !darkMode) || whiteSidenav ? brandDark : brandWhite}
+              brand={null}
               brandName="NutriCare"
               routes={filteredRoutes}
               onMouseEnter={handleOnMouseEnter}

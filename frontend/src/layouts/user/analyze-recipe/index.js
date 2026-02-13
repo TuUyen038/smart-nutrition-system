@@ -202,7 +202,6 @@ function AnalyzeRecipe() {
       const recipeId = createdRecipe._id;
 
       const data = await addRecipeToDailyMenu({
-        userId: myId,
         date,
         recipeId,
         portion: 1,
@@ -288,7 +287,6 @@ function AnalyzeRecipe() {
       // Fetch today's menu
       const today = new Date();
       const todayMenuData = await getRecipesByDateAndStatus(
-        user._id || user.id,
         today,
         today,
         undefined
@@ -1240,7 +1238,7 @@ function AnalyzeRecipe() {
                     arrow
                   >
                     <span>
-                      <MDButton
+                      {/* <MDButton
                         variant="outlined"
                         color="success"
                         onClick={handleSave}
@@ -1258,7 +1256,7 @@ function AnalyzeRecipe() {
                         }
                       >
                         Lưu vào thực đơn
-                      </MDButton>
+                      </MDButton> */}
                     </span>
                   </Tooltip>
                 </MDBox>
@@ -1502,12 +1500,7 @@ function AnalyzeRecipe() {
                         </Box>
                       ) : substitutions && substitutions.length > 0 ? (
                         <Box>
-                          <MDTypography
-                            variant="subtitle2"
-                            fontWeight="medium"
-                            mb={1.5}
-                            color="info"
-                          >
+                          <MDTypography variant="h6" fontWeight="medium" mb={2}>
                             Gợi ý nguyên liệu thay thế:
                           </MDTypography>
                           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -1525,88 +1518,51 @@ function AnalyzeRecipe() {
                                     {sub.reason}
                                   </MDTypography>
                                 )}
-                                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                                  {/* Suggestions có trong DB (có thể dùng ngay) */}
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: 0.5,
+                                  }}
+                                >
+                                  {/* Suggestions có trong DB (màu xanh) */}
                                   {sub.suggestionsWithMapping &&
-                                    sub.suggestionsWithMapping.length > 0 && (
-                                      <Box>
-                                        <MDTypography
-                                          variant="caption"
-                                          color="success.main"
-                                          sx={{ mb: 0.5, fontWeight: "medium" }}
-                                        >
-                                          ✓ Có trong hệ thống (có thể tính dinh dưỡng):
-                                        </MDTypography>
-                                        <Box
-                                          sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 0.5,
-                                            pl: 1,
-                                          }}
-                                        >
-                                          {sub.suggestionsWithMapping.map(
-                                            (suggestionMapping, idx) => (
-                                              <Chip
-                                                key={idx}
-                                                label={
-                                                  suggestionMapping.note
-                                                    ? `${suggestionMapping.name} ${suggestionMapping.note}`
-                                                    : suggestionMapping.name
-                                                }
-                                                size="small"
-                                                color="success"
-                                                variant="outlined"
-                                                sx={{ fontSize: "0.75rem" }}
-                                              />
-                                            )
-                                          )}
-                                        </Box>
-                                      </Box>
-                                    )}
+                                    sub.suggestionsWithMapping.length > 0 &&
+                                    sub.suggestionsWithMapping.map((suggestionMapping, idx) => (
+                                      <Chip
+                                        key={idx}
+                                        label={
+                                          suggestionMapping.note
+                                            ? `${suggestionMapping.name} ${suggestionMapping.note}`
+                                            : suggestionMapping.name
+                                        }
+                                        size="small"
+                                        color="success"
+                                        variant="outlined"
+                                        sx={{ fontSize: "0.75rem" }}
+                                      />
+                                    ))}
 
-                                  {/* Suggestions không có trong DB (chỉ để tham khảo) */}
+                                  {/* Suggestions không có trong DB (màu xám) */}
                                   {sub.suggestionsWithoutMapping &&
-                                    sub.suggestionsWithoutMapping.length > 0 && (
-                                      <Box>
-                                        <MDTypography
-                                          variant="caption"
-                                          color="text.secondary"
-                                          sx={{ mb: 0.5, fontWeight: "medium" }}
-                                        >
-                                          ⚠️ Chưa có trong hệ thống (chỉ để tham khảo):
-                                        </MDTypography>
-                                        <Box
-                                          sx={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 0.5,
-                                            pl: 1,
-                                          }}
-                                        >
-                                          {sub.suggestionsWithoutMapping.map((suggestion, idx) => (
-                                            <Chip
-                                              key={idx}
-                                              label={suggestion}
-                                              size="small"
-                                              color="default"
-                                              variant="outlined"
-                                              sx={{ fontSize: "0.75rem", opacity: 0.7 }}
-                                            />
-                                          ))}
-                                        </Box>
-                                      </Box>
-                                    )}
+                                    sub.suggestionsWithoutMapping.length > 0 &&
+                                    sub.suggestionsWithoutMapping.map((suggestion, idx) => (
+                                      <Chip
+                                        key={idx}
+                                        label={suggestion}
+                                        size="small"
+                                        color="default"
+                                        variant="outlined"
+                                        sx={{ fontSize: "0.75rem", opacity: 0.7 }}
+                                      />
+                                    ))}
 
                                   {/* Không có gợi ý nào */}
-                                  {(!sub.suggestions || sub.suggestions.length === 0) &&
+                                  {(!sub.suggestionsWithMapping ||
+                                    sub.suggestionsWithMapping.length === 0) &&
                                     (!sub.suggestionsWithoutMapping ||
                                       sub.suggestionsWithoutMapping.length === 0) && (
-                                      <MDTypography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        sx={{ pl: 1 }}
-                                      >
+                                      <MDTypography variant="caption" color="text.secondary">
                                         Không có gợi ý thay thế phù hợp
                                       </MDTypography>
                                     )}

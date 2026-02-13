@@ -22,7 +22,6 @@ import MDInput from "components/MDInput";
 
 // Material Dashboard 2 React example components
 import Breadcrumbs from "examples/Breadcrumbs";
-import NotificationItem from "examples/Items/NotificationItem";
 
 // Custom styles for DashboardNavbar
 import {
@@ -48,7 +47,6 @@ function DashboardNavbar({ absolute, light, isMini }) {
   const [navbarType, setNavbarType] = useState();
   const [controller, dispatch] = useMaterialUIController();
   const { miniSidenav, transparentNavbar, fixedNavbar, openConfigurator, darkMode } = controller;
-  const [openMenu, setOpenMenu] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState(null);
   const route = useLocation().pathname.split("/").slice(1);
   const navigate = useNavigate();
@@ -82,8 +80,6 @@ function DashboardNavbar({ absolute, light, isMini }) {
 
   const handleMiniSidenav = () => setMiniSidenav(dispatch, !miniSidenav);
   const handleConfiguratorOpen = () => setOpenConfigurator(dispatch, !openConfigurator);
-  const handleOpenMenu = (event) => setOpenMenu(event.currentTarget);
-  const handleCloseMenu = () => setOpenMenu(false);
   const handleOpenUserMenu = (event) => setOpenUserMenu(event.currentTarget);
   const handleCloseUserMenu = () => setOpenUserMenu(null);
 
@@ -92,25 +88,6 @@ function DashboardNavbar({ absolute, light, isMini }) {
     handleCloseUserMenu();
     navigate("/authentication/sign-in");
   };
-
-  // Render the notifications menu
-  const renderMenu = () => (
-    <Menu
-      anchorEl={openMenu}
-      anchorReference={null}
-      anchorOrigin={{
-        vertical: "bottom",
-        horizontal: "left",
-      }}
-      open={Boolean(openMenu)}
-      onClose={handleCloseMenu}
-      sx={{ mt: 2 }}
-    >
-      <NotificationItem icon={<Icon>email</Icon>} title="Check new messages" />
-      <NotificationItem icon={<Icon>podcasts</Icon>} title="Manage Podcast sessions" />
-      <NotificationItem icon={<Icon>shopping_cart</Icon>} title="Payment successfully completed" />
-    </Menu>
-  );
 
   // Render the user menu
   const renderUserMenu = () => (
@@ -210,19 +187,6 @@ function DashboardNavbar({ absolute, light, isMini }) {
               >
                 <Icon sx={iconsStyle}>settings</Icon>
               </IconButton>
-              <IconButton
-                size="small"
-                disableRipple
-                color="inherit"
-                sx={navbarIconButton}
-                aria-controls="notification-menu"
-                aria-haspopup="true"
-                variant="contained"
-                onClick={handleOpenMenu}
-              >
-                <Icon sx={iconsStyle}>notifications</Icon>
-              </IconButton>
-              {renderMenu()}
             </MDBox>
           </MDBox>
         )}

@@ -20,7 +20,7 @@ import {
 // Material Dashboard 2 React context
 import { useMaterialUIController } from "context";
 
-function SidenavCollapse({ icon, name, active, ...rest }) {
+function SidenavCollapse({ icon, name, active, noCollapse, ...rest })  {
   const [controller] = useMaterialUIController();
   const { miniSidenav, transparentSidenav, whiteSidenav, darkMode, sidenavColor } = controller;
 
@@ -73,6 +73,7 @@ SidenavCollapse.defaultProps = {
 
 // Typechecking props for the SidenavCollapse
 SidenavCollapse.propTypes = {
+  noCollapse: PropTypes.bool,
   icon: PropTypes.node.isRequired,
   name: PropTypes.string.isRequired,
   active: PropTypes.bool,

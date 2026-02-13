@@ -49,20 +49,19 @@ function UserTable({ loading, users, onEdit, onDelete }) {
           <table
             style={{
               width: "100%",
-              minWidth: 1200,
               borderCollapse: "collapse",
-              tableLayout: "fixed",
+              tableLayout: "auto",
             }}
           >
             <colgroup>
-              <col style={{ width: 200 }} /> {/* Tên */}
-              <col style={{ width: 220 }} /> {/* Email */}
-              <col style={{ width: 80 }} />  {/* Giới tính */}
-              <col style={{ width: 70 }} />  {/* Tuổi */}
+              <col style={{ width: "18%" }} /> {/* Tên */}
+              <col style={{ width: "25%" }} /> {/* Email */}
+              <col style={{ width: "10%" }} />  {/* Giới tính */}
+              <col style={{ width: "8%" }} />  {/* Tuổi */}
               {/* Chiều cao và Cân nặng đã bị ẩn để bảo vệ quyền riêng tư */}
-              <col style={{ width: 120 }} /> {/* Mục tiêu */}
-              <col style={{ width: 150 }} /> {/* Dị ứng */}
-              <col style={{ width: 90 }} />  {/* Thao tác */}
+              <col style={{ width: "12%" }} /> {/* Mục tiêu */}
+              <col style={{ width: "17%" }} /> {/* Dị ứng */}
+              <col style={{ width: "10%" }} />  {/* Thao tác */}
             </colgroup>
 
             <thead style={{ display: "table-header-group" }}>

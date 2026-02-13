@@ -1,10 +1,3 @@
-/**
- * Utility để xử lý lỗi một cách thống nhất
- */
-
-/**
- * Parse error message từ response
- */
 export const parseError = (error) => {
   // Nếu là Error object
   if (error instanceof Error) {

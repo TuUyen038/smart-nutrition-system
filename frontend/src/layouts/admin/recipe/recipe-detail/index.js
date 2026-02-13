@@ -62,7 +62,7 @@ function AdminRecipeDetail() {
             color="info"
             size="small"
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/admin/recipres")}
+            onClick={() => navigate("/admin/recipes")}
           >
             Quay lại danh sách
           </MDButton>
@@ -128,7 +128,7 @@ function AdminRecipeDetail() {
                     instructions.map((item, index) => (
                       <Grid item xs={12} key={index}>
                         <MDTypography variant="button" color="text">
-                          {index + 1}. {item}
+                          {item}
                         </MDTypography>
                       </Grid>
                     ))}

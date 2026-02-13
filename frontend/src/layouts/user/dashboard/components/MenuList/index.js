@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Grid,
-  Card,
-  Box,
-  IconButton,
-  Typography,
-  Divider,
-} from "@mui/material";
+import { Grid, Card, Box, IconButton, Typography, Divider } from "@mui/material";
 import MDTypography from "components/MDTypography";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -23,12 +16,7 @@ const MenuList = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const data = await getRecipesByDateAndStatus(
-          myId,
-          new Date(),
-          new Date(),
-          undefined
-        );
+        const data = await getRecipesByDateAndStatus(new Date(), new Date(), undefined);
 
         // Flatten recipes và thêm property 'eaten'
         const flatData = data.flatMap((dailyMenu) =>
@@ -72,27 +60,19 @@ const MenuList = () => {
       // Optimistic update - cập nhật UI ngay
       setFoodData((prev) =>
         prev.map((item) =>
-          item.mealId === mealId
-            ? { ...item, eaten: newStatus === "eaten" }
-            : item
+          item.mealId === mealId ? { ...item, eaten: newStatus === "eaten" } : item
         )
       );
 
       // Gọi API để cập nhật status
       await updateMealStatus(mealId, newStatus);
 
-      showSuccess(
-        newStatus === "eaten"
-          ? "Đã đánh dấu món ăn đã ăn"
-          : "Đã bỏ đánh dấu món ăn"
-      );
+      showSuccess(newStatus === "eaten" ? "Đã đánh dấu món ăn đã ăn" : "Đã bỏ đánh dấu món ăn");
     } catch (error) {
       // Rollback nếu có lỗi
       setFoodData((prev) =>
         prev.map((item) =>
-          item.mealId === mealId
-            ? { ...item, eaten: currentStatus === "eaten" }
-            : item
+          item.mealId === mealId ? { ...item, eaten: currentStatus === "eaten" } : item
         )
       );
       showError(error.message || "Không thể cập nhật trạng thái món ăn");
@@ -108,9 +88,7 @@ const MenuList = () => {
 
   // Tính toán tiến độ kcal
   const totalCalories = foodData.reduce((sum, m) => sum + m.calories, 0);
-  const eatenCalories = foodData
-    .filter((m) => m.eaten)
-    .reduce((sum, m) => sum + m.calories, 0);
+  const eatenCalories = foodData.filter((m) => m.eaten).reduce((sum, m) => sum + m.calories, 0);
   const progress = totalCalories ? Math.round((eatenCalories / totalCalories) * 100) : 0;
 
   return (
@@ -163,39 +141,37 @@ const MenuList = () => {
               }}
             >
               {/* Box 1: Container chứa nội dung (Text + Image/Icon nếu có) */}
-              <Box 
-                sx={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  flexGrow: 1, 
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexGrow: 1,
                   gap: 1.5,
-                  minWidth: 0 // Đảm bảo Box này co lại trong Card
+                  minWidth: 0, // Đảm bảo Box này co lại trong Card
                 }}
               >
-                
                 {/* Box 2: Container chứa các dòng Typography. Đây là Flex Item quan trọng. */}
-                <Box 
-                  sx={{ 
-                    minWidth: 0, 
-                    flex: 1 // Cho phép Box co lại, giải quyết lỗi tràn text
+                <Box
+                  sx={{
+                    minWidth: 0,
+                    flex: 1, // Cho phép Box co lại, giải quyết lỗi tràn text
                   }}
                 >
-                  
                   {/* Tên món: 1 dòng, overflow -> ... */}
-                  <MDTypography 
-                    variant="h6" 
-                    color="dark" 
-                    mb={0.5} 
+                  <MDTypography
+                    variant="h6"
+                    color="dark"
+                    mb={0.5}
                     noWrap // Cách chuẩn của MUI/Component Typography
                   >
                     {meal.name}
                   </MDTypography>
-                  
+
                   {/* Mô tả / bữa: 1 dòng, overflow -> ... */}
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    sx={{ 
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
                       fontSize: 13,
                       whiteSpace: "nowrap",
                       overflow: "hidden",

@@ -1,44 +1,62 @@
 import { normalizeDateVN } from "../helpers/date";
-const API_BASE_URL = "http://localhost:3000/api/daily-menu";
+import { getToken } from "./authApi";
 
-const userId = "68f4394c4d4cc568e6bc5daa";
+const API_BASE_URL = "http://localhost:3000/api/daily-menu";
 
 export const createRecommendDailyMenu = async ({ date }) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const payload = {
-      userId,
       date,
     };
 
     const res = await fetch(`${API_BASE_URL}/suggest`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify(payload),
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Tạo thực đơn cho ngày thất bại");
+    console.log("da vao createRecommendDailyMenu trong service FRONTEND, data: ", data);
     return data;
   } catch (err) {
     console.error("createRecommendMealPlan error:", err);
     throw err;
   }
 };
-export const getRecipesByDateAndStatus = async (userId, startDate, endDate, status) => {
+export const getRecipesByDateAndStatus = async (startDate, endDate, status) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     if (!endDate) endDate = startDate;
     const startUTC = encodeURIComponent(normalizeDateVN(startDate));
     const endUTC = encodeURIComponent(normalizeDateVN(endDate));
     const params = new URLSearchParams({
-      userId,
       startDate: startUTC,
       endDate: endUTC,
     });
     if (status) params.append("status", status);
 
-    const response = await fetch(`${API_BASE_URL}/recipes?${params.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/recipes?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const history = await response.json();
-    // console.log("daily menu:", history);
+    console.log(">>>>daily menu:", history);
     return history;
   } catch (error) {
     console.error(error);
@@ -47,7 +65,6 @@ export const getRecipesByDateAndStatus = async (userId, startDate, endDate, stat
 };
 
 export const addRecipeToDailyMenu = async ({
-  userId,
   date,
   recipeId,
   portion,
@@ -55,12 +72,19 @@ export const addRecipeToDailyMenu = async ({
   servingTime,
 }) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const ndate = normalizeDateVN(date);
     const res = await fetch(`${API_BASE_URL}/add-recipe`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
-        userId,
         date: normalizeDateVN(date),
         recipeId,
         portion,
@@ -77,13 +101,20 @@ export const addRecipeToDailyMenu = async ({
   }
 };
 
-export const createDailyMenu = async ({ userId, date, recipes }) => {
+export const createDailyMenu = async ({ date, recipes }) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const res = await fetch(`${API_BASE_URL}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
-        userId,
         date: normalizeDateVN(date),
         recipes,
       }),
@@ -92,7 +123,7 @@ export const createDailyMenu = async ({ userId, date, recipes }) => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "Tạo thực đơn thất bại");
 
-    return data; // data.data chứa DailyMenu mới tạo
+    return data;
   } catch (err) {
     console.error("createDailyMenu error:", err);
     throw err;
@@ -107,9 +138,17 @@ export const createDailyMenu = async ({ userId, date, recipes }) => {
  */
 export const updateMealStatus = async (mealId, newStatus) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const res = await fetch(`${API_BASE_URL}/${mealId}/status`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({ newStatus }),
     });
 

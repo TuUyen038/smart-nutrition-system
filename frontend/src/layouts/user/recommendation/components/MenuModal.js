@@ -13,7 +13,6 @@ import {
   Chip,
   TextField,
   InputAdornment,
-  IconButton,
 } from "@mui/material";
 import FoodCard from "./FoodCard";
 import MDButton from "components/MDButton";
@@ -26,7 +25,6 @@ import {
   Close as CloseIcon,
   Search as SearchIcon,
   PhotoCamera as PhotoCameraIcon,
-  Remove as RemoveIcon,
 } from "@mui/icons-material";
 import { getRecipesByIngredients, searchRecipesByImage } from "services/recipeApi";
 
@@ -41,7 +39,6 @@ export default function MenuModal({
   getDayName,
 }) {
   const [selectedItems, setSelectedItems] = useState([]);
-  const [portionMap, setPortionMap] = useState({}); // { recipeId: portion }
   const [searchTerm, setSearchTerm] = useState("");
   const [searchImageFile, setSearchImageFile] = useState(null);
   const [searchResults, setSearchResults] = useState(recipes);
@@ -70,7 +67,6 @@ export default function MenuModal({
           name: r.name,
           calories: r.totalNutrition?.calories || 0,
           totalNutrition: r.totalNutrition,
-          image: r.imageUrl || r.image,
           imageUrl: r.imageUrl,
           description: r.description,
           category: r.category,
@@ -83,7 +79,9 @@ export default function MenuModal({
         setDetectedFoodName(result.detectedFoodName);
         setSearchImageFile(null); // Reset file input
       } else {
-        setSearchError("Không tìm thấy món ăn nào.");
+        // Khi không có kết quả, vẫn set detectedFoodName để hiển thị message phù hợp
+        setDetectedFoodName(result.detectedFoodName || "món ăn");
+        setSearchError(null);
         setSearchResults([]);
       }
     } catch (err) {
@@ -120,32 +118,49 @@ export default function MenuModal({
   const handleOpenImagePicker = () => {
     fileInputRef.current?.click();
   };
-  // Reset selectedItems khi mở modal hoặc đổi ngày/mode
+  // Reset selectedItems CHỈ KHI modal mở (open chuyển từ false -> true), không reset khi currentMenu thay đổi
+  const prevOpenRef = useRef(false);
   useEffect(() => {
-    if (!open) return;
+    // Chỉ reset khi modal VỪA MỞ (open = true và prevOpen = false)
+    const wasClosed = !prevOpenRef.current;
+    prevOpenRef.current = open;
 
-    // currentMenu là menu đã lưu của ngày đó
-    const menuArray = Array.isArray(currentMenu) ? currentMenu : [];
-    setSelectedItems(menuArray);
-    
-    // Khôi phục portion từ currentMenu
-    const portions = {};
-    menuArray.forEach((item) => {
-      const itemId = item.id || item._id || item.recipeId;
-      if (itemId) {
-        portions[itemId] = item.portion || 1;
-      }
-    });
-    setPortionMap(portions);
-    
-    setSearchTerm("");
-    setSearchError(null);
-    setDetectedFoodName(null);
-    setSearchImageFile(null);
+    if (!open) {
+      // Modal đóng - reset một số state nếu cần
+      setSearchTerm("");
+      setSearchError(null);
+      setDetectedFoodName(null);
+      setSearchImageFile(null);
+      return;
+    }
 
-    // khi mới mở modal: hiển thị list recipes gốc mà parent truyền xuống
-    setSearchResults(recipes);
-  }, [open, date, mode, currentMenu]);
+    // Chỉ reset selectedItems khi modal VỪA MỞ, không reset khi currentMenu thay đổi trong khi modal đang mở
+    if (wasClosed) {
+      // currentMenu là menu đã lưu của ngày đó
+      const menuArray = Array.isArray(currentMenu) ? currentMenu : [];
+
+      // Debug log để kiểm tra
+      console.log("🔍 [MenuModal] Modal just opened - currentMenu:", currentMenu);
+      console.log("🔍 [MenuModal] menuArray:", menuArray);
+      console.log(
+        "🔍 [MenuModal] menuArray IDs:",
+        menuArray.map((item) => ({
+          id: item.id,
+          _id: item._id,
+          recipeId: item.recipeId,
+          idString: String(item.id || item._id || item.recipeId || ""),
+        }))
+      );
+
+      setSelectedItems(menuArray);
+      setSearchTerm("");
+      setSearchError(null);
+      setDetectedFoodName(null);
+      setSearchImageFile(null);
+      // khi mới mở modal: hiển thị list recipes gốc mà parent truyền xuống
+      setSearchResults(recipes);
+    }
+  }, [open, date, mode]); // Loại bỏ currentMenu khỏi dependency array
   useEffect(() => {
     if (!open) return;
 
@@ -200,97 +215,72 @@ export default function MenuModal({
       id: recipe.id || recipe._id,
       name: recipe.name,
       calories: recipe.calories || recipe.totalNutrition?.calories || 0,
-      image:
-        recipe.image ||
+      imageUrl:
+        recipe.imageUrl ||
         "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg",
     };
     const recipeId = recipe.id || recipe._id;
-    
+
     setSelectedItems((prev) => {
       const exists = prev.some((item) => {
-        const itemId = item.id || item._id || item.recipeId;
-        return itemId === recipeId;
+        const itemId = String(item.id || item._id || item.recipeId || "");
+        const compareRecipeId = String(recipeId || "");
+        return itemId === compareRecipeId && itemId !== "" && compareRecipeId !== "";
       });
 
       if (exists) {
-        // Xóa món và xóa portion
-        setPortionMap((prevPortions) => {
-          const newPortions = { ...prevPortions };
-          delete newPortions[recipeId];
-          return newPortions;
-        });
+        const compareRecipeId = String(recipeId || "");
         return prev.filter((item) => {
-          const itemId = item.id || item._id || item.recipeId;
-          return itemId !== recipeId;
+          const itemId = String(item.id || item._id || item.recipeId || "");
+          return itemId !== compareRecipeId;
         });
       } else {
-        // Thêm món với portion mặc định = 1
-        setPortionMap((prevPortions) => ({
-          ...prevPortions,
-          [recipeId]: 1,
-        }));
         return [...prev, formattedRecipe];
       }
     });
   };
 
-  const updatePortion = (recipeId, newPortion) => {
-    const portion = Math.max(1, Math.floor(newPortion) || 1); // Đảm bảo >= 1 và là số nguyên
-    setPortionMap((prev) => ({
-      ...prev,
-      [recipeId]: portion,
-    }));
-  };
-
-  const incrementPortion = (recipeId) => {
-    const current = portionMap[recipeId] || 1;
-    updatePortion(recipeId, current + 1);
-  };
-
-  const decrementPortion = (recipeId) => {
-    const current = portionMap[recipeId] || 1;
-    if (current > 1) {
-      updatePortion(recipeId, current - 1);
-    }
-  };
-
   const removeLocal = (recipeId) => {
-    setSelectedItems((prev) =>
-      prev.filter((i) => {
-        const itemId = i.id || i._id || i.recipeId;
-        return itemId !== recipeId;
-      })
-    );
-    // Xóa portion khi xóa món
-    setPortionMap((prev) => {
-      const newPortions = { ...prev };
-      delete newPortions[recipeId];
-      return newPortions;
+    const compareRecipeId = String(recipeId || "");
+    setSelectedItems((prev) => {
+      const filtered = prev.filter((i) => {
+        const itemId = String(i.id || i._id || i.recipeId || "");
+        const shouldKeep = itemId !== compareRecipeId && itemId !== "" && compareRecipeId !== "";
+        return shouldKeep;
+      });
+      return filtered;
     });
   };
 
   const handleSaveLocal = () => {
     if (typeof onSave === "function") {
-      // Gửi kèm portion cho mỗi món
-      const itemsWithPortion = selectedItems.map((item) => {
-        const itemId = item.id || item._id || item.recipeId;
+      // Gửi các món đã chọn
+      const itemsToSave = selectedItems.map((item) => {
+        const itemId = item.id || item._id || item.recipeId?._id || item.recipeId;
         return {
           ...item,
-          portion: portionMap[itemId] || 1,
+          id: itemId,
+          calories: item.calories || item.totalNutrition?.calories || 0,
+          imageUrl: item.imageUrl,
+          status: item.status || "planned",
+          note: item.note || "",
+          servingTime: item.servingTime || "other",
         };
       });
-      onSave(itemsWithPortion, date);
+
+      onSave(itemsToSave, date);
     }
     onClose?.();
   };
 
-  // Tính tổng calo = sum(calories × portion)
+  // Tính tổng calo = sum(calories)
   const totalCalories = selectedItems.reduce((sum, r) => {
-    const itemId = r.id || r._id || r.recipeId;
-    const portion = portionMap[itemId] || 1;
     const calories = r?.calories || r?.totalNutrition?.calories || 0;
-    return sum + calories * portion;
+    return sum + calories;
   }, 0);
+
+  // Làm tròn đến 2 chữ số thập phân
+  const roundedTotalCalories = Math.round(totalCalories * 100) / 100;
   const dedupById = (list) => {
     const map = new Map();
     list.forEach((r) => {
@@ -323,7 +313,7 @@ export default function MenuModal({
             boxShadow: 24,
             borderRadius: 3,
             width: "95%",
-            maxWidth: 1100, // tăng rộng hơn chút cho 4 card 1 hàng
+            maxWidth: 1100,
             maxHeight: "90vh",
             overflowY: "auto",
           }}
@@ -349,7 +339,7 @@ export default function MenuModal({
             <Box display="flex" alignItems="center" gap={2}>
               <Chip
                 icon={<LocalFireDepartmentIcon />}
-                label={`Tổng: ${totalCalories} kcal`}
+                label={`Tổng: ${roundedTotalCalories.toFixed(2)} kcal`}
                 color="warning"
                 sx={{ fontWeight: 600 }}
               />
@@ -369,75 +359,16 @@ export default function MenuModal({
               <Grid container spacing={2} mb={3}>
                 {selectedItems.map((item) => {
                   const itemId = item.id || item._id || item.recipeId;
-                  const portion = portionMap[itemId] || 1;
                   const itemCalories = item.calories || item.totalNutrition?.calories || 0;
-                  const totalCaloriesForItem = itemCalories * portion;
-                  
+                  const roundedCalories = Math.round(itemCalories * 100) / 100;
+                  const itemImage =
+                    item.imageUrl ||
+                    "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg";
+
                   return (
                     <Grid item xs={12} sm={6} md={3} key={itemId}>
-                      {/* md={3} -> 4 món / hàng trên màn hình rộng */}
-                      <FoodCard
-                        title={item.name}
-                        calories={totalCaloriesForItem}
-                        portion={portion}
-                        image={
-                          item.image ||
-                          "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
-                        }
-                      >
+                      <FoodCard title={item.name} calories={roundedCalories} imageUrl={itemImage}>
                         <Box sx={{ width: "100%" }}>
-                          {/* Số lượng */}
-                          <Box
-                            display="flex"
-                            alignItems="center"
-                            justifyContent="space-between"
-                            mb={1}
-                            sx={{
-                              border: "1px solid",
-                              borderColor: "divider",
-                              borderRadius: 1,
-                              px: 1,
-                              py: 0.5,
-                            }}
-                          >
-                            <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-                              Số lượng:
-                            </Typography>
-                            <Box display="flex" alignItems="center" gap={0.5}>
-                              <IconButton
-                                size="small"
-                                onClick={() => decrementPortion(itemId)}
-                                disabled={portion <= 1}
-                                sx={{ p: 0.5, minWidth: "auto" }}
-                              >
-                                <RemoveIcon fontSize="small" />
-                              </IconButton>
-                              <TextField
-                                type="number"
-                                value={portion}
-                                onChange={(e) => updatePortion(itemId, parseInt(e.target.value) || 1)}
-                                inputProps={{
-                                  min: 1,
-                                  style: { textAlign: "center", padding: "4px", width: "50px" },
-                                }}
-                                sx={{
-                                  "& .MuiOutlinedInput-root": {
-                                    "& fieldset": { border: "none" },
-                                  },
-                                  width: "60px",
-                                }}
-                                size="small"
-                              />
-                              <IconButton
-                                size="small"
-                                onClick={() => incrementPortion(itemId)}
-                                sx={{ p: 0.5, minWidth: "auto" }}
-                              >
-                                <AddIcon fontSize="small" />
-                              </IconButton>
-                            </Box>
-                          </Box>
-                          
                           {/* Nút xóa */}
                           <MDButton
                             fullWidth
@@ -494,7 +425,7 @@ export default function MenuModal({
                   }}
                   sx={{ minWidth: 260, width: 400 }}
                 />
-                
+
                 {/* Hidden file input */}
                 <input
                   ref={fileInputRef}
@@ -503,7 +434,7 @@ export default function MenuModal({
                   style={{ display: "none" }}
                   onChange={handleImageFileChange}
                 />
-                
+
                 {/* Button tìm kiếm bằng ảnh */}
                 <MDButton
                   variant="outlined"
@@ -542,19 +473,24 @@ export default function MenuModal({
             )}
 
             <Grid container spacing={2} mb={3}>
-              {safeSearchResults.length === 0 && searchTerm.trim().length >= 2 && !searchLoading ? (
+              {safeSearchResults.length === 0 &&
+              !searchLoading &&
+              (searchTerm.trim().length >= 2 || detectedFoodName) ? (
                 <Grid item xs={12}>
                   <Paper sx={{ p: 3, textAlign: "center", bgcolor: "grey.50" }}>
                     <Typography color="text.secondary">
-                      {`Không tìm thấy món phù hợp với từ khóa "${searchTerm}".`}
+                      {detectedFoodName
+                        ? "Không tìm thấy món ăn phù hợp"
+                        : `Không tìm thấy món phù hợp với từ khóa "${searchTerm}".`}
                     </Typography>
                   </Paper>
                 </Grid>
               ) : (
                 safeSearchResults.map((recipe) => {
-                  const recipeId = recipe._id?.toString() || recipe.id;
+                  const recipeId = (recipe._id?.toString() || recipe.id || "").toString();
                   const isSelected = selectedItems.some((item) => {
-                    const itemId = item._id?.toString() || item.id || item.recipeId;
+                    const itemId = // item._id?.toString() ||
+                    (item.id || item.recipeId || "").toString();
                     return itemId === recipeId;
                   });
 
@@ -562,13 +498,6 @@ export default function MenuModal({
 
                   const recipeLabel = (() => {
                     if (!keyword) return null;
-
-                    // if (recipe.matchByName && recipe.matchByIngredient) {
-                    //   return `Tên & nguyên liệu có: "${keyword}"`;
-                    // }
-                    // if (recipe.matchByName) {
-                    //   return `Tên món có: "${keyword}"`;
-                    // }
                     if (recipe.matchByIngredient) {
                       const ingNames = recipe.matchedIngredientNames?.slice(0, 2).join(", ");
                       return `Có nguyên liệu: ${ingNames}`;
@@ -582,8 +511,7 @@ export default function MenuModal({
                       <FoodCard
                         title={recipe.name}
                         calories={recipe.calories || recipe.totalNutrition?.calories || "__"}
-                        image={
-                          recipe.image ||
+                        imageUrl={
                           recipe.imageUrl ||
                           "https://res.cloudinary.com/denhj5ubh/image/upload/v1762541471/foodImages/ml4njluxyrvhthnvx0xr.jpg"
                         }
@@ -658,7 +586,7 @@ MenuModal.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   mode: PropTypes.oneOf(["day", "week"]).isRequired,
-  date: PropTypes.string.isRequired,
+  date: PropTypes.string,
   currentMenu: PropTypes.oneOfType([PropTypes.array, PropTypes.object]),
   onSave: PropTypes.func.isRequired,
   recipes: PropTypes.array.isRequired,

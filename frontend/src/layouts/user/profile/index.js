@@ -1,11 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Grid,
   Card,
   TextField,
-  RadioGroup,
-  FormControlLabel,
-  Radio,
   Avatar,
   Divider,
   FormControl,
@@ -13,7 +10,6 @@ import {
   Select,
   MenuItem,
   IconButton,
-  Box,
   CircularProgress,
   Autocomplete,
   Chip,
@@ -27,30 +23,32 @@ import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { getUser, getToken, getMe } from "services/authApi";
-import { getUserById, updateUser } from "services/userApi";
+import { updateUser } from "services/userApi";
 import { getFavoriteRecipes } from "services/favoriteApi";
 import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
 import { getIngredients } from "services/ingredientApi";
 import { useToast } from "context/ToastContext";
-import { calculateDailyCalorieGoal, calculateDailyNutritionLimits } from "helpers/nutritionUtils";
+import { getActiveNutritionGoal } from "services/nutritionGoalApi";
+import avatar from "assets/theme/components/avatar";
 
 function Profile() {
   const { showSuccess, showError } = useToast();
-  const [avatar, setAvatar] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
+
+  const token = getToken();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [goalLoading, setGoalLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(false);
+
   const [currentUser, setCurrentUser] = useState(null);
-  const [statistics, setStatistics] = useState({
-    totalAnalyzedRecipes: 0,
-    totalDaysUsed: 0,
-    favoriteRecipes: [],
-    totalFavorites: 0,
-    loading: true,
-  });
+  const [nutritionGoal, setNutritionGoal] = useState(null);
+
   const [ingredients, setIngredients] = useState([]);
   const [ingredientsLoading, setIngredientsLoading] = useState(false);
 
+  const [avatar, setAvatar] = useState(null);
+  
   const [profile, setProfile] = useState({
     name: "",
     age: "",
@@ -59,14 +57,9 @@ function Profile() {
     weight: "",
     goal: "maintain_weight",
     allergies: [],
-    allergy: "",
   });
-
   const [originalProfile, setOriginalProfile] = useState({ ...profile });
-
-  // Map goal from frontend to backend format
   const mapGoalToBackend = (goal) => {
-    // Nếu đã là format mới, giữ nguyên
     if (
       goal === "lose_weight" ||
       goal === "gain_weight" ||
@@ -75,7 +68,6 @@ function Profile() {
     ) {
       return goal;
     }
-    // Map từ format cũ sang format mới
     const goalMap = {
       giam_can: "lose_weight",
       tang_co: "gain_weight",
@@ -84,10 +76,7 @@ function Profile() {
     };
     return goalMap[goal] || goal;
   };
-
-  // Map goal from backend to frontend format
   const mapGoalToFrontend = (goal) => {
-    // Nếu đã là format mới, giữ nguyên
     if (
       goal === "lose_weight" ||
       goal === "gain_weight" ||
@@ -96,7 +85,6 @@ function Profile() {
     ) {
       return goal;
     }
-    // Map từ format cũ sang format mới (fallback)
     const goalMap = {
       lose_weight: "lose_weight",
       gain_weight: "gain_weight",
@@ -104,87 +92,90 @@ function Profile() {
     };
     return goalMap[goal] || goal || "";
   };
+  const goalLabels = { lose_weight: "Giảm cân", gain_weight: "Tăng cân", maintain_weight: "Duy trì cân nặng", "": "Không chọn", 
+    giam_can: "Giảm cân", tang_co: "Tăng cơ", maintain: "Duy trì", can_bang: "Cân bằng", an_chay: "Ăn chay", };
+  // ================================
+  // AUTH CHECK
+  // ================================
+  useEffect(() => {
+    if (!token) {
+      showError("Vui lòng đăng nhập.");
+      setLoading(false);
+    }
+  }, [token]);
 
-  // Load user profile
+  // ================================
+  // LOAD USER FROM /me
+  // ================================
   useEffect(() => {
     const loadProfile = async () => {
       try {
-        setLoading(true);
-        const token = getToken();
-        if (!token) {
-          showError("Vui lòng đăng nhập để xem thông tin cá nhân");
-          return;
-        }
+        if (!token) return;
 
-        // Lấy thông tin user hiện tại từ server
-        let userData = null;
-        try {
-          userData = await getMe();
-        } catch (error) {
-          console.error("Get me error, trying getUserById:", error);
-          // Fallback: thử lấy từ localStorage và gọi getUserById
-          const user = getUser();
-          if (user && (user._id || user.id)) {
-            const userId = user._id || user.id;
-            userData = await getUserById(userId);
-          }
-        }
+        const userData = await getMe();
+        const user = userData.user || userData;
 
-        if (!userData) {
-          showError("Không thể tải thông tin cá nhân");
-          return;
-        }
+        setCurrentUser(user);
 
-        // Xử lý dữ liệu user (có thể là object hoặc có user property)
-        const userInfo = userData.user || userData;
-        setCurrentUser(userInfo);
+        const mappedProfile = {
+          name: user.name || "",
+          age: user.age?.toString() || "",
+          gender: user.gender || "male",
+          height: user.height?.toString() || "",
+          weight: user.weight?.toString() || "",
+          goal: user.goal || "maintain_weight",
+          allergies: Array.isArray(user.allergies) ? user.allergies : [],
+        };
 
-        const allergiesArray = Array.isArray(userInfo.allergies) ? userInfo.allergies : [];
-        const allergyString = allergiesArray.length > 0 ? allergiesArray.join(", ") : "";
-
-        setProfile({
-          name: userInfo.name || "",
-          age: userInfo.age?.toString() || "",
-          gender: userInfo.gender || "male",
-          height: userInfo.height?.toString() || "",
-          weight: userInfo.weight?.toString() || "",
-          goal: mapGoalToFrontend(userInfo.goal) || "maintain",
-          allergies: allergiesArray,
-          allergy: allergyString,
-        });
-        setOriginalProfile({
-          name: userInfo.name || "",
-          age: userInfo.age?.toString() || "",
-          gender: userInfo.gender || "male",
-          height: userInfo.height?.toString() || "",
-          weight: userInfo.weight?.toString() || "",
-          goal: mapGoalToFrontend(userInfo.goal) || "maintain",
-          allergies: allergiesArray,
-          allergy: allergyString,
-        });
+        setProfile(mappedProfile);
+        setOriginalProfile(mappedProfile);
       } catch (error) {
-        console.error("Load profile error:", error);
-        showError("Không thể tải thông tin cá nhân: " + (error.message || "Lỗi không xác định"));
+        showError("Không thể tải thông tin người dùng.");
       } finally {
         setLoading(false);
       }
     };
 
     loadProfile();
-  }, []);
+  }, [token]);
 
-  // Load ingredients list
+  // ================================
+  // LOAD ACTIVE NUTRITION GOAL
+  // ================================
+  useEffect(() => {
+    const loadGoal = async () => {
+      try {
+        if (!token) return;
+
+        setGoalLoading(true);
+
+        const result = await getActiveNutritionGoal();
+        if (result?.targetNutrition) {
+          setNutritionGoal(result.targetNutrition);
+        } else {
+          setNutritionGoal(null);
+        }
+      } catch (error) {
+        setNutritionGoal(null);
+      } finally {
+        setGoalLoading(false);
+      }
+    };
+
+    if (currentUser) loadGoal();
+  }, [currentUser, token]);
+
+  // ================================
+  // LOAD INGREDIENTS (UI giữ nguyên)
+  // ================================
   useEffect(() => {
     const loadIngredients = async () => {
       try {
         setIngredientsLoading(true);
-        // Lấy tất cả ingredients (limit lớn để lấy hết)
-        const result = await getIngredients({ limit: 1000, sortBy: "name", sortOrder: "asc" });
-        const ingredientsList = result.data || [];
-        setIngredients(ingredientsList);
+        const result = await getIngredients({ limit: 1000 });
+        setIngredients(result.data || []);
       } catch (error) {
-        console.error("Error loading ingredients:", error);
-        // Không hiển thị lỗi, chỉ log để không ảnh hưởng UX
+        console.error(error);
       } finally {
         setIngredientsLoading(false);
       }
@@ -193,230 +184,52 @@ function Profile() {
     loadIngredients();
   }, []);
 
-  // Load statistics
-  useEffect(() => {
-    const loadStatistics = async () => {
-      try {
-        setStatistics((prev) => ({ ...prev, loading: true }));
-        const user = getUser();
-        if (!user || (!user._id && !user.id)) {
-          return;
-        }
-        const userId = user._id || user.id;
+  // ================================
+  // SAVE PROFILE
+  // ================================
+  const handleSave = async () => {
+    if (!currentUser) return;
 
-        // Lấy món yêu thích
-        let favoriteRecipes = [];
-        let totalFavorites = 0;
-        try {
-          const favoritesData = await getFavoriteRecipes(1, 100); // Lấy tối đa 100 món
-          if (favoritesData && favoritesData.data) {
-            favoriteRecipes = favoritesData.data.recipes || favoritesData.data || [];
-            totalFavorites = favoritesData.pagination?.total || favoriteRecipes.length;
-          }
-        } catch (error) {
-          console.error("Error loading favorites:", error);
-        }
+    try {
+      setSaving(true);
 
-        // Lấy lịch sử món đã ăn (30 ngày gần nhất)
-        let totalAnalyzedRecipes = 0;
-        let totalDaysUsed = 0;
-        const uniqueRecipes = new Set();
-        const uniqueDays = new Set();
-
-        try {
-          const endDate = new Date();
-
-          // Tính số ngày từ khi đăng ký đến hiện tại
-          let daysSinceSignup = 0;
-          if (currentUser.createdAt) {
-            const signupDate = new Date(currentUser.createdAt);
-            const diffTime = Math.abs(endDate - signupDate);
-            daysSinceSignup = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          }
-
-          // Lấy tất cả daily menu từ ngày đăng ký (hoặc 1 năm gần nhất nếu không có createdAt)
-          const startDate = currentUser.createdAt
-            ? new Date(currentUser.createdAt)
-            : (() => {
-                const date = new Date();
-                date.setDate(date.getDate() - 365);
-                return date;
-              })();
-
-          // Lấy tất cả daily menu (không filter status) để đếm số ngày thực tế sử dụng
-          const allDailyMenuData = await getRecipesByDateAndStatus(
-            userId,
-            startDate,
-            endDate,
-            null
-          );
-
-          if (Array.isArray(allDailyMenuData)) {
-            allDailyMenuData.forEach((day) => {
-              if (day.date) {
-                uniqueDays.add(day.date.split("T")[0]); // Lấy ngày
-              }
-            });
-          }
-
-          // Lấy riêng món đã eaten để đếm số món đã phân tích
-          const eatenData = await getRecipesByDateAndStatus(userId, startDate, endDate, "eaten");
-          if (Array.isArray(eatenData)) {
-            eatenData.forEach((day) => {
-              if (day.recipes && Array.isArray(day.recipes)) {
-                day.recipes.forEach((item) => {
-                  const recipeId = item.recipeId?._id || item.recipeId;
-                  if (recipeId) {
-                    uniqueRecipes.add(recipeId);
-                  }
-                });
-              }
-            });
-          }
-
-          totalAnalyzedRecipes = uniqueRecipes.size;
-
-          // Số ngày sử dụng: ưu tiên số ngày thực tế có daily menu, nếu không có thì dùng số ngày từ khi đăng ký
-          totalDaysUsed = uniqueDays.size > 0 ? uniqueDays.size : daysSinceSignup;
-        } catch (error) {
-          console.error("Error loading history:", error);
-          // Nếu có lỗi, vẫn tính từ ngày đăng ký
-          if (currentUser.createdAt) {
-            const signupDate = new Date(currentUser.createdAt);
-            const endDate = new Date();
-            const diffTime = Math.abs(endDate - signupDate);
-            totalDaysUsed = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          }
-        }
-
-        setStatistics({
-          totalAnalyzedRecipes,
-          totalDaysUsed,
-          favoriteRecipes: favoriteRecipes.slice(0, 5), // Top 5 món yêu thích
-          totalFavorites,
-          loading: false,
-        });
-      } catch (error) {
-        console.error("Load statistics error:", error);
-        setStatistics((prev) => ({ ...prev, loading: false }));
-      }
-    };
-
-    if (currentUser) {
-      loadStatistics();
-    }
-  }, [currentUser]);
-
-  // Calculate BMR (Basal Metabolic Rate)
-  const calculateBMR = () => {
-    const age = parseFloat(profile.age);
-    const height = parseFloat(profile.height);
-    const weight = parseFloat(profile.weight);
-    const gender = profile.gender;
-
-    if (!age || !height || !weight || !gender) return 0;
-
-    // Mifflin-St Jeor Equation
-    if (gender === "male") {
-      return 10 * weight + 6.25 * height - 5 * age + 5;
-    } else if (gender === "female") {
-      return 10 * weight + 6.25 * height - 5 * age - 161;
-    }
-    return 10 * weight + 6.25 * height - 5 * age - 78; // Average for "other"
-  };
-
-  // Adjust calories based on goal
-  const adjustByGoal = (calories, goal) => {
-    switch (goal) {
-      case "lose_weight":
-      case "giam_can": // Giữ lại để tương thích
-        return calories - 500;
-      case "gain_weight":
-      case "tang_co": // Giữ lại để tương thích
-        return calories + 500;
-      case "maintain_weight":
-      case "maintain": // Giữ lại để tương thích
-      case "can_bang": // Giữ lại để tương thích
-      case "an_chay": // Giữ lại để tương thích
-      case "": // Không chọn
-      default:
-        return calories;
-    }
-  };
-
-  // Calculate nutrition goals using new formula (AMDR compliant)
-  const calculateNutritionGoals = () => {
-    const age = parseFloat(profile.age);
-    const height = parseFloat(profile.height);
-    const weight = parseFloat(profile.weight);
-    const gender = profile.gender;
-    const goal = profile.goal;
-
-    if (!age || !height || !weight || !gender) {
-      // Fallback values if missing data
-      return {
-        calories: 2000,
-        protein: 0,
-        fat: 0,
-        carbs: 0,
-        fiber: 0,
-        sodium: 0,
-        sugar: 0,
+      const updateData = {
+        name: profile.name,
+        age: profile.age ? parseInt(profile.age) : undefined,
+        gender: profile.gender,
+        height: profile.height ? parseFloat(profile.height) : undefined,
+        weight: profile.weight ? parseFloat(profile.weight) : undefined,
+        goal: profile.goal,
+        allergies: profile.allergies,
       };
+
+      Object.keys(updateData).forEach((key) => {
+        if (updateData[key] === undefined || updateData[key] === "") {
+          delete updateData[key];
+        }
+      });
+
+      // IMPORTANT: backend must verify req.user._id === params.id
+      await updateUser(currentUser._id, updateData);
+
+      // Reload nutrition goal after update
+      const updatedGoal = await getActiveNutritionGoal();
+      setNutritionGoal(updatedGoal?.targetNutrition || null);
+
+      setOriginalProfile(profile);
+      setIsEditing(false);
+
+      showSuccess("Cập nhật thành công!");
+    } catch (error) {
+      showError("Không thể lưu thông tin.");
+    } finally {
+      setSaving(false);
     }
-
-    // Calculate daily calorie goal using new formula
-    const dailyCalorieGoal = calculateDailyCalorieGoal(age, gender, height, weight, goal);
-
-    if (dailyCalorieGoal === 0) {
-      return {
-        calories: 2000,
-        protein: 0,
-        fat: 0,
-        carbs: 0,
-        fiber: 0,
-        sodium: 0,
-        sugar: 0,
-      };
-    }
-
-    // Calculate nutrition limits using new formula (AMDR compliant)
-    const userInfo = {
-      age,
-      gender,
-      height,
-      weight,
-      goal,
-    };
-    const nutritionLimits = calculateDailyNutritionLimits(userInfo, dailyCalorieGoal);
-
-    return {
-      calories: dailyCalorieGoal,
-      protein: nutritionLimits.protein,
-      fat: nutritionLimits.fat,
-      carbs: nutritionLimits.carbs,
-      fiber: nutritionLimits.fiber,
-      sodium: nutritionLimits.sodium,
-      sugar: nutritionLimits.sugar,
-    };
   };
 
-  // Calculate BMI
-  const calculateBMI = () => {
-    const heightInM = parseFloat(profile.height) / 100;
-    const weightInKg = parseFloat(profile.weight);
-    if (heightInM > 0 && weightInKg > 0) {
-      return (weightInKg / (heightInM * heightInM)).toFixed(1);
-    }
-    return "0";
-  };
-
-  const getBMICategory = (bmi) => {
-    const bmiNum = parseFloat(bmi);
-    if (bmiNum < 18.5) return { label: "Thiếu cân", color: "info" };
-    if (bmiNum < 23) return { label: "Bình thường", color: "success" };
-    if (bmiNum < 25) return { label: "Thừa cân", color: "warning" };
-    return { label: "Béo phì", color: "error" };
+  const handleCancel = () => {
+    setProfile(originalProfile);
+    setIsEditing(false);
   };
 
   const handleAvatarChange = (e) => {
@@ -425,133 +238,34 @@ function Profile() {
       setAvatar(URL.createObjectURL(file));
     }
   };
-
   const handleChange = (field) => (e) => {
     setProfile({ ...profile, [field]: e.target.value });
   };
 
-  const handleSave = async () => {
-    if (!currentUser) {
-      showError("Không tìm thấy thông tin người dùng");
-      return;
-    }
-
-    // Lấy userId từ _id hoặc id
-    const userId = currentUser._id || currentUser.id;
-    if (!userId) {
-      showError("Không tìm thấy ID người dùng");
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      // Convert allergies string to array if needed
-      let allergiesArray = [];
-      if (Array.isArray(profile.allergies) && profile.allergies.length > 0) {
-        // Nếu đã là array và có dữ liệu, sử dụng trực tiếp
-        allergiesArray = profile.allergies.filter(Boolean); // Loại bỏ giá trị rỗng
-      } else if (typeof profile.allergy === "string" && profile.allergy.trim()) {
-        // Nếu là string, tách theo dấu phẩy hoặc xuống dòng
-        allergiesArray = profile.allergy
-          .split(/[,\n]/) // Tách theo dấu phẩy hoặc xuống dòng
-          .map((a) => a.trim()) // Loại bỏ khoảng trắng đầu/cuối
-          .filter(Boolean) // Loại bỏ giá trị rỗng
-          .filter((item, index, self) => self.indexOf(item) === index); // Loại bỏ trùng lặp
-      }
-
-      // Prepare data for backend
-      const updateData = {
-        name: profile.name,
-        age: profile.age ? parseInt(profile.age) : undefined,
-        gender: profile.gender,
-        height: profile.height ? parseFloat(profile.height) : undefined,
-        weight: profile.weight ? parseFloat(profile.weight) : undefined,
-        goal: mapGoalToBackend(profile.goal),
-        allergies: allergiesArray,
-      };
-
-      // Remove undefined fields
-      Object.keys(updateData).forEach((key) => {
-        if (updateData[key] === undefined || updateData[key] === "") {
-          delete updateData[key];
-        }
-      });
-
-      // Sử dụng updateUser từ userApi
-      const result = await updateUser(userId, updateData);
-
-      // Xử lý response có thể là { user: {...} } hoặc trực tiếp là user object
-      const updatedUser = result.user || result;
-      setCurrentUser(updatedUser);
-      setOriginalProfile({ ...profile });
-      setIsEditing(false);
-
-      // Cập nhật localStorage với thông tin mới
-      const user = getUser();
-      if (user) {
-        const updatedUserInfo = { ...user, ...updatedUser };
-        localStorage.setItem("user", JSON.stringify(updatedUserInfo));
-      }
-
-      // Tính lại và cache daily calorie goal khi profile thay đổi
-      const newCalorieGoal = calculateDailyCalorieGoal(
-        updatedUser.age || profile.age,
-        updatedUser.gender || profile.gender,
-        updatedUser.height || profile.height,
-        updatedUser.weight || profile.weight,
-        updatedUser.goal || profile.goal
-      );
-
-      if (newCalorieGoal > 0) {
-        const cacheKey = `dailyCalorieGoal_${userId}`;
-        localStorage.setItem(cacheKey, newCalorieGoal.toString());
-        console.log("✅ Đã cập nhật daily calorie goal:", newCalorieGoal);
-      }
-
-      showSuccess("Cập nhật thông tin thành công! Mục tiêu dinh dưỡng đã được tính toán lại.");
-    } catch (error) {
-      console.error("Save profile error:", error);
-      showError(error.message || "Không thể lưu thông tin");
-    } finally {
-      setSaving(false);
-    }
+  const defaultNutrition = {
+    calories: 0,
+    protein: 0,
+    fat: 0,
+    carbs: 0,
+    fiber: 0,
+    sodium: 0,
+    sugar: 0,
   };
 
-  const handleCancel = () => {
-    setProfile({ ...originalProfile });
-    setIsEditing(false);
-  };
+  const nutrition = nutritionGoal ?? defaultNutrition;
 
-  const bmi = calculateBMI();
-  const bmiCategory = getBMICategory(bmi);
-  const nutritionGoals = calculateNutritionGoals();
-
-  const goalLabels = {
-    lose_weight: "Giảm cân",
-    gain_weight: "Tăng cân",
-    maintain_weight: "Duy trì cân nặng",
-    "": "Không chọn",
-    // Giữ lại các giá trị cũ để tương thích
-    giam_can: "Giảm cân",
-    tang_co: "Tăng cơ",
-    maintain: "Duy trì",
-    can_bang: "Cân bằng",
-    an_chay: "Ăn chay",
-  };
+  const bmi = useMemo(() => {
+    const h = parseFloat(profile.height) / 100;
+    const w = parseFloat(profile.weight);
+    if (h > 0 && w > 0) return (w / (h * h)).toFixed(1);
+    return null;
+  }, [profile.height, profile.weight]);
 
   if (loading) {
     return (
       <DashboardLayout>
         <DashboardNavbar />
-        <MDBox
-          py={3}
-          px={2}
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          minHeight="400px"
-        >
+        <MDBox py={6} display="flex" justifyContent="center">
           <CircularProgress />
         </MDBox>
       </DashboardLayout>
@@ -658,14 +372,14 @@ function Profile() {
                       <MDBox display="flex" alignItems="center" gap={1}>
                         <MDTypography
                           variant="button"
-                          color={bmiCategory.color}
+                          // color={bmiCategory.color}
                           fontWeight="medium"
                         >
                           {bmi}
                         </MDTypography>
-                        <MDTypography variant="caption" color="text">
+                        {/* <MDTypography variant="caption" color="text">
                           ({bmiCategory.label})
-                        </MDTypography>
+                        </MDTypography> */}
                       </MDBox>
                     </MDBox>
                   </MDBox>
@@ -766,7 +480,7 @@ function Profile() {
                       size="small"
                       inputProps={{ min: 1, max: 300 }}
                     />
-                    {bmi !== "0" && (
+                    {/* {bmi !== "0" && (
                       <MDBox
                         sx={{
                           p: 1.5,
@@ -780,7 +494,7 @@ function Profile() {
                           BMI: {bmi} - {bmiCategory.label}
                         </MDTypography>
                       </MDBox>
-                    )}
+                    )} */}
                   </MDBox>
 
                   <Divider sx={{ my: 2 }} />
@@ -957,182 +671,152 @@ function Profile() {
                     Mục tiêu dinh dưỡng hàng ngày
                   </MDTypography>
 
-                  {/* Calories - Hàng riêng */}
-                  <Grid container spacing={2} mb={2}>
-                    <Grid item xs={12}>
-                      <MDBox
-                        sx={{
-                          p: 3,
-                          borderRadius: 2,
-                          bgcolor: "info.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography variant="h3" color="info.main" fontWeight="bold">
-                          {nutritionGoals.calories}
-                        </MDTypography>
-                        <MDTypography variant="body1" color="text" fontWeight="medium">
-                          kcal/ngày
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                  </Grid>
-
-                  {/* 6 chất còn lại - Hàng dưới */}
-                  <Grid container spacing={2}>
-                    {/* Protein */}
-                    <Grid item xs={6} sm={4} md={2}>
-                      <MDBox
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "success.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography
-                          variant="h5"
-                          color="success.main"
-                          fontWeight="bold"
-                          sx={{ whiteSpace: "nowrap" }}
-                        >
-                          {nutritionGoals.protein}g
-                        </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          Protein
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                    {/* Fat */}
-                    <Grid item xs={6} sm={4} md={2}>
-                      <MDBox
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "warning.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography
-                          variant="h5"
-                          color="warning.main"
-                          fontWeight="bold"
-                          sx={{ whiteSpace: "nowrap" }}
-                        >
-                          {nutritionGoals.fat}g
-                        </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          Fat
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                    {/* Carbs */}
-                    <Grid item xs={6} sm={4} md={2}>
-                      <MDBox
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "error.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography
-                          variant="h5"
-                          color="error.main"
-                          fontWeight="bold"
-                          sx={{ whiteSpace: "nowrap" }}
-                        >
-                          {nutritionGoals.carbs}g
-                        </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          Carbs
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                    {/* Fiber */}
-                    <Grid item xs={6} sm={4} md={2}>
-                      <MDBox
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "secondary.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography
-                          variant="h5"
-                          color="secondary.main"
-                          fontWeight="bold"
-                          sx={{ whiteSpace: "nowrap" }}
-                        >
-                          {nutritionGoals.fiber}g
-                        </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          Fiber
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                    {/* Sodium */}
-                    <Grid item xs={6} sm={4} md={2}>
-                      <MDBox
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "dark.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography
-                          variant="h5"
-                          color="dark.main"
-                          fontWeight="bold"
-                          sx={{ whiteSpace: "nowrap", fontSize: { xs: "1.1rem", sm: "1.25rem" } }}
-                        >
-                          {nutritionGoals.sodium}mg
-                        </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          Sodium
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                    {/* Sugar */}
-                    <Grid item xs={6} sm={4} md={2}>
-                      <MDBox
-                        sx={{
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "primary.lighter",
-                          textAlign: "center",
-                        }}
-                      >
-                        <MDTypography
-                          variant="h5"
-                          color="primary.main"
-                          fontWeight="bold"
-                          sx={{ whiteSpace: "nowrap" }}
-                        >
-                          {nutritionGoals.sugar}g
-                        </MDTypography>
-                        <MDTypography variant="caption" color="text">
-                          Sugar
-                        </MDTypography>
-                      </MDBox>
-                    </Grid>
-                  </Grid>
-                  {calculateBMR() === 0 && (
+                  {goalLoading ? (
+                    <MDBox display="flex" justifyContent="center" py={4}>
+                      <CircularProgress size={24} />
+                    </MDBox>
+                  ) : !nutrition ? (
                     <MDBox mt={2}>
                       <MDTypography variant="caption" color="warning.main">
-                        ⚠️ Vui lòng nhập đầy đủ thông tin (tuổi, giới tính, chiều cao, cân nặng) để
-                        tính toán mục tiêu dinh dưỡng chính xác.
+                        ⚠️ Vui lòng cập nhật đầy đủ thông tin để hệ thống tính toán mục tiêu dinh
+                        dưỡng.
                       </MDTypography>
                     </MDBox>
+                  ) : (
+                    <>
+                      {/* Calories */}
+                      <Grid container spacing={2} mb={2}>
+                        <Grid item xs={12}>
+                          <MDBox
+                            sx={{
+                              p: 3,
+                              borderRadius: 2,
+                              bgcolor: "info.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h3" color="info.main" fontWeight="bold">
+                              {nutrition.calories}
+                            </MDTypography>
+                            <MDTypography variant="body1" color="text" fontWeight="medium">
+                              kcal/ngày
+                            </MDTypography>
+                          </MDBox>
+                        </Grid>
+                      </Grid>
+
+                      {/* 6 chất còn lại */}
+                      <Grid container spacing={2}>
+                        {/* Protein */}
+                        <Grid item xs={6} sm={4} md={2}>
+                          <MDBox
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "success.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h5" color="success.main" fontWeight="bold">
+                              {nutrition.protein}g
+                            </MDTypography>
+                            <MDTypography variant="caption">Protein</MDTypography>
+                          </MDBox>
+                        </Grid>
+
+                        {/* Fat */}
+                        <Grid item xs={6} sm={4} md={2}>
+                          <MDBox
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "warning.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h5" color="warning.main" fontWeight="bold">
+                              {nutrition.fat}g
+                            </MDTypography>
+                            <MDTypography variant="caption">Fat</MDTypography>
+                          </MDBox>
+                        </Grid>
+
+                        {/* Carbs */}
+                        <Grid item xs={6} sm={4} md={2}>
+                          <MDBox
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "error.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h5" color="error.main" fontWeight="bold">
+                              {nutrition.carbs}g
+                            </MDTypography>
+                            <MDTypography variant="caption">Carbs</MDTypography>
+                          </MDBox>
+                        </Grid>
+
+                        {/* Fiber */}
+                        <Grid item xs={6} sm={4} md={2}>
+                          <MDBox
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "secondary.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h5" color="secondary.main" fontWeight="bold">
+                              {nutrition.fiber}g
+                            </MDTypography>
+                            <MDTypography variant="caption">Fiber</MDTypography>
+                          </MDBox>
+                        </Grid>
+
+                        {/* Sodium */}
+                        <Grid item xs={6} sm={4} md={2}>
+                          <MDBox
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "dark.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h5" color="dark.main" fontWeight="bold">
+                              {nutrition.sodium}mg
+                            </MDTypography>
+                            <MDTypography variant="caption">Sodium</MDTypography>
+                          </MDBox>
+                        </Grid>
+
+                        {/* Sugar */}
+                        <Grid item xs={6} sm={4} md={2}>
+                          <MDBox
+                            sx={{
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "primary.lighter",
+                              textAlign: "center",
+                            }}
+                          >
+                            <MDTypography variant="h5" color="primary.main" fontWeight="bold">
+                              {nutrition.sugar}g
+                            </MDTypography>
+                            <MDTypography variant="caption">Sugar</MDTypography>
+                          </MDBox>
+                        </Grid>
+                      </Grid>
+                    </>
                   )}
                 </Card>
               </Grid>
 
               {/* Card: Lịch sử */}
               <Grid item xs={12}>
-                <Card sx={{ p: 3 }}>
+                {/* <Card sx={{ p: 3 }}>
                   <MDTypography variant="h6" mb={2} fontWeight="medium">
                     Thống kê hoạt động
                   </MDTypography>
@@ -1182,7 +866,7 @@ function Profile() {
                       </MDBox>
                     </MDBox>
                   )}
-                </Card>
+                </Card> */}
               </Grid>
             </Grid>
           </Grid>

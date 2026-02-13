@@ -19,7 +19,7 @@ import CoverLayout from "layouts/user/authentication/components/CoverLayout";
 import { resetPassword } from "services/authApi";
 
 // Images
-import bgImage from "assets/images/bg-reset-cover.jpeg";
+const bgImage = "https://res.cloudinary.com/denhj5ubh/image/upload/v1767413364/bgr_vom478.jpg";
 
 function ResetPassword() {
   const navigate = useNavigate();

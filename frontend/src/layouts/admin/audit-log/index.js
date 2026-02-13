@@ -12,18 +12,12 @@ import {
   Paper,
   TextField,
   MenuItem,
-  Select,
-  FormControl,
-  InputLabel,
   Pagination,
   Chip,
   Typography,
   CircularProgress,
   Alert,
-  IconButton,
-  Tooltip,
 } from "@mui/material";
-import VisibilityIcon from "@mui/icons-material/Visibility";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDBox from "components/MDBox";
@@ -36,9 +30,6 @@ const ACTION_COLORS = {
   UPDATE: "info",
   DELETE: "error",
   LOGIN: "primary",
-  LOGOUT: "default",
-  VERIFY: "success",
-  UNVERIFY: "warning",
   PASSWORD_RESET_REQUEST: "warning",
   PASSWORD_RESET: "info",
 };
@@ -47,8 +38,6 @@ const RESOURCE_TYPE_COLORS = {
   User: "primary",
   Recipe: "success",
   Ingredient: "info",
-  DailyMenu: "warning",
-  MealPlan: "secondary",
   Auth: "default",
 };
 
@@ -67,7 +56,6 @@ function AuditLogManagement() {
   const [filters, setFilters] = useState({
     action: "",
     resourceType: "",
-    userEmail: "",
     startDate: "",
     endDate: "",
   });
@@ -135,55 +123,56 @@ function AuditLogManagement() {
         <Card sx={{ mb: 3, p: 2 }}>
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Hành động</InputLabel>
-                <Select
-                  value={filters.action}
-                  label="Hành động"
-                  onChange={(e) => handleFilterChange("action", e.target.value)}
-                >
-                  <MenuItem value="">Tất cả</MenuItem>
-                  <MenuItem value="CREATE">CREATE</MenuItem>
-                  <MenuItem value="UPDATE">UPDATE</MenuItem>
-                  <MenuItem value="DELETE">DELETE</MenuItem>
-                  <MenuItem value="LOGIN">LOGIN</MenuItem>
-                  <MenuItem value="LOGOUT">LOGOUT</MenuItem>
-                  <MenuItem value="VERIFY">VERIFY</MenuItem>
-                  <MenuItem value="UNVERIFY">UNVERIFY</MenuItem>
-                  <MenuItem value="PASSWORD_RESET_REQUEST">PASSWORD_RESET_REQUEST</MenuItem>
-                  <MenuItem value="PASSWORD_RESET">PASSWORD_RESET</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Loại tài nguyên</InputLabel>
-                <Select
-                  value={filters.resourceType}
-                  label="Loại tài nguyên"
-                  onChange={(e) => handleFilterChange("resourceType", e.target.value)}
-                >
-                  <MenuItem value="">Tất cả</MenuItem>
-                  <MenuItem value="User">User</MenuItem>
-                  <MenuItem value="Recipe">Recipe</MenuItem>
-                  <MenuItem value="Ingredient">Ingredient</MenuItem>
-                  <MenuItem value="DailyMenu">DailyMenu</MenuItem>
-                  <MenuItem value="MealPlan">MealPlan</MenuItem>
-                  <MenuItem value="Auth">Auth</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
               <TextField
+                select
                 fullWidth
                 size="small"
-                label="Email người dùng"
-                value={filters.userEmail}
-                onChange={(e) => handleFilterChange("userEmail", e.target.value)}
-                placeholder="Tìm theo email..."
-              />
+                label="Hành động"
+                value={filters.action}
+                onChange={(e) => handleFilterChange("action", e.target.value)}
+                sx={{
+                  label: {
+                    pb: 1,
+                  },
+                  ".css-12n1zae-MuiInputBase-root-MuiOutlinedInput-root": {
+                    lineHeight: "3.12",
+                  },
+                }}
+              >
+                <MenuItem value="">Tất cả</MenuItem>
+                <MenuItem value="CREATE">CREATE</MenuItem>
+                <MenuItem value="UPDATE">UPDATE</MenuItem>
+                <MenuItem value="DELETE">DELETE</MenuItem>
+                <MenuItem value="LOGIN">LOGIN</MenuItem>
+                <MenuItem value="PASSWORD_RESET_REQUEST">PASSWORD_RESET_REQUEST</MenuItem>
+                <MenuItem value="PASSWORD_RESET">PASSWORD_RESET</MenuItem>
+              </TextField>
             </Grid>
-            <Grid item xs={12} sm={6} md={2.5}>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label="Loại tài nguyên"
+                value={filters.resourceType}
+                onChange={(e) => handleFilterChange("resourceType", e.target.value)}
+                sx={{
+                  label: {
+                    pb: 1,
+                  },
+                  ".css-12n1zae-MuiInputBase-root-MuiOutlinedInput-root": {
+                    lineHeight: "3.12",
+                  },
+                }}
+              >
+                <MenuItem value="">Tất cả</MenuItem>
+                <MenuItem value="User">User</MenuItem>
+                <MenuItem value="Recipe">Recipe</MenuItem>
+                <MenuItem value="Ingredient">Ingredient</MenuItem>
+                <MenuItem value="Auth">Auth</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 size="small"
@@ -194,7 +183,7 @@ function AuditLogManagement() {
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2.5}>
+            <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
                 size="small"
@@ -218,7 +207,7 @@ function AuditLogManagement() {
         ) : (
           <>
             <Card>
-              <Box>
+              <Box sx={{ overflowX: "auto" }}>
                 <table
                   style={{
                     width: "100%",
@@ -227,15 +216,14 @@ function AuditLogManagement() {
                   }}
                 >
                   <colgroup>
-                    <col style={{ width: 160 }} /> {/* Thời gian */}
-                    <col style={{ width: 200 }} /> {/* Người thực hiện */}
-                    <col style={{ width: 100 }} /> {/* Hành động */}
-                    <col style={{ width: 120 }} /> {/* Loại tài nguyên */}
-                    <col style={{ width: 180 }} /> {/* Tên tài nguyên */}
-                    <col style={{ width: 140 }} /> {/* IP Address */}
-                    <col style={{ width: 100 }} /> {/* Kết quả */}
-                    <col style={{ width: 100 }} /> {/* Lý do */}
-                    <col style={{ width: 80 }} /> {/* Chi tiết */}
+                    <col style={{ width: "12%" }} /> {/* Thời gian */}
+                    <col style={{ width: "15%" }} /> {/* Người thực hiện */}
+                    <col style={{ width: "10%" }} /> {/* Hành động */}
+                    <col style={{ width: "13%" }} /> {/* Loại tài nguyên */}
+                    <col style={{ width: "22%" }} /> {/* Tên tài nguyên */}
+                    <col style={{ width: "11%" }} /> {/* IP Address */}
+                    <col style={{ width: "8%" }} /> {/* Kết quả */}
+                    <col style={{ width: "9%" }} /> {/* Lý do */}
                   </colgroup>
 
                   <thead style={{ display: "table-header-group" }}>
@@ -249,17 +237,16 @@ function AuditLogManagement() {
                         "IP Address",
                         "Kết quả",
                         "Lý do",
-                        "Chi tiết",
                       ].map((h, i) => (
                         <th
                           key={h}
                           style={{
                             display: "table-cell",
                             boxSizing: "border-box",
-                            textAlign: h === "Chi tiết" ? "center" : "left",
+                            textAlign: "left",
                             padding: "12px 8px",
                             borderBottom: "2px solid #d9d9d9",
-                            borderRight: i === 8 ? "none" : "1px solid #e6e6e6",
+                            borderRight: i === 7 ? "none" : "1px solid #e6e6e6",
                             fontWeight: 600,
                             whiteSpace: "nowrap",
                             fontSize: "0.8rem",
@@ -435,7 +422,6 @@ function AuditLogManagement() {
                             display: "table-cell",
                             boxSizing: "border-box",
                             padding: "12px 8px",
-                            borderRight: "1px solid #eee",
                           }}
                         >
                           <MDTypography
@@ -452,29 +438,6 @@ function AuditLogManagement() {
                           >
                             {log.reason || "-"}
                           </MDTypography>
-                        </td>
-
-                        {/* Chi tiết */}
-                        <td
-                          style={{
-                            display: "table-cell",
-                            boxSizing: "border-box",
-                            padding: "12px 8px",
-                            textAlign: "center",
-                          }}
-                        >
-                          <Tooltip title="Xem chi tiết">
-                            <IconButton
-                              size="small"
-                              onClick={() => {
-                                // TODO: Mở dialog xem chi tiết
-                                console.log("View details:", log);
-                              }}
-                              sx={{ color: "info.main", padding: "4px" }}
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
                         </td>
                       </tr>
                     ))}

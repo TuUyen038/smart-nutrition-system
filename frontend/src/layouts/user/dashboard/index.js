@@ -9,52 +9,64 @@ import DefaultDoughnutChart from "examples/Charts/DoughnutCharts/DefaultDoughnut
 import donutChartData from "./data/donutChartData";
 import MDTypography from "components/MDTypography";
 import DefaultInfoCard from "examples/Cards/InfoCards/DefaultInfoCard";
-import { Card, Divider } from "@mui/material";
+import { Card, Divider, CircularProgress } from "@mui/material";
 import MenuList from "./components/MenuList";
 import LineChart from "examples/Charts/LineChart";
 import lineChartData from "./data/lineChartData";
-import { getRecipesByDateAndStatus } from "services/dailyMenuApi";
+import { getDashboardStats } from "services/userApi";
 import { useEffect, useState } from "react";
 import { normalizeDateVN } from "helpers/date";
-function Dashboard() {
-const myId = "68f4394c4d4cc568e6bc5daa"
 
-  const [foodData, setFoodData] = useState([]);
+function Dashboard() {
+  const myId = "68f4394c4d4cc568e6bc5daa";
+
+  const [donutChart, setDonutChart] = useState(donutChartData);
+  const [lineChart, setLineChart] = useState(lineChartData);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('to day:', new Date());
-        const data = await getRecipesByDateAndStatus(
-          myId,
-          new Date(),
-          new Date(),
-          undefined,
-        );
-        setFoodData(data);
+        setLoading(true);
+        // Fetch dashboard stats
+        const stats = await getDashboardStats();
+        if (stats.donutChart) {
+          setDonutChart(stats.donutChart);
+        }
+        if (stats.lineChart) {
+          setLineChart(stats.lineChart);
+        }
       } catch (err) {
-        console.error(err);
+        console.error("Error fetching dashboard stats:", err);
+        // Keep default data if error
       } finally {
-        // setIsLoading(false);
+        setLoading(false);
       }
-    }
+    };
     fetchData();
   }, []);
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox py={3}>
-
         <MDBox mt={0}>
           <Grid container spacing={3} alignItems="stretch">
             {/* Chart bên trái */}
             <Grid item xs={12} md={5} lg={4}>
               <MDBox mb={3} height="100%">
-                <DefaultDoughnutChart
-                  color="info"
-                  title="Tổng quan"
-                  description="Dinh dưỡng đã nạp trong hôm nay"
-                  chart={donutChartData}
-                />
+                {loading ? (
+                  <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+                    <CircularProgress />
+                  </MDBox>
+                ) : (
+                  <DefaultDoughnutChart
+                    color="info"
+                    title="Tổng quan"
+                    description="Dinh dưỡng đã nạp trong hôm nay"
+                    chart={donutChart}
+                  />
+                )}
               </MDBox>
             </Grid>
 
@@ -73,16 +85,27 @@ const myId = "68f4394c4d4cc568e6bc5daa"
         {/* Biểu đồ và nút hành động */}
         <Grid item xs={12} md={8} lg={8}>
           <Card sx={{ p: 3 }}>
-            <LineChart
-              icon={{ color: "primary", component: "show_chart" }}
-              title="Lượng calo tiêu thụ trong tuần trước"
-              description="Theo dõi năng lượng tiêu hao mỗi ngày trong một tuần qua"
-              chart={lineChartData}
-            />
+            {loading ? (
+              <MDBox display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+                <CircularProgress />
+              </MDBox>
+            ) : (
+              <LineChart
+                icon={{ color: "primary", component: "show_chart" }}
+                title="Lượng calo tiêu thụ trong tuần trước"
+                description="Theo dõi năng lượng tiêu hao mỗi ngày trong một tuần qua"
+                chart={lineChart}
+                chartOptions={{
+                  fixedMin: 1,
+                  fixedMax: 2000,
+                  beginAtZero: false,
+                  yAxisLabel: "kcal",
+                }}
+              />
+            )}
             <Divider sx={{ my: 2 }} />
           </Card>
         </Grid>
-
       </MDBox>
     </DashboardLayout>
   );

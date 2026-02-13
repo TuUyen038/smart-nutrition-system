@@ -52,7 +52,6 @@ function FoodHistory() {
       const startDate = getStartDate(endDate);
 
       const data = await getRecipesByDateAndStatus(
-        userId,
         startDate,
         endDate,
         "eaten"

@@ -36,7 +36,6 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
   const [controller, dispatch] = useMaterialUIController();
   const { miniSidenav, transparentSidenav, whiteSidenav, darkMode, sidenavColor } = controller;
   const location = useLocation();
-  const collapseName = location.pathname.replace("/", "");
 
   let textColor = "white";
 
@@ -84,13 +83,20 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
           <SidenavCollapse
             name={name}
             icon={icon}
-            active={key === collapseName}
+            active={false}
             noCollapse={noCollapse}
           />
         </Link>
       ) : (
-        <NavLink key={key} to={route}>
-          <SidenavCollapse name={name} icon={icon} active={key === collapseName} />
+        <NavLink
+          key={key}
+          to={route}
+          style={{ textDecoration: "none" }}
+          end={route === "/admin" || route === "/dashboard"}
+        >
+          {({ isActive }) => (
+            <SidenavCollapse name={name} icon={icon} active={isActive} noCollapse={noCollapse} />
+          )}
         </NavLink>
       );
     } else if (type === "title") {
@@ -146,7 +152,14 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
           </MDTypography>
         </MDBox>
         <MDBox component={NavLink} to="/" display="flex" alignItems="center">
-          {brand && <MDBox component="img" src={brand} alt="Brand" width="2rem" />}
+          <MDBox
+            component="img"
+            src="https://res.cloudinary.com/denhj5ubh/image/upload/v1767557955/foodImages/fjmjwv5ax1hkrqlg628b.png"
+            alt="Brand"
+            width="2rem"
+            height="2rem"
+            sx={{ mr: 1, objectFit: "contain" }}
+          />
           <MDBox
             width={!brandName && "100%"}
             sx={(theme) => sidenavLogoLabel(theme, { miniSidenav })}

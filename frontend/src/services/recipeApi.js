@@ -96,6 +96,11 @@ export const getRecipes = async ({
   }
 };
 export const detectFood = async (imageFile) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+  }
+
   const formData = new FormData();
   // "foodImage" phải khớp với tên trường (field) mà Multer (Backend) đang lắng nghe
   formData.append("foodImage", imageFile);
@@ -103,6 +108,9 @@ export const detectFood = async (imageFile) => {
   try {
     const response = await fetch(`${API_BASE_URL}/detect`, {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       body: formData,
     });
 
@@ -139,6 +147,11 @@ export const detectFood = async (imageFile) => {
  * @returns {Promise<Object>} { success, detectedFoodName, data: recipes[], pagination }
  */
 export const searchRecipesByImage = async (imageFile, page = 1, limit = 20) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+  }
+
   const formData = new FormData();
   formData.append("foodImage", imageFile);
 
@@ -150,6 +163,9 @@ export const searchRecipesByImage = async (imageFile, page = 1, limit = 20) => {
 
     const response = await fetch(`${API_BASE_URL}/search-by-image?${params.toString()}`, {
       method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
       body: formData,
     });
 
@@ -233,7 +249,16 @@ export const getBackUpNutrition = async (ingrs) => {
 
 export const getIngredientsAndInstructionsInAi = async (foodName) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/rcm/${encodeURIComponent(foodName)}`);
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
+    const response = await fetch(`${API_BASE_URL}/rcm/${encodeURIComponent(foodName)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
       console.warn(`Không tìm thấy nguyên liệu cho món ăn by AI`);
@@ -303,6 +328,11 @@ export const getIngredientSubstitutions = async (
 
 export const getIngredientsInAi = async (recipe, servings = null) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Không có token xác thực. Vui lòng đăng nhập.");
+    }
+
     const body = { recipe };
     if (servings && servings > 0) {
       body.servings = servings;
@@ -312,6 +342,7 @@ export const getIngredientsInAi = async (recipe, servings = null) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(body),
     });
@@ -437,7 +468,7 @@ export async function getRecipeStats() {
 }
 
 /**
- * 🔍 Kiểm tra trùng tên recipe
+ * Kiểm tra trùng tên recipe
  */
 export async function checkDuplicateName(name, excludeId = null) {
   try {

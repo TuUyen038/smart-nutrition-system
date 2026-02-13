@@ -19,7 +19,7 @@ import BasicLayout from "layouts/user/authentication/components/BasicLayout";
 import { login } from "services/authApi";
 
 // Images
-import bgImage from "assets/images/bg-sign-in-basic.jpeg";
+const bgImage = "https://res.cloudinary.com/denhj5ubh/image/upload/v1767413364/bgr_vom478.jpg";
 
 function Basic() {
   const navigate = useNavigate();

@@ -13,7 +13,6 @@ import MDTypography from "components/MDTypography";
 import RecipeFilters from "./components/RecipeFilters";
 import RecipeTable from "./components/RecipeTable";
 import RecipeFormDialog from "./components/RecipeFormDialog";
-import RecipeStatsCards from "./components/RecipeStatsCards";
 import DeleteConfirmDialog from "components/shared/DeleteConfirmDialog";
 
 import {
@@ -34,6 +33,10 @@ function toUiIngredientRow(input) {
     (typeof crypto !== "undefined" && crypto?.randomUUID?.()) ||
     `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+  // ✅ Nếu có ingredientId nhưng không có ingredientLabel, dùng name từ DB
+  // (vì name từ DB đã là tên đúng nếu đã lưu với logic mới)
+  const ingredientLabel = input?.ingredientLabel || (input?.ingredientId ? input?.name : "");
+
   return {
     id,
     name: input?.name || "",
@@ -45,7 +48,7 @@ function toUiIngredientRow(input) {
     },
     grams: input?.grams ?? "",
     ingredientId: input?.ingredientId ?? null,
-    ingredientLabel: input?.ingredientLabel || "",
+    ingredientLabel,
     mappingName: input?.mappingName || "",
     mappingSuggestion: input?.mappingSuggestion ?? null,
     mapping: input?.mapping ?? { suggestions: [] },
@@ -275,30 +278,42 @@ function RecipeManagement() {
           : [],
 
         ingredients: (formData.ingredients || [])
-          .filter((row) => {
-            // Filter bỏ các nguyên liệu không hợp lệ (thiếu name hoặc quantity.amount)
-            const hasName = row.name && row.name.trim();
-            const hasAmount =
-              row.quantity?.amount !== "" &&
-              row.quantity?.amount !== null &&
-              row.quantity?.amount !== undefined &&
-              Number(row.quantity?.amount) > 0;
-            return hasName && hasAmount;
+          .map((row) => {
+            // ✅ Xác định name để lưu vào DB
+            // Ưu tiên: ingredientLabel > mappingName > name
+            // Nếu có ingredientId, đảm bảo dùng tên từ DB
+            let nameToSave = "";
+            if (row.ingredientId) {
+              // Đã chọn từ DB, ưu tiên ingredientLabel hoặc mappingName
+              // ✅ Fallback về name nếu ingredientLabel/mappingName rỗng (tránh lỗi validation)
+              nameToSave = row.ingredientLabel || row.mappingName || row.name || "";
+            } else {
+              // Chưa chọn từ DB, dùng name hoặc mappingName
+              nameToSave = row.name || row.ingredientLabel || row.mappingName || "";
+            }
+
+            return {
+              name: nameToSave,
+              ingredientId: row.ingredientId || undefined,
+              quantity: {
+                amount: Number(row.quantity?.amount) || 0,
+                unit: row.quantity?.unit || "g",
+              },
+              grams:
+                row.grams === "" || row.grams === null || row.grams === undefined
+                  ? undefined
+                  : Number(row.grams),
+              isOptional: Boolean(row?.flags?.optional),
+              rawText: row.rawText || undefined,
+            };
           })
-          .map((row) => ({
-            name: row.name || row.ingredientLabel || row.mappingName || "",
-            ingredientId: row.ingredientId,
-            quantity: {
-              amount: Number(row.quantity?.amount) || 0,
-              unit: row.quantity?.unit || "g",
-            },
-            grams:
-              row.grams === "" || row.grams === null || row.grams === undefined
-                ? undefined
-                : Number(row.grams),
-            isOptional: Boolean(row?.flags?.optional),
-            rawText: row.rawText || undefined,
-          })),
+          .filter((ingredient) => {
+            // ✅ Filter bỏ các nguyên liệu không hợp lệ SAU KHI đã xác định nameToSave
+            // Đảm bảo name không rỗng và quantity.amount > 0
+            const hasName = ingredient.name && ingredient.name.trim();
+            const hasAmount = ingredient.quantity?.amount > 0;
+            return hasName && hasAmount;
+          }),
       };
 
       if (editingRecipe && editingRecipe._id) {
@@ -353,9 +368,6 @@ function RecipeManagement() {
             </IconButton>
           </Tooltip>
         </MDBox>
-
-        {/* Statistics Cards */}
-        <RecipeStatsCards stats={stats} loading={statsLoading} />
 
         <Grid container spacing={3}>
           <Grid item xs={12}>

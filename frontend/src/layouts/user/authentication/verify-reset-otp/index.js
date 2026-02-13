@@ -19,7 +19,7 @@ import CoverLayout from "layouts/user/authentication/components/CoverLayout";
 import { verifyResetPasswordOTP, resendResetPasswordOTP } from "services/authApi";
 
 // Images
-import bgImage from "assets/images/bg-sign-up-cover.jpeg";
+const bgImage = "https://res.cloudinary.com/denhj5ubh/image/upload/v1767413364/bgr_vom478.jpg";
 
 function VerifyResetOTP() {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ function VerifyResetOTP() {
   useEffect(() => {
     // Lấy email từ location state
     const emailFromState = location.state?.email;
-    
+
     if (emailFromState) {
       setEmail(emailFromState);
     } else {
@@ -67,7 +67,7 @@ function VerifyResetOTP() {
     try {
       const data = await verifyResetPasswordOTP(email, otp);
       setSuccess("Mã OTP đã được xác thực thành công!");
-      
+
       // Redirect đến reset password sau 1 giây
       setTimeout(() => {
         navigate("/authentication/reset-password", {
@@ -176,32 +176,39 @@ function VerifyResetOTP() {
                 type="submit"
                 disabled={loading || otp.length !== 6}
               >
-                {loading ? (
-                  <CircularProgress size={24} color="inherit" />
-                ) : (
-                  "Xác thực"
-                )}
+                {loading ? <CircularProgress size={24} color="inherit" /> : "Xác thực"}
               </MDButton>
             </MDBox>
 
             <MDBox mt={2} mb={1} textAlign="center">
-              <MDTypography variant="button" color="text">
+              <MDTypography variant="body2" color="text" sx={{ fontSize: "0.875rem" }}>
                 Không nhận được mã?{" "}
                 {countdown > 0 ? (
-                  <MDTypography variant="button" color="text" component="span">
+                  <MDTypography
+                    component="span"
+                    variant="body2"
+                    color="text"
+                    sx={{ opacity: 0.7, fontSize: "0.875rem" }}
+                  >
                     Gửi lại sau {countdown}s
                   </MDTypography>
                 ) : (
                   <MDTypography
                     component="button"
                     type="button"
-                    variant="button"
+                    variant="body2"
                     color="info"
-                    fontWeight="medium"
-                    textGradient
                     onClick={handleResend}
                     disabled={resending}
-                    sx={{ border: "none", background: "none", cursor: resending ? "not-allowed" : "pointer" }}
+                    sx={{
+                      fontSize: "0.875rem",
+                      border: "none",
+                      background: "none",
+                      cursor: resending ? "not-allowed" : "pointer",
+                      textDecoration: "underline",
+                      padding: 0,
+                      margin: 0,
+                    }}
                   >
                     {resending ? "Đang gửi..." : "Gửi lại mã"}
                   </MDTypography>
@@ -231,4 +238,3 @@ function VerifyResetOTP() {
 }
 
 export default VerifyResetOTP;
-

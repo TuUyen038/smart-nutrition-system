@@ -141,7 +141,7 @@ export const calculateConsumedNutrition = (dailyMenuData) => {
   dailyMenuData.forEach((day) => {
     if (day.recipes && Array.isArray(day.recipes)) {
       day.recipes.forEach((recipe) => {
-        // Only count eaten recipes
+        // Only count eaten recipes (status === "eaten")
         if (recipe.status === "eaten" && recipe.totalNutrition) {
           const portion = recipe.portion || 1;
           const nutrition = recipe.totalNutrition;
@@ -156,6 +156,10 @@ export const calculateConsumedNutrition = (dailyMenuData) => {
       });
     }
   });
+
+  // Debug log để kiểm tra
+  console.log("🔍 [calculateConsumedNutrition] Input:", dailyMenuData);
+  console.log("🔍 [calculateConsumedNutrition] Result:", consumed);
 
   // Round values
   Object.keys(consumed).forEach((key) => {

@@ -80,4 +80,3 @@ export const getAuditLogById = async (logId) => {
     throw error;
   }
 };
-
