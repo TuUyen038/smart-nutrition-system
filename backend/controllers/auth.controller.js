@@ -4,13 +4,14 @@ const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
 const { logAction } = require("../middlewares/auditLog");
 const emailService = require("../services/email.service");
+const { createNutritionGoal } = require("../services/nutritionGoal.service");
 
 // Helper function để tạo JWT token
 const generateToken = (userId) => {
   return jwt.sign(
     { userId },
     process.env.JWT_SECRET || "your-secret-key-change-in-production",
-    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
+    { expiresIn: process.env.JWT_EXPIRES_IN || "7d" },
   );
 };
 
@@ -60,7 +61,7 @@ exports.signup = async (req, res) => {
       name,
       email: email.toLowerCase(),
       password: hashedPassword,
-      role: "USER", // Mặc định là USER
+      role: "USER",
       age,
       gender,
       height,
@@ -97,7 +98,7 @@ exports.signup = async (req, res) => {
       newUser._id,
       null,
       { name: newUser.name, email: newUser.email, role: newUser.role },
-      "User signup"
+      "User signup",
     );
 
     // Trả về user (không có password) và token
@@ -160,7 +161,7 @@ exports.login = async (req, res) => {
         null,
         `Failed login attempt: wrong password for ${user.email}`,
         user._id, // userIdOverride
-        user.email // userEmailOverride
+        user.email, // userEmailOverride
       );
       return res.status(401).json({
         message: "Email hoặc mật khẩu không đúng",
@@ -180,7 +181,7 @@ exports.login = async (req, res) => {
       { email: user.email, role: user.role },
       "User login",
       user._id, // userIdOverride
-      user.email // userEmailOverride
+      user.email, // userEmailOverride
     );
 
     // Trả về user (không có password) và token
@@ -269,7 +270,7 @@ exports.forgotPassword = async (req, res) => {
       null,
       `Password reset OTP sent to ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     res.json({
@@ -338,7 +339,7 @@ exports.verifyResetPasswordOTP = async (req, res) => {
       null,
       `Reset password OTP verified for ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     res.json({
@@ -418,7 +419,7 @@ exports.resetPassword = async (req, res) => {
       null,
       `Password reset successful for ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     res.json({
@@ -492,7 +493,7 @@ exports.resendResetPasswordOTP = async (req, res) => {
       null,
       `Reset password OTP resent to ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     res.json({
@@ -573,7 +574,7 @@ exports.sendVerificationOTP = async (req, res) => {
       null,
       `Verification OTP sent to ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     res.json({
@@ -638,6 +639,12 @@ exports.verifyEmail = async (req, res) => {
     user.isEmailVerified = true;
     user.emailVerificationOTP = undefined;
     user.emailVerificationOTPExpires = undefined;
+
+    //tính toán goal
+    if (user.age && user.gender && user.height && user.weight && user.goal) {
+      await createNutritionGoal(user);
+    }
+
     await user.save();
 
     // Gửi email thông báo xác thực thành công
@@ -664,7 +671,7 @@ exports.verifyEmail = async (req, res) => {
       { isEmailVerified: true },
       `Email verified for ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     // Trả về user (không có password và OTP)
@@ -757,7 +764,7 @@ exports.resendVerificationOTP = async (req, res) => {
       null,
       `Verification OTP resent to ${user.email}`,
       user._id,
-      user.email
+      user.email,
     );
 
     res.json({
@@ -801,7 +808,7 @@ exports.changePassword = async (req, res) => {
     // Kiểm tra mật khẩu hiện tại
     const isPasswordValid = await bcrypt.compare(
       currentPassword,
-      user.password
+      user.password,
     );
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -822,7 +829,7 @@ exports.changePassword = async (req, res) => {
       user._id,
       null,
       null,
-      `Password changed by user ${user.email}`
+      `Password changed by user ${user.email}`,
     );
 
     res.json({
@@ -842,7 +849,7 @@ exports.changePassword = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select(
-      "-password -resetPasswordToken -resetPasswordExpires -resetPasswordOTP -resetPasswordOTPExpires -emailVerificationOTP -emailVerificationOTPExpires"
+      "-password -resetPasswordToken -resetPasswordExpires -resetPasswordOTP -resetPasswordOTPExpires -emailVerificationOTP -emailVerificationOTPExpires",
     );
 
     if (!user) {

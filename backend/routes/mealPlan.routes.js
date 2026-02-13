@@ -1,6 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const mealPlanController = require('../controllers/mealPlan.controller');
+const { authenticate } = require('../middlewares/auth');
+
+// Tất cả route đều cần xác thực
+router.use(authenticate);
 
 // POST /api/v1/mealplans - Tạo MealPlan mới (AI gợi ý hoặc User tự tạo)
 router.post('/', mealPlanController.createMealPlan);

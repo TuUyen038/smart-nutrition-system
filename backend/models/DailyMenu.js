@@ -31,7 +31,19 @@ const dailyMenuSchema = new mongoose.Schema({
     sugar: Number,
     sodium: Number,
   },
-
+  //suggested: danh sách được AI gợi ý (chưa được user chọn)
+  //selected: dailtmenu được user chọn -> dại diện cho menu được gợi ý ban đầu chưa được người dùng chỉnh sửa
+  //edited: dailymenu từ AI đã được người dùng chọn và chỉnh sửa
+  status: {
+    type: String,
+    enum: ["planned", "selected", "suggested", "completed", "deleted", "edited"],
+    default: "planned",
+  },
+  originalMealId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "DailyMenu",
+    required: false,
+  },
   feedback: String,
 }, { timestamps: true });
 

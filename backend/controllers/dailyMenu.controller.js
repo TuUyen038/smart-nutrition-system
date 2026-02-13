@@ -1,21 +1,14 @@
-// src/controllers/meal.controller.js
-
 const dailyMenuService = require("../services/dailyMenu.service");
 const Recipe = require("../models/Recipe");
 const DailyMenu = require("../models/DailyMenu");
 
-const userId = "68f4394c4d4cc568e6bc5daa";
-
-/**
- * POST /api/daily-menus/suggest
- * body: { userId, date }  // date: "YYYY-MM-DD"
- */
 exports.suggestDailyMenu = async (req, res) => {
   try {
-    const { userId, date } = req.body;
+    const userId = req.user._id; // Lấy từ authenticated user
+    const { date } = req.body;
 
-    if (!userId || !date) {
-      return res.status(400).json({ message: "userId và date là bắt buộc" });
+    if (!date) {
+      return res.status(400).json({ message: "date là bắt buộc" });
     }
 
     const dailyMenu = await dailyMenuService.suggestDailyMenu({
@@ -32,37 +25,43 @@ exports.suggestDailyMenu = async (req, res) => {
     return res.status(500).json({ message: "Internal server error" });
   }
 };
-
 exports.createDailyMenu = async (req, res) => {
   try {
-    const meal = await dailyMenuService.createMeal(req.body);
+    const userId = req.user._id.toString();
+
+    const meal = await dailyMenuService.createDailyMenu({
+      ...req.body,
+      userId,
+    });
     res.status(200).json(meal);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
-exports.getDailyMenuById = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const detail = await dailyMenuService.getMealDetail(userId, id);
-    res.status(200).json(detail);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error retrieving meal detail" });
-  }
-};
-exports.getAllDailyMenu = async (req, res) => {
-  try {
-    const detail = await dailyMenuService.getAllMeal(userId);
-    res.status(200).json(detail);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Error retrieving meal detail" });
-  }
-};
+// exports.getDailyMenuById = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const detail = await dailyMenuService.getMealDetail(userId, id);
+//     res.status(200).json(detail);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Error retrieving meal detail" });
+//   }
+// };
+// exports.getAllDailyMenu = async (req, res) => {
+//   try {
+//     const detail = await dailyMenuService.getAllMeal(userId);
+//     res.status(200).json(detail);
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Error retrieving meal detail" });
+//   }
+// };
 
 exports.getRecipesByDateAndStatus = async (req, res) => {
   try {
+    const userId = req.user._id.toString();
+
     const { startDate, endDate, status } = req.query;
 
     const data = await dailyMenuService.getRecipesByDateAndStatus({
@@ -76,11 +75,9 @@ exports.getRecipesByDateAndStatus = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-// API: GET /api/meals/history
 exports.getHistory = async (req, res) => {
   try {
-    //const userId = req.user.id; // Lấy userId từ middleware xác thực
-    const userId = req.body.id;
+    const userId = req.user._id; // Lấy userId từ middleware xác thực
     const history = await dailyMenuService.getMealHistory(userId);
     res.status(200).json(history);
   } catch (error) {
@@ -88,12 +85,9 @@ exports.getHistory = async (req, res) => {
     res.status(500).json({ message: "Error retrieving meal history" });
   }
 };
-
-// API: POST /api/meals/add-recipe
 exports.addRecipe = async (req, res) => {
   try {
-    // const userId = req.user.id;
-    const userId = req.body.id;
+    const userId = req.user._id; // Lấy từ authenticated user
     const { date, mealType, recipeId, portion } = req.body;
 
     if (!date || !mealType || !recipeId) {
@@ -102,10 +96,9 @@ exports.addRecipe = async (req, res) => {
         .json({ message: "Missing required fields: date, mealType, recipeId" });
     }
 
-    // Gọi service để xử lý logic thêm/tạo và tính toán dinh dưỡng
     const updatedMeal = await dailyMenuService.addRecipeToMeal(
       userId,
-      req.body
+      req.body,
     );
 
     res.status(200).json(updatedMeal);
@@ -114,10 +107,10 @@ exports.addRecipe = async (req, res) => {
     res.status(500).json({ message: "Error adding recipe to meal" });
   }
 };
-
-// API: PUT /api/meals/:mealId/status
 exports.updateStatus = async (req, res) => {
   try {
+    const userId = req.user._id.toString();
+
     const { mealId } = req.params;
     const { newStatus } = req.body;
 
@@ -127,7 +120,7 @@ exports.updateStatus = async (req, res) => {
 
     const updatedMeal = await dailyMenuService.updateMealStatus(
       mealId,
-      newStatus
+      newStatus,
     );
     res.status(200).json(updatedMeal);
   } catch (error) {
@@ -137,21 +130,17 @@ exports.updateStatus = async (req, res) => {
       .json({ message: error.message || "Error updating meal status" });
   }
 };
-
-// src/controllers/meal.controller.js (Bổ sung)
-
 // API: PUT /api/meals/:mealId
 exports.updateMeal = async (req, res) => {
   try {
-    const userId = req.user.id; // Lấy ID người dùng từ token
+    const userId = req.user._id; // Lấy ID người dùng từ token
     const { mealId } = req.params;
     const updateData = req.body;
 
-    // Gọi service để thực hiện cập nhật và xử lý logic phức tạp
     const updatedMeal = await dailyMenuService.updateMeal(
       mealId,
       updateData,
-      userId
+      userId,
     );
 
     res.status(200).json(updatedMeal);
@@ -166,12 +155,12 @@ exports.updateMeal = async (req, res) => {
     res.status(500).json({ message: "Error updating meal: " + error.message });
   }
 };
-
 exports.addRecipeToDailyMenu = async (req, res) => {
   try {
-    const { userId, date, recipeId, portion, note, servingTime } = req.body;
+    const userId = req.user._id; // Lấy từ authenticated user
+    const { date, recipeId, portion, note, servingTime } = req.body;
 
-    if (!userId || !date || !recipeId) {
+    if (!date || !recipeId) {
       return res.status(400).json({ message: "Thiếu thông tin bắt buộc" });
     }
 

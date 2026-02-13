@@ -31,17 +31,17 @@ function createBackup() {
     // Tạo thư mục backup nếu chưa có
     if (!fs.existsSync(BACKUP_DIR)) {
       fs.mkdirSync(BACKUP_DIR, { recursive: true });
-      console.log(`✅ Created backup directory: ${BACKUP_DIR}`);
+      console.log(`Created backup directory: ${BACKUP_DIR}`);
     }
 
     // Kiểm tra nếu đã có backup hôm nay
     if (fs.existsSync(BACKUP_PATH)) {
-      console.log(`⚠️  Backup for today already exists: ${BACKUP_PATH}`);
+      console.log(`  Backup for today already exists: ${BACKUP_PATH}`);
       console.log("   Deleting old backup...");
       fs.rmSync(BACKUP_PATH, { recursive: true });
     }
 
-    console.log(`📦 Creating backup to: ${BACKUP_PATH}`);
+    console.log(` Creating backup to: ${BACKUP_PATH}`);
     console.log(
       `   MongoDB URI: ${MONGO_URI ? MONGO_URI.replace(/\/\/.*@/, "//***:***@") : "Not set"}`
     );
@@ -50,15 +50,15 @@ function createBackup() {
 
     exec(command, (error, stdout, stderr) => {
       if (error) {
-        console.error("❌ Backup failed:", error.message);
+        console.error(" Backup failed:", error.message);
         return reject(error);
       }
 
       if (stderr && !stderr.includes("writing")) {
-        console.warn("⚠️  Warning:", stderr);
+        console.warn("⚠️ Warning:", stderr);
       }
 
-      console.log("✅ Backup successful!");
+      console.log(" Backup successful!");
       console.log(`   Location: ${BACKUP_PATH}`);
 
       // Tính kích thước backup
@@ -82,25 +82,25 @@ function restoreBackup(restorePath) {
       return reject(new Error(`Backup path does not exist: ${restorePath}`));
     }
 
-    console.log(`🔄 Restoring from: ${restorePath}`);
+    console.log(` Restoring from: ${restorePath}`);
     console.log(
       `   MongoDB URI: ${MONGO_URI ? MONGO_URI.replace(/\/\/.*@/, "//***:***@") : "Not set"}`
     );
-    console.log("   ⚠️  WARNING: This will overwrite existing data!");
+    console.log("     WARNING: This will overwrite existing data!");
 
     const command = `mongorestore --uri="${MONGO_URI}" --drop "${restorePath}"`;
 
     exec(command, (error, stdout, stderr) => {
       if (error) {
-        console.error("❌ Restore failed:", error.message);
+        console.error(" Restore failed:", error.message);
         return reject(error);
       }
 
       if (stderr && !stderr.includes("restoring")) {
-        console.warn("⚠️  Warning:", stderr);
+        console.warn("  Warning:", stderr);
       }
 
-      console.log("✅ Restore successful!");
+      console.log(" Restore successful!");
       resolve();
     });
   });
@@ -123,16 +123,16 @@ function cleanupOldBackups() {
 
       if (stats.isDirectory() && stats.mtime.getTime() < sevenDaysAgo) {
         fs.rmSync(filePath, { recursive: true });
-        console.log(`🗑️  Deleted old backup: ${file}`);
+        console.log(`  Deleted old backup: ${file}`);
         deletedCount++;
       }
     });
 
     if (deletedCount > 0) {
-      console.log(`✅ Cleaned up ${deletedCount} old backup(s)`);
+      console.log(` Cleaned up ${deletedCount} old backup(s)`);
     }
   } catch (error) {
-    console.error("❌ Error cleaning up old backups:", error.message);
+    console.error(" Error cleaning up old backups:", error.message);
   }
 }
 
@@ -175,12 +175,9 @@ function formatBytes(bytes) {
   return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i];
 }
 
-/**
- * Main
- */
 async function main() {
   if (!MONGO_URI) {
-    console.error("❌ MONGO_URI is not set in .env file");
+    console.error(" MONGO_URI is not set in .env file");
     process.exit(1);
   }
 
@@ -191,7 +188,7 @@ async function main() {
       await createBackup();
     }
   } catch (error) {
-    console.error("❌ Error:", error.message);
+    console.error(" Error:", error.message);
     process.exit(1);
   }
 }

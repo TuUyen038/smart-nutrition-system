@@ -4,24 +4,24 @@ const dotenv = require("dotenv");
 dotenv.config();
 
 const connectDB = require("./config/database");
-const indexRoutes = require("./routes/index.routes"); // 👈 Router tổng
+const indexRoutes = require("./routes/index.routes");
 
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpecs = require("./config/swagger");
 
-// Kết nối MongoDB
 connectDB();
 
 const app = express();
 
-// Middleware
 app.use(cors({
-  origin: "http://localhost:3001", // cho phép React truy cập
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin: "http://localhost:3001",
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
-// Mount router tổng
 app.use("/api", indexRoutes);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpecs));
 
 module.exports = app;

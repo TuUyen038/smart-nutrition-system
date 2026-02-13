@@ -2,12 +2,7 @@ const User = require("../models/User");
 const Recipe = require("../models/Recipe");
 const mongoose = require("mongoose");
 
-/**
- * Thêm món ăn vào danh sách yêu thích
- * @param {string} userId - ID của user
- * @param {string} recipeId - ID của recipe
- * @returns {Promise<Object>} User đã được cập nhật
- */
+// Thêm món ăn vào danh sách yêu thích
 exports.addFavorite = async (userId, recipeId) => {
   // Validate IDs
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -17,10 +12,13 @@ exports.addFavorite = async (userId, recipeId) => {
     throw new Error("Recipe ID không hợp lệ");
   }
 
-  // Kiểm tra recipe có tồn tại không
-  const recipe = await Recipe.findById(recipeId);
+  // Kiểm tra recipe có tồn tại không và chưa bị xóa
+  const recipe = await Recipe.findOne({
+    _id: recipeId,
+    deleted: { $ne: true },
+  });
   if (!recipe) {
-    throw new Error("Món ăn không tồn tại");
+    throw new Error("Món ăn không tồn tại hoặc đã bị xóa");
   }
 
   // Tìm user và kiểm tra đã favorite chưa
@@ -29,8 +27,11 @@ exports.addFavorite = async (userId, recipeId) => {
     throw new Error("User không tồn tại");
   }
 
-  // Kiểm tra đã favorite chưa
-  if (user.favoriteRecipes.includes(recipeId)) {
+  // Kiểm tra đã favorite chưa - sử dụng toString() để so sánh ObjectId với string
+  const isAlreadyFavorite = user.favoriteRecipes.some(
+    (id) => id.toString() === recipeId
+  );
+  if (isAlreadyFavorite) {
     throw new Error("Món ăn đã có trong danh sách yêu thích");
   }
 
@@ -41,12 +42,7 @@ exports.addFavorite = async (userId, recipeId) => {
   return user;
 };
 
-/**
- * Xóa món ăn khỏi danh sách yêu thích
- * @param {string} userId - ID của user
- * @param {string} recipeId - ID của recipe
- * @returns {Promise<Object>} User đã được cập nhật
- */
+// Xóa món ăn khỏi danh sách yêu thích
 exports.removeFavorite = async (userId, recipeId) => {
   // Validate IDs
   if (!mongoose.Types.ObjectId.isValid(userId)) {
@@ -62,8 +58,11 @@ exports.removeFavorite = async (userId, recipeId) => {
     throw new Error("User không tồn tại");
   }
 
-  // Kiểm tra có trong danh sách yêu thích không
-  if (!user.favoriteRecipes.includes(recipeId)) {
+  // Kiểm tra có trong danh sách yêu thích không - sử dụng toString() để so sánh ObjectId với string
+  const isFavorite = user.favoriteRecipes.some(
+    (id) => id.toString() === recipeId
+  );
+  if (!isFavorite) {
     throw new Error("Món ăn không có trong danh sách yêu thích");
   }
 
@@ -76,12 +75,7 @@ exports.removeFavorite = async (userId, recipeId) => {
   return user;
 };
 
-/**
- * Lấy danh sách món ăn yêu thích của user
- * @param {string} userId - ID của user
- * @param {Object} options - Options cho pagination
- * @returns {Promise<Object>} Danh sách recipes yêu thích
- */
+// Lấy danh sách món ăn yêu thích của user
 exports.getFavoriteRecipes = async (userId, options = {}) => {
   const page = Number(options.page) > 0 ? Number(options.page) : 1;
   const limit = Number(options.limit) > 0 ? Number(options.limit) : 20;
@@ -107,9 +101,9 @@ exports.getFavoriteRecipes = async (userId, options = {}) => {
   // Lấy recipes với pagination
   const recipeIdsPaginated = recipeIds.slice(skip, skip + limit);
 
-  // Populate recipes
   const recipes = await Recipe.find({
     _id: { $in: recipeIdsPaginated },
+    deleted: { $ne: true },
   })
     .sort({ createdAt: -1 })
     .lean();
@@ -128,12 +122,7 @@ exports.getFavoriteRecipes = async (userId, options = {}) => {
   };
 };
 
-/**
- * Kiểm tra xem recipe có trong danh sách yêu thích không
- * @param {string} userId - ID của user
- * @param {string} recipeId - ID của recipe
- * @returns {Promise<boolean>} true nếu đã favorite, false nếu chưa
- */
+// Kiểm tra xem recipe có trong danh sách yêu thích không
 exports.isFavorite = async (userId, recipeId) => {
   if (
     !mongoose.Types.ObjectId.isValid(userId) ||
@@ -150,12 +139,7 @@ exports.isFavorite = async (userId, recipeId) => {
   return user.favoriteRecipes.some((id) => id.toString() === recipeId);
 };
 
-/**
- * Lấy danh sách favorite status cho nhiều recipes
- * @param {string} userId - ID của user
- * @param {string[]} recipeIds - Mảng các recipe IDs
- * @returns {Promise<Object>} Object với key là recipeId, value là boolean
- */
+// Lấy danh sách favorite status cho nhiều recipes
 exports.getFavoriteStatuses = async (userId, recipeIds) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return {};

@@ -1,8 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const nutritionGoalController = require("../controllers/nutritionGoal.controller");
+const { authenticate } = require("../middlewares/auth");
 
-// GET /api/nutrition-goal/:userId
-router.get("/:userId", nutritionGoalController.getByUser);
+router.use(authenticate);
+
+router.get("/", nutritionGoalController.getAllGoals);
+router.get("/active", nutritionGoalController.getActiveGoal);
 
 module.exports = router;

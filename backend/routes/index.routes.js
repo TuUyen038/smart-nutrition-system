@@ -12,6 +12,7 @@ const recipeRoutes = require("./recipe.routes");
 const uploadImageRoutes = require("./uploadImage.routes");
 const auditLogRoutes = require("./auditLog.routes");
 const favoriteRoutes = require("./favorite.routes");
+const dashboardRoutes = require("./dashboard.routes");
 
 // Public routes (không cần authentication)
 router.use("/auth", authRoutes);
@@ -19,7 +20,7 @@ router.use("/auth", authRoutes);
 // Protected routes (cần authentication)
 router.use("/users", userRoutes);
 router.use("/ingredients", ingredientRoutes);
-router.use("/nutrition-goal", nutritionGoalRoutes);
+router.use("/nutrition-goals", nutritionGoalRoutes);
 router.use("/daily-menu", dailyMenuRoutes);
 router.use("/meal-plans", mealPlanRoutes);
 router.use("/recipes", recipeRoutes);
@@ -28,6 +29,7 @@ router.use("/favorites", favoriteRoutes);
 
 // Admin only routes
 router.use("/audit-logs", auditLogRoutes);
+router.use("/admin/dashboard", dashboardRoutes);
 
 // Export router tổng
 module.exports = router;

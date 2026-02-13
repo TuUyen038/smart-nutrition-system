@@ -1,53 +1,125 @@
+const mongoose = require("mongoose");
 const NutritionGoal = require("../models/NutritionGoal");
 
+const DEFAULT_ACTIVITY_FACTOR = 1.55; // moderate
+
+// ========================
+// BMR (Mifflin-St Jeor)
+// ========================
 function calculateBMR({ gender, age, height, weight }) {
   if (!gender || !age || !height || !weight) return 0;
+
   return gender === "male"
     ? 10 * weight + 6.25 * height - 5 * age + 5
     : 10 * weight + 6.25 * height - 5 * age - 161;
 }
 
+// ========================
+// TDEE = BMR × Activity
+// ========================
+function calculateTDEE(user) {
+  const bmr = calculateBMR(user);
+  if (!bmr) return 0;
+
+  const activityFactor = user.activityFactor || DEFAULT_ACTIVITY_FACTOR;
+  return bmr * activityFactor;
+}
+
+// ========================
+// Adjust by Goal
+// ========================
 function adjustByGoal(calories, goal) {
   switch (goal) {
-    case "lose_weight": return calories - 500;
-    case "gain_weight": return calories + 500;
-    default: return calories;
+    case "lose_weight":
+      return calories - 500;
+    case "gain_weight":
+      return calories + 500;
+    default:
+      return calories;
   }
 }
 
-exports.calculateNutritionGoal = (user) => {
-  const bmr = calculateBMR(user);
-  const caloriesTarget = adjustByGoal(bmr, user.goal);
+// ========================
+// Calculate Nutrition Target
+// ========================
+function calculateNutritionGoal(user) {
+  const tdee = calculateTDEE(user);
+  if (!tdee) return null;
+
+  const calories = Math.round(adjustByGoal(tdee, user.goal));
 
   return {
-    caloriesTarget,
-    proteinTarget: Math.round((caloriesTarget * 0.3) / 4),
-    fatTarget: Math.round((caloriesTarget * 0.25) / 9),
-    carbTarget: Math.round((caloriesTarget * 0.45) / 4),
-    fiberTarget: 25,
-    sugarLimit: 50,
-    sodiumLimit: 2300,
+    calories, // kcal
+    protein: Math.round((calories * 0.3) / 4),  // g
+    fat: Math.round((calories * 0.25) / 9),     // g
+    carbs: Math.round((calories * 0.45) / 4),   // g
+    fiber: 25,                                  // g
+    sugar: 50,                                  // g
+    sodium: 2300,                               // mg
   };
-};
+}
 
-exports.upsertNutritionGoal = async (user) => {
-  const goalData = this.calculateNutritionGoal(user);
-  let goal = await NutritionGoal.findOne({ userId: user._id });
+async function createNutritionGoal(user) {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (goal) {
-    Object.assign(goal, goalData);
-    goal.status = "active";
-    await goal.save();
-  } else {
-    goal = await NutritionGoal.create({
-      userId: user._id,
-      ...goalData,
-    });
+  try {
+    const targetNutrition = calculateNutritionGoal(user);
+
+    if (!targetNutrition) {
+      throw new Error("Cannot calculate nutrition goal");
+    }
+
+    // Archive goal active cũ
+    await NutritionGoal.updateMany(
+      { userId: user._id, status: "active" },
+      { status: "archived" },
+      { session }
+    );
+
+    // Create goal mới
+    const [newGoal] = await NutritionGoal.create(
+      [
+        {
+          userId: user._id,
+          bodySnapshot: {
+            age: user.age,
+            gender: user.gender,
+            height: user.height,
+            weight: user.weight,
+            goal: user.goal,
+            activityFactor: user.activityFactor || DEFAULT_ACTIVITY_FACTOR,
+          },
+          targetNutrition,
+          status: "active",
+        },
+      ],
+      { session }
+    );
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return newGoal;
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    throw error;
+  }
+}
+async function getActiveGoal(req, res) {
+  const goal = await NutritionGoal.findOne({
+    userId: req.user._id,
+    status: "active",
+  });
+
+  if (!goal) {
+    return res.status(404).json({ message: "No active goal found" });
   }
 
-  return goal;
+  res.json(goal);
 };
-
-//calo: kcal
-//pro, fat, carb, fiber, sugar: gram
-//sodium: mg
+module.exports = {
+  createNutritionGoal,
+  getActiveGoal,
+};

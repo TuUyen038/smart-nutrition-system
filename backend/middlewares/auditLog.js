@@ -55,34 +55,10 @@ async function logAction(req, action, resourceType, resourceId, oldData, newData
       success: true,
     });
   } catch (error) {
-    console.error("❌ Failed to log audit:", error);
+    console.error("Failed to log audit:", error);
     // Không throw error để không làm gián đoạn request
   }
 }
-
-/**
- * Middleware để tự động ghi log cho các hành động DELETE
- */
-exports.logDelete = async (req, res, next) => {
-  // Lưu lại resource trước khi xóa
-  const originalSend = res.json;
-  res.json = async function(data) {
-    // Nếu thành công và có resourceId
-    if (res.statusCode === 200 && req.resourceToDelete) {
-      await logAction(
-        req,
-        "DELETE",
-        req.resourceType,
-        req.params.id,
-        req.resourceToDelete,
-        null,
-        req.body.reason || "Deleted"
-      );
-    }
-    return originalSend.call(this, data);
-  };
-  next();
-};
 
 module.exports = { logAction };
 

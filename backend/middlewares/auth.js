@@ -1,9 +1,7 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-/**
- * Authentication Middleware - Kiểm tra JWT token
- */
+// Authentication - Kiểm tra JWT token
 exports.authenticate = async (req, res, next) => {
   try {
     // Lấy token từ header
@@ -49,10 +47,6 @@ exports.authenticate = async (req, res, next) => {
   }
 };
 
-/**
- * Authorization Middleware - Kiểm tra role
- * @param {Array} allowedRoles - Mảng các role được phép
- */
 exports.authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -85,7 +79,7 @@ exports.ensureOwnershipOrAdmin = (req, res, next) => {
   
   if (requestedUserId && requestedUserId !== req.user._id.toString()) {
     return res.status(403).json({ 
-      message: "Bạn chỉ có thể truy cập dữ liệu của chính mình." 
+      message: "Bạn không có quyền thực hiện hành động này." 
     });
   }
 

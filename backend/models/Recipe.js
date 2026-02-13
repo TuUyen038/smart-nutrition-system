@@ -17,10 +17,10 @@ const recipeSchema = new mongoose.Schema(
         ingredientId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Ingredient",
-          required: false, // mapping xong mới có
+          required: false,
         },
         quantity: {
-          amount: { type: Number, required: true }, // cho phép null thì không cần required
+          amount: { type: Number, required: true },
           unit: {
             type: String,
             enum: ["g", "kg", "l", "ml", "cup", "tbsp", "tsp", "unit"],
@@ -50,8 +50,9 @@ const recipeSchema = new mongoose.Schema(
       enum: ["admin", "user", "ai"],
       default: "admin",
     },
-    verified: { type: Boolean, default: false },
+    verified: { type: Boolean, default: true },
     // isPublic: { type: Boolean, default: false },
+    deleted: { type: Boolean, default: false }, // Soft delete
 
   },
   { timestamps: true }

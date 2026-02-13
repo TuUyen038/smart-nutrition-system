@@ -2,10 +2,6 @@ const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const AuditLog = require("../models/AuditLog");
 
-/**
- * Tạo admin mặc định nếu chưa có admin nào trong database
- * Chỉ chạy khi chưa có user nào có role ADMIN
- */
 async function createDefaultAdmin() {
   try {
     // Kiểm tra xem đã có admin chưa
@@ -91,22 +87,16 @@ async function createDefaultAdmin() {
       console.error("Failed to log audit for default admin:", auditError);
     }
 
-    // Console log chỉ để developer biết (có thể xóa hoặc chỉ log trong dev mode)
     if (process.env.NODE_ENV !== "production") {
-      console.log("✅ Default admin account created successfully!");
+      console.log("Default admin account created successfully!");
       console.log(`   Email: ${defaultEmail}`);
       console.log(`   Password: ${defaultPassword}`);
-      console.log(`   Role: ADMIN`);
-      console.log(
-        "\n⚠️  IMPORTANT: Change the default password after first login!"
-      );
+      
     } else {
-      // Production: chỉ log thông báo ngắn gọn, không log password
-      console.log(`✅ Default admin account created: ${defaultEmail}`);
+      console.log(`Default admin account created: ${defaultEmail}`);
     }
   } catch (error) {
-    console.error("❌ Error creating default admin:", error.message);
-    // Không throw error để không làm gián đoạn app startup
+    console.error("Error creating default admin:", error.message);
   }
 }
 

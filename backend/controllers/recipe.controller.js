@@ -1,4 +1,3 @@
-// analyzeController.js (Tối ưu hóa)
 const fs = require("fs");
 const Recipe = require("../models/Recipe");
 const mongoose = require("mongoose");
@@ -9,11 +8,10 @@ const {
   searchRecipesByIngredientName,
   searchRecipesByImage,
 } = require("../services/recipe.service");
-// Sửa import: Lấy tất cả các hàm mới
+
 const {
   identifyFoodName,
   getRecipe,
-  getNutritionByAi,
   getSubstitutionsAndWarnings,
   getRecipeStream,
   getIngredients,
@@ -54,7 +52,6 @@ const getAllRecipe = async (req, res) => {
       sortOrder = "desc",
     } = req.query;
 
-    // Build query
     const query = {};
 
     if (search && search.trim()) {
@@ -83,6 +80,9 @@ const getAllRecipe = async (req, res) => {
     // Pagination
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const limitNum = parseInt(limit);
+
+    // Filter deleted: false (chỉ lấy món chưa bị xóa)
+    query.deleted = { $ne: true };
 
     // Execute query
     const [recipes, total] = await Promise.all([
@@ -146,13 +146,11 @@ const detectImage = async (req, res, next) => {
       });
     }
 
-    console.log(`🍜 Món ăn được nhận diện: **${foodName}**`);
     res.status(200).json({
       foodName: foodName,
     });
   } catch (error) {
-    console.error("🚨 Global Error:", error);
-    // Nếu có lỗi, luôn dọn dẹp và gọi next() để middleware xử lý lỗi
+    console.error("Global Error:", error);
     next(error);
   } finally {
     // Dọn file tạm
@@ -191,10 +189,9 @@ const searchByImage = async (req, res, next) => {
   }
 
   try {
-    console.log("🔍 [Hybrid Search] Bắt đầu tìm kiếm món ăn bằng ảnh...");
+    console.log("Bắt đầu tìm kiếm món ăn bằng ảnh...");
 
     // Bước 1: Detect tên món từ ảnh
-    console.log("   → Bước 1: Nhận diện tên món từ ảnh...");
     const detectionJsonString = await identifyFoodName(imageFile);
     const parsedDetection = safeParse(detectionJsonString);
     const foodName = parsedDetection.foodName || null;
@@ -207,16 +204,15 @@ const searchByImage = async (req, res, next) => {
       });
     }
 
-    console.log(`   ✅ Tên món được nhận diện: "${foodName}"`);
+    console.log(`Tên món được nhận diện: "${foodName}"`);
 
     // Bước 2: Text search trong database
-    console.log(`   → Bước 2: Tìm kiếm "${foodName}" trong database...`);
     const searchResult = await searchRecipesByImage(foodName, {
       page: Number(page),
       limit: Number(limit),
     });
 
-    console.log(`   ✅ Tìm thấy ${searchResult.recipes.length} kết quả`);
+    console.log(`Tìm thấy ${searchResult.recipes.length} kết quả`);
 
     // Bước 3: Return kết quả
     res.status(200).json({
@@ -231,7 +227,7 @@ const searchByImage = async (req, res, next) => {
       },
     });
   } catch (error) {
-    console.error("🚨 [Hybrid Search] Error:", error);
+    console.error("[Hybrid Search] Error:", error);
     next(error);
   } finally {
     // Dọn file tạm
@@ -250,10 +246,49 @@ const getRecipeById = async (req, res) => {
   }
 
   try {
-    const recipe = await Recipe.findById(id);
+    const recipe = await Recipe.findOne({
+      _id: id,
+      deleted: { $ne: true },
+    })
+      .populate({
+        path: "ingredients.ingredientId",
+        select: "name name_en",
+        match: { deleted: { $ne: true } },
+      })
+      .lean();
     if (!recipe) {
       return res.status(404).json({ message: "Recipe not found" });
     }
+
+    // Map ingredients để thêm ingredientLabel từ populated data
+    if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
+      recipe.ingredients = recipe.ingredients.map((ing) => {
+        const populatedIngredient = ing.ingredientId;
+        // Nếu ingredientId được populate thành object (có _id, name, name_en)
+        // thì đây là ingredient hợp lệ, lấy name từ đó
+        if (
+          populatedIngredient &&
+          typeof populatedIngredient === "object" &&
+          populatedIngredient._id
+        ) {
+          return {
+            ...ing,
+            ingredientLabel:
+              populatedIngredient.name ||
+              populatedIngredient.name_en ||
+              ing.name ||
+              "",
+          };
+        }
+        // Nếu ingredientId là ObjectId nhưng không populate được (ingredient bị xóa)
+        // hoặc không có ingredientId, giữ nguyên name từ DB
+        return {
+          ...ing,
+          ingredientLabel: ing.ingredientLabel || ing.name || "",
+        };
+      });
+    }
+
     return res.status(200).json(recipe);
   } catch (error) {
     console.error("Lỗi khi tìm món ăn:", error);
@@ -270,17 +305,18 @@ const findRecipeByName = async (req, res) => {
     const recipe = await Recipe.findOne({
       name: { $regex: new RegExp(foodName, "i") },
       verified: true,
+      deleted: { $ne: true }, // Filter deleted
     })
       .select("name ingredients instructions totalNutrition")
       .populate("ingredients", "name quantity unit")
       .lean();
     if (!recipe) {
-      console.log(`❌ Không tìm thấy trong DB: ${foodName}`);
+      console.log(` Không tìm thấy trong DB: ${foodName}`);
 
       return res.status(200).json(null);
     }
 
-    console.log(`✅ Đã tìm thấy công thức trong DB: ${recipe.name}`);
+    console.log(`Đã tìm thấy công thức trong DB: ${recipe.name}`);
     return res.status(200).json(recipe);
   } catch (error) {
     console.error("Lỗi khi tìm mon an:", error);
@@ -465,7 +501,10 @@ const checkDuplicateName = async (req, res) => {
       return res.status(400).json({ message: "Tên món ăn là bắt buộc" });
     }
 
-    const query = { name: { $regex: new RegExp(`^${name.trim()}$`, "i") } };
+    const query = {
+      name: { $regex: new RegExp(`^${name.trim()}$`, "i") },
+      deleted: { $ne: true }, // Filter deleted
+    };
     if (excludeId) {
       query._id = { $ne: excludeId };
     }
@@ -539,6 +578,7 @@ const updateRecipe = async (req, res) => {
       const existing = await Recipe.findOne({
         name: { $regex: new RegExp(`^${req.body.name.trim()}$`, "i") },
         _id: { $ne: id },
+        deleted: { $ne: true }, // Filter deleted
       });
 
       if (existing) {
@@ -631,8 +671,9 @@ const deleteRecipe = async (req, res) => {
       return res.status(404).json({ message: "Recipe not found" });
     }
 
-    // Xóa
-    await Recipe.findByIdAndDelete(id);
+    // Soft delete: Set deleted = true thay vì xóa
+    recipe.deleted = true;
+    await recipe.save();
 
     res.status(200).json({ message: "Recipe deleted successfully" });
   } catch (error) {
@@ -656,7 +697,7 @@ const getIngredientSubstitutions = async (req, res) => {
     // LOG: Request từ frontend
     console.log("🔵 [Controller] ===== REQUEST TỪ FRONTEND =====");
     console.log(
-      "📦 ingredientsToSubstitute count:",
+      "ingredientsToSubstitute count:",
       ingredientsToSubstitute?.length || 0
     );
     console.log("📋 allIngredients count:", allIngredients?.length || 0);
@@ -676,7 +717,7 @@ const getIngredientSubstitutions = async (req, res) => {
       ingredientsToSubstitute.length === 0
     ) {
       console.log(
-        "❌ [Controller] Validation failed: ingredientsToSubstitute is empty"
+        "[Controller] Validation failed: ingredientsToSubstitute is empty"
       );
       return res.status(400).json({
         success: false,
@@ -689,7 +730,7 @@ const getIngredientSubstitutions = async (req, res) => {
       !Array.isArray(allIngredients) ||
       allIngredients.length === 0
     ) {
-      console.log("❌ [Controller] Validation failed: allIngredients is empty");
+      console.log("[Controller] Validation failed: allIngredients is empty");
       return res.status(400).json({
         success: false,
         message: "Danh sách tất cả nguyên liệu là bắt buộc",
@@ -697,7 +738,7 @@ const getIngredientSubstitutions = async (req, res) => {
     }
 
     if (!userGoal) {
-      console.log("❌ [Controller] Validation failed: userGoal is missing");
+      console.log(" [Controller] Validation failed: userGoal is missing");
       return res.status(400).json({
         success: false,
         message: "Mục tiêu của người dùng là bắt buộc",
@@ -716,16 +757,8 @@ const getIngredientSubstitutions = async (req, res) => {
     let parsedResult;
     try {
       parsedResult = JSON.parse(result);
-      console.log("✅ [Controller] ===== KẾT QUẢ TRẢ VỀ FRONTEND =====");
-      console.log("📦 parsedResult:", JSON.stringify(parsedResult, null, 2));
-      console.log(
-        "🔢 substitutions count:",
-        parsedResult.substitutions?.length || 0
-      );
-      console.log("==========================================");
+      console.log("[Controller] ===== KẾT QUẢ TRẢ VỀ FRONTEND =====");
     } catch (parseError) {
-      console.error("❌ [Controller] Lỗi parse JSON từ AI:", parseError);
-      console.error("📄 Raw result:", result);
       return res.status(500).json({
         success: false,
         message: "Lỗi khi xử lý kết quả từ AI",

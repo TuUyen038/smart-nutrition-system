@@ -1,5 +1,5 @@
 const Recipe = require("../models/Recipe");
-const { searchByName } = require("../utils/search.util");
+const { searchByName } = require("../utils/search");
 const Ingredient = require("../models/Ingredient");
 
 const escapeRegex = (text) => {
@@ -31,6 +31,7 @@ exports.searchRecipesByIngredientName = async (keyword, options = {}) => {
       { name: regex },
       { "ingredients.name": regex },
     ],
+    deleted: { $ne: true },
   };
 
   const pipeline = [
@@ -42,7 +43,6 @@ exports.searchRecipesByIngredientName = async (keyword, options = {}) => {
         matchByName: { $regexMatch: { input: "$name", regex } },
       },
     },
-
     // lọc ra các ingredients match
     {
       $addFields: {
@@ -113,7 +113,10 @@ exports.searchRecipes = async (name) => {
 };
 
 exports.getRecipeById = async (id) => {
-  return await Recipe.findById(id);
+  return await Recipe.findOne({
+    _id: id,
+    deleted: { $ne: true },
+  });
 };
 
 exports.createRecipe = async (recipe) => {
@@ -139,7 +142,7 @@ exports.saveRecipeToDB = async (recipeData) => {
 exports.getVerifiedRecipes = async () => {
   try {
     const recipes = await Recipe.find(
-      { verified: true },
+      { verified: true, deleted: { $ne: true } },
       { name: 1, "totalNutrition.calories": 1, imageUrl: 1, public_id: 1 } // projection
     );
     return recipes;
@@ -150,13 +153,8 @@ exports.getVerifiedRecipes = async () => {
   }
 };
 
-/**
- * Hybrid Image→Text→Search
- * Tìm kiếm recipes dựa trên tên món ăn đã được detect từ ảnh
- * @param {string} foodName - Tên món ăn đã được detect từ ảnh
- * @param {Object} options - Options cho pagination
- * @returns {Promise<Object>} Kết quả tìm kiếm với recipes, total, page, limit
- */
+// Hybrid Image→Text→Search
+// Tìm kiếm recipes dựa trên tên món ăn đã được detect từ ảnh
 exports.searchRecipesByImage = async (foodName, options = {}) => {
   // Sử dụng lại function searchRecipesByIngredientName đã có
   // vì nó tìm trong name và ingredients.name, phù hợp cho tên món ăn

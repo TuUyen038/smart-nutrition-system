@@ -1,8 +1,5 @@
 const Ingredient = require("../models/Ingredient");
 
-/**
- * Convert quantity to grams
- */
 function convertToGrams(amount, unit) {
   if (!amount || amount <= 0) return 0;
 
@@ -32,9 +29,6 @@ function convertToGrams(amount, unit) {
   }
 }
 
-/**
- * Calculate total nutrition for a recipe from its ingredients
- */
 async function calculateRecipeNutrition(ingredients, servings = 1) {
   const totalNutrition = {
     calories: 0,

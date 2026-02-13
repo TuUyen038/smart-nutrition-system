@@ -3,10 +3,11 @@ const mealPlanService = require('../services/mealPlan.service');
 
 async function getWeekStatus (req, res) {
   try {
-    const { userId, startDate, days } = req.query;
+    const userId = req.user._id; // Lấy từ authenticated user
+    const { startDate, days } = req.query;
 
-    if (!userId || !startDate) {
-      return res.status(400).json({ message: "userId và startDate là bắt buộc" });
+    if (!startDate) {
+      return res.status(400).json({ message: "startDate là bắt buộc" });
     }
 
     const result = await mealPlanService.checkWeekDailyMenus({
@@ -29,11 +30,12 @@ async function getWeekStatus (req, res) {
  */
 async function suggestWeekPlan(req, res) {
   try {
-    const { userId, startDate, days, mode } = req.body;
+    const userId = req.user._id; // Lấy từ authenticated user
+    const { startDate, days, mode } = req.body;
     // mode: "reuse" | "overwrite"
 
-    if (!userId || !startDate) {
-      return res.status(400).json({ message: "userId và startDate là bắt buộc" });
+    if (!startDate) {
+      return res.status(400).json({ message: "startDate là bắt buộc" });
     }
 
     const mealPlan = await mealPlanService.suggestWeekPlan({
@@ -60,7 +62,7 @@ async function suggestWeekPlan(req, res) {
 
 const getMealPlanByStartDate = async (req, res) => {
     try {
-        const userId = "68f4394c4d4cc568e6bc5daa" // lấy từ middleware auth
+        const userId = req.user._id; // Lấy từ middleware auth
         const { startDate } = req.query;
         if (!startDate) {
             return res.status(400).json({ error: "startDate là bắt buộc." });
@@ -80,7 +82,7 @@ const getMealPlanByStartDate = async (req, res) => {
 
 const createMealPlan = async (req, res) => {
     try {
-        const userId = req.body.userId; // Hoặc lấy từ middleware Auth
+        const userId = req.user._id; // Lấy từ middleware Auth
         const planData = req.body;
 
         if ( !planData.startDate) {
@@ -100,8 +102,8 @@ const createMealPlan = async (req, res) => {
 
 const getMealPlans = async (req, res) => {
     try {
-        const userId = req.userId;
-        const plans = await mealPlanService.getPlansByUserId(userId, req.query);
+        const userId = req.user._id;
+        const plans = await mealPlanService.getPlansByUserId({ ...req.query, userId });
         return res.status(200).json({ data: plans });
     } catch (error) {
         console.error("Lỗi khi lấy danh sách MealPlan:", error.message);
@@ -114,7 +116,7 @@ const getMealPlanDetail = async (req, res) => {
         const { planId } = req.params;
         const plan = await mealPlanService.getPlanById(planId);
 
-        if (!plan || plan.userId.toString() !== req.userId) {
+        if (!plan || plan.userId.toString() !== req.user._id.toString()) {
             return res.status(404).json({ error: "Không tìm thấy MealPlan." });
         }
 
@@ -129,7 +131,7 @@ const updatePlanStatus = async (req, res) => {
     try {
         const { planId } = req.params;
         const { newStatus } = req.body;
-        const userId = req.userId;
+        const userId = req.user._id;
 
         if (!newStatus) return res.status(400).json({ error: "newStatus là bắt buộc." });
 
@@ -150,7 +152,7 @@ const updatePlanStatus = async (req, res) => {
 const deleteMealPlan = async (req, res) => {
     try {
         const { planId } = req.params;
-        const userId = req.userId;
+        const userId = req.user._id;
 
         await mealPlanService.deletePlan(userId, planId);
         return res.status(200).json({ message: "MealPlan đã được xóa thành công." });

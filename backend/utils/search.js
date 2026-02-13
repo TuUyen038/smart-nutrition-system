@@ -2,21 +2,11 @@
  * Universal Search Utility for MongoDB (Mongoose)
  * ------------------------------------------------
  * Tính năng:
- *  - Tìm theo 1 hoặc nhiều field (ví dụ: name, description)
+ *  - Tìm theo 1 hoặc nhiều field (ví dụ: name, description, ...)
  *  - Có thể giới hạn kết quả (limit)
  *  - Có thể sắp xếp (sort)
  *  - Có thể phân trang (page, limit)
  *  - Có thể chọn fields trả về (select)
- *
- * @param {Mongoose.Model} Model - Mongoose model cần search
- * @param {Object} options - Tuỳ chọn tìm kiếm
- * @param {string} options.keyword - Từ khoá tìm kiếm
- * @param {string[]} [options.fields=["name"]] - Danh sách field để tìm trong
- * @param {number} [options.page=1] - Trang hiện tại (pagination)
- * @param {number} [options.limit=10] - Số kết quả mỗi trang
- * @param {Object} [options.sort={ createdAt: -1 }] - Sắp xếp (mặc định: mới nhất)
- * @param {string} [options.select] - Các field cần lấy ra (VD: "name calories")
- * @returns {Promise<{ results: any[], total: number, totalPages: number, currentPage: number }>}
  */
 
 exports.universalSearch = async (Model, options = {}) => {

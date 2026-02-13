@@ -1,6 +1,6 @@
 const Meal = require("../models/DailyMenu"); // Cần để tham chiếu (dù chưa dùng trong các hàm này)
 const MealPlan = require("../models/MealPlan");
-const { calculateEndDate } = require("../utils/mealPlan.util");
+const { calculateEndDate } = require("../utils/date");
 const mongoose = require("mongoose");
 const DailyMenuService = require("../services/dailyMenu.service");
 const DailyMenu = require("../models/DailyMenu");
@@ -144,6 +144,7 @@ class MealPlanService {
       query["ingredients.name"] = { $nin: user.bannedIngredients };
     }
 
+    query.deleted = { $ne: true }; // ✅ Filter deleted
     let candidates = await Recipe.find(query).lean();
     if (!candidates.length) return null;
 
@@ -272,7 +273,6 @@ class MealPlanService {
           dateStr: normalizedDate,
         }
       );
-      // console.log("recipesPlanned:", recipesPlanned);
       existing = await DailyMenu.create({
         userId,
         date: normalizedDate,
@@ -329,7 +329,6 @@ class MealPlanService {
       });
       dailyMenuIds.push(dailyMenu._id);
     }
-      console.log("dailyMenu 0:", dailyMenuIds);
 
     const mealPlan = await MealPlan.create({
       userId,
@@ -427,7 +426,6 @@ class MealPlanService {
     existingMenus.forEach((dm) => {
       existingMap[normalizeDate(dm.date)] = dm;
     });
-    // console.log("existingMap: ", existingMap);
 
     const dailyMenuIds = [];
 
@@ -436,18 +434,18 @@ class MealPlanService {
 
       let dailyMenu = existingMap[date];
 
+      // Nếu ngày không có menu, tạo menu rỗng (không gợi ý AI)
       if (!dailyMenu) {
-        const result = await DailyMenuService.createMeal({
+        const result = await DailyMenuService.createDailyMenu({
           userId,
           date,
-          recipes: aiMeals?.[i] || [],
+          recipes: [], // DailyMenu rỗng
           status: "planned",
         });
 
         if (!result?.data) {
           throw new Error(`Cannot create DailyMenu for ${date}`);
         }
-
         dailyMenu = result.data;
       }
       dailyMenuIds.push(dailyMenu);

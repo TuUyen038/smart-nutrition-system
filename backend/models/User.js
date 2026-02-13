@@ -1,10 +1,9 @@
 const mongoose = require("mongoose");
-const { upsertNutritionGoal } = require("../services/nutritionGoal.service");
 
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
+    email: { type: String, required: true},
     password: { type: String, required: true },
     role: {
       type: String,
@@ -20,36 +19,44 @@ const userSchema = new mongoose.Schema(
       enum: ["lose_weight", "maintain_weight", "gain_weight"],
     },
     allergies: [String],
-    // Favorite recipes
     favoriteRecipes: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Recipe",
       },
     ],
-    // Password reset (dùng OTP)
     resetPasswordOTP: String,
     resetPasswordOTPExpires: Date,
-    resetPasswordOTPVerified: { type: Boolean, default: false }, // Đánh dấu OTP đã được verify
-    // Email verification
+    resetPasswordOTPVerified: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
     emailVerificationOTP: String,
     emailVerificationOTPExpires: Date,
+
+    /* --- CÁC TRƯỜNG SOFT DELETE & AUDIT LOG --- */
+    deletedAt: { type: Date, default: null },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+    deletionReason: { type: String, default: null },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
-userSchema.post("save", async function (doc, next) {
-  try {
-    // ⚠️ Chỉ chạy khi đủ thông tin để tính
-    if (doc.age && doc.gender && doc.height && doc.weight) {
-      await upsertNutritionGoal(doc);
-    }
-    next();
-  } catch (error) {
-    console.error("❌ Failed to update nutrition goal:", error);
-    next(error);
-  }
+// 1. Tạo Partial Index: Đảm bảo Email là duy nhất nhưng CHỈ đối với những người chưa bị xóa.
+// Điều này cho phép một email đã xóa có thể được đăng ký lại mà không bị lỗi "Duplicate Key".
+userSchema.index(
+  { email: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null } },
+);
+
+// 2. Query Middleware: Tự động lọc bỏ các user đã bị xóa khi dùng find, findOne, v.v...
+userSchema.pre(/^find/, function (next) {
+  // Nếu bạn muốn lấy cả user đã xóa (ví dụ trong trang Admin Audit),
+  // hãy sử dụng User.find().withDeleted() (cần viết thêm custom method)
+  this.where({ deletedAt: null });
+  next();
 });
 
 module.exports = mongoose.model("User", userSchema);

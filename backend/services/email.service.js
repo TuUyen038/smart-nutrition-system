@@ -2,7 +2,6 @@ const nodemailer = require("nodemailer");
 
 // Tạo transporter (có thể cấu hình qua .env)
 const createTransporter = () => {
-  // Nếu có cấu hình SMTP trong .env, sử dụng nó
   if (process.env.SMTP_HOST && process.env.SMTP_USER) {
     return nodemailer.createTransport({
       host: process.env.SMTP_HOST,
@@ -18,7 +17,7 @@ const createTransporter = () => {
   // Nếu không có cấu hình, sử dụng console log (development mode)
   return {
     sendMail: async (options) => {
-      console.log("📧 Email (Development Mode - không gửi thật):");
+      console.log("Email (Development Mode - không gửi thật):");
       console.log("To:", options.to);
       console.log("Subject:", options.subject);
       console.log("Text:", options.text);
@@ -30,12 +29,7 @@ const createTransporter = () => {
 
 const transporter = createTransporter();
 
-/**
- * Gửi OTP qua email
- * @param {String} email - Email người nhận
- * @param {String} otp - Mã OTP (6 chữ số)
- * @param {String} name - Tên người dùng
- */
+// Gửi OTP qua email
 exports.sendVerificationOTP = async (email, otp, name = "Người dùng") => {
   try {
     const mailOptions = {
@@ -107,20 +101,15 @@ exports.sendVerificationOTP = async (email, otp, name = "Người dùng") => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email OTP đã được gửi đến:", email);
+    console.log("Email OTP đã được gửi đến:", email);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email OTP:", error);
+    console.error("Lỗi khi gửi email OTP:", error);
     throw new Error("Không thể gửi email xác thực. Vui lòng thử lại sau.");
   }
 };
 
-/**
- * Gửi OTP reset password qua email
- * @param {String} email - Email người nhận
- * @param {String} otp - Mã OTP (6 chữ số)
- * @param {String} name - Tên người dùng
- */
+// Gửi OTP reset password qua email
 exports.sendResetPasswordOTP = async (email, otp, name = "Người dùng") => {
   try {
     const mailOptions = {
@@ -161,12 +150,12 @@ exports.sendResetPasswordOTP = async (email, otp, name = "Người dùng") => {
               </div>
 
               <div class="warning">
-                <strong>⚠️ Lưu ý:</strong> Mã OTP này có hiệu lực trong <strong>10 phút</strong>. 
+                Mã OTP này có hiệu lực trong <strong>10 phút</strong>. 
                 Vui lòng không chia sẻ mã này với bất kỳ ai.
               </div>
 
               <div class="security">
-                <strong>🔒 Bảo mật:</strong> Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. 
+                Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này. 
                 Mật khẩu của bạn sẽ không thay đổi.
               </div>
 
@@ -197,17 +186,15 @@ exports.sendResetPasswordOTP = async (email, otp, name = "Người dùng") => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log("✅ Email OTP reset password đã được gửi đến:", email);
+    console.log("Email OTP reset password đã được gửi đến:", email);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email OTP reset password:", error);
+    console.error("Lỗi khi gửi email OTP reset password:", error);
     throw new Error("Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.");
   }
 };
 
-/**
- * Gửi email thông báo xác thực thành công
- */
+// Gửi email thông báo xác thực thành công
 exports.sendVerificationSuccess = async (email, name = "Người dùng") => {
   try {
     const mailOptions = {
@@ -230,10 +217,9 @@ exports.sendVerificationSuccess = async (email, name = "Người dùng") => {
         <body>
           <div class="container">
             <div class="header">
-              <h1>✅ Xác thực thành công!</h1>
+              <h1>Xác thực thành công!</h1>
             </div>
             <div class="content">
-              <div class="success-icon">🎉</div>
               <p>Xin chào <strong>${name}</strong>,</p>
               <p>Email của bạn đã được xác thực thành công!</p>
               <p>Bây giờ bạn có thể sử dụng đầy đủ các tính năng của NutriCare.</p>
@@ -246,10 +232,9 @@ exports.sendVerificationSuccess = async (email, name = "Người dùng") => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log("✅ Email xác nhận đã được gửi đến:", email);
+    console.log("Email xác nhận đã được gửi đến:", email);
   } catch (error) {
-    console.error("❌ Lỗi khi gửi email xác nhận:", error);
-    // Không throw error vì đây chỉ là thông báo
+    console.error("Lỗi khi gửi email xác nhận:", error);
   }
 };
 

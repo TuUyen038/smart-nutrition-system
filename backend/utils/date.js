@@ -15,7 +15,19 @@ function normalizeDate(input) {
 
   return `${y}-${m}-${day}`;
 }
+function calculateEndDate(startDate, period = "week") {
+    const start = new Date(startDate);
+    const end = new Date(start);
+
+    if (period === "week") {
+        end.setDate(start.getDate() + 6);
+    } 
+
+    end.setHours(23, 59, 59, 999); 
+    return end;
+}
 
 module.exports = {
     normalizeDate,
+    calculateEndDate
 };
