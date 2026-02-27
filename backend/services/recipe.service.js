@@ -124,11 +124,25 @@ exports.createRecipe = async (recipe) => {
 };
 exports.saveRecipeToDB = async (recipeData) => {
   try {
-    const newRecipe = new Recipe({
+    // ✅ Ensure ingredients có originalAmount/originalUnit (fallback to amount/unit)
+    const normalized = {
       ...recipeData,
       verified: recipeData.verified ?? false,
-    });
+    };
 
+    if (Array.isArray(normalized.ingredients)) {
+      normalized.ingredients = normalized.ingredients.map((ing) => ({
+        ...ing,
+        quantity: {
+          ...ing.quantity,
+          // ✅ Fallback to amount/unit nếu originalAmount/originalUnit không có
+          originalAmount: ing.quantity?.originalAmount ?? ing.quantity?.amount ?? "",
+          originalUnit: ing.quantity?.originalUnit ?? ing.quantity?.unit ?? "g",
+        },
+      }));
+    }
+
+    const newRecipe = new Recipe(normalized);
     const savedRecipe = await newRecipe.save();
     console.log(`Đã lưu công thức: ${savedRecipe.name}`);
     return savedRecipe;

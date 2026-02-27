@@ -403,7 +403,7 @@ const findIngredientsByAi = async (req, res, next) => {
   try {
     console.log(
       "Bắt đầu tìm nguyên liệu bởi AI",
-      servings ? `(servings: ${servings})` : ""
+      servings ? `(servings: ${servings})` : "",
     );
 
     const aiRaw = await getIngredients(recipe, servings);
@@ -558,13 +558,13 @@ const updateRecipe = async (req, res) => {
       return res.status(400).json({ message: "Invalid recipe ID" });
     }
 
-    // Lấy recipe hiện tại để lưu oldData và tính toán
+    // Lấy recipe hiện tại
     const existingRecipe = await Recipe.findById(id);
     if (!existingRecipe) {
       return res.status(404).json({ message: "Recipe not found" });
     }
 
-    // Validation
+    // Validate PATCH
     const validationErrors = validateRecipe(req.body, true);
     if (validationErrors.length > 0) {
       return res.status(400).json({
@@ -573,12 +573,16 @@ const updateRecipe = async (req, res) => {
       });
     }
 
-    // Check duplicate name (nếu đổi tên)
-    if (req.body.name && req.body.name.trim() !== existingRecipe.name) {
+    // Check duplicate name
+    if (
+      req.body.name &&
+      req.body.name.trim().toLowerCase() !==
+        existingRecipe.name.trim().toLowerCase()
+    ) {
       const existing = await Recipe.findOne({
         name: { $regex: new RegExp(`^${req.body.name.trim()}$`, "i") },
         _id: { $ne: id },
-        deleted: { $ne: true }, // Filter deleted
+        deleted: { $ne: true },
       });
 
       if (existing) {
@@ -588,73 +592,127 @@ const updateRecipe = async (req, res) => {
       }
     }
 
-    // Calculate totalNutrition if ingredients are provided
     const {
       calculateRecipeNutrition,
     } = require("../utils/calculateRecipeNutrition");
-    let totalNutrition = existingRecipe.totalNutrition;
-    const ingredientsToUse = req.body.ingredients || existingRecipe.ingredients;
-    if (
-      ingredientsToUse &&
-      Array.isArray(ingredientsToUse) &&
-      ingredientsToUse.length > 0
-    ) {
-      try {
-        totalNutrition = await calculateRecipeNutrition(
-          ingredientsToUse,
-          req.body.servings || existingRecipe.servings || 1
-        );
-      } catch (error) {
-        console.error("Error calculating nutrition:", error);
-        // Keep existing nutrition if calculation fails
-      }
-    }
-
-    // Set ảnh mặc định nếu không có imageUrl
-    const defaultImageUrl =
-      "https://res.cloudinary.com/denhj5ubh/image/upload/v1762249278/foodImages/na8m4c70iiitfjvkie9m.jpg";
-    const imageUrl =
-      req.body.imageUrl || existingRecipe.imageUrl || defaultImageUrl;
 
     // Build update object
     const updateData = {};
-    if (req.body.name) updateData.name = req.body.name.trim();
+
+    if (req.body.name !== undefined)
+      updateData.name = req.body.name.trim();
+
     if (req.body.description !== undefined)
       updateData.description = req.body.description?.trim();
-    if (req.body.category) updateData.category = req.body.category;
+
+    if (req.body.category !== undefined)
+      updateData.category = req.body.category;
+
     if (req.body.servings !== undefined)
       updateData.servings = req.body.servings;
+
     if (req.body.instructions !== undefined)
       updateData.instructions = req.body.instructions;
-    if (req.body.ingredients !== undefined)
-      updateData.ingredients = ingredientsToUse;
-    if (imageUrl) updateData.imageUrl = imageUrl;
-    if (req.body.status !== undefined) updateData.status = req.body.status;
+
+    // ✅ Preserve original amount/unit khi update ingredients
+    // IMPORTANT: Match by name, not index! (vì user có thể reorder/delete)
+    if (req.body.ingredients !== undefined) {
+      updateData.ingredients = req.body.ingredients.map((newIng) => {
+        // Tìm ingredient cũ bằng name (không phải index)
+        const oldIng = existingRecipe.ingredients?.find(
+          (ing) => ing.name === newIng.name || ing.rawName === newIng.rawName
+        );
+        
+        // ✅ Merge quantity: lấy từ newIng, fallback to oldIng, fallback to defaults
+        const mergedQuantity = {
+          amount: newIng.quantity?.amount ?? oldIng?.quantity?.amount ?? 0,
+          unit: newIng.quantity?.unit ?? oldIng?.quantity?.unit ?? "g",
+          originalAmount: newIng.quantity?.originalAmount ?? oldIng?.quantity?.originalAmount ?? newIng.quantity?.amount ?? oldIng?.quantity?.amount ?? 0,
+          originalUnit: newIng.quantity?.originalUnit ?? oldIng?.quantity?.originalUnit ?? newIng.quantity?.unit ?? oldIng?.quantity?.unit ?? "g",
+        };
+        
+        return {
+          ...newIng,
+          quantity: mergedQuantity,
+        };
+      });
+    }
+
+    if (req.body.status !== undefined)
+      updateData.status = req.body.status;
+
     if (req.body.verified !== undefined)
       updateData.verified = req.body.verified;
-    if (totalNutrition !== undefined)
-      updateData.totalNutrition = totalNutrition;
 
-    // Update using findByIdAndUpdate to avoid version conflicts
-    const updatedRecipe = await Recipe.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
-
-    if (!updatedRecipe) {
-      return res.status(404).json({ message: "Recipe not found after update" });
+    // image
+    if (req.body.imageUrl !== undefined) {
+      updateData.imageUrl =
+        req.body.imageUrl ||
+        existingRecipe.imageUrl ||
+        "https://res.cloudinary.com/denhj5ubh/image/upload/v1762249278/foodImages/na8m4c70iiitfjvkie9m.jpg";
     }
+
+    // ✅ chỉ calculate nutrition nếu ingredients hoặc servings thay đổi
+    if (
+      req.body.ingredients !== undefined ||
+      req.body.servings !== undefined
+    ) {
+      try {
+  const ingredientsToUse =
+    req.body.ingredients ?? existingRecipe.ingredients;
+
+  const servingsToUse =
+    req.body.servings ?? existingRecipe.servings;
+
+  const nutrition =
+    await calculateRecipeNutrition(
+      ingredientsToUse,
+      servingsToUse
+    );
+
+  updateData.totalNutrition =
+    nutrition.totalNutrition;
+
+  updateData.totalNutritionPer100g =
+    nutrition.totalNutritionPer100g;
+
+  updateData.totalWeight =
+    nutrition.totalWeight;
+
+  if (nutrition.totalNutritionPerServing) {
+    updateData.totalNutritionPerServing =
+      nutrition.totalNutritionPerServing;
+  } else {
+    updateData.$unset = {
+      ...(updateData.$unset || {}),
+      totalNutritionPerServing: ""
+    };
+  }
+
+} catch (error) {
+  console.error(
+    "Nutrition calculation failed:",
+    error
+  );
+}
+    }
+
+    const updatedRecipe = await Recipe.findByIdAndUpdate(
+      id,
+      { $set: updateData },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
     res.status(200).json(updatedRecipe);
+
   } catch (error) {
     console.error("Update recipe error:", error);
-    if (error.name === "ValidationError") {
-      return res.status(400).json({ message: error.message });
-    }
     res.status(500).json({ message: error.message });
   }
 };
-
 /**
  * Xóa recipe
  */
@@ -698,7 +756,7 @@ const getIngredientSubstitutions = async (req, res) => {
     console.log("🔵 [Controller] ===== REQUEST TỪ FRONTEND =====");
     console.log(
       "ingredientsToSubstitute count:",
-      ingredientsToSubstitute?.length || 0
+      ingredientsToSubstitute?.length || 0,
     );
     console.log("📋 allIngredients count:", allIngredients?.length || 0);
     console.log("🎯 userGoal:", userGoal);
@@ -707,7 +765,7 @@ const getIngredientSubstitutions = async (req, res) => {
     if (ingredientsToSubstitute && ingredientsToSubstitute.length > 0) {
       console.log(
         "📄 ingredientsToSubstitute details:",
-        JSON.stringify(ingredientsToSubstitute, null, 2)
+        JSON.stringify(ingredientsToSubstitute, null, 2),
       );
     }
 
@@ -717,7 +775,7 @@ const getIngredientSubstitutions = async (req, res) => {
       ingredientsToSubstitute.length === 0
     ) {
       console.log(
-        "[Controller] Validation failed: ingredientsToSubstitute is empty"
+        "[Controller] Validation failed: ingredientsToSubstitute is empty",
       );
       return res.status(400).json({
         success: false,
@@ -750,7 +808,7 @@ const getIngredientSubstitutions = async (req, res) => {
       allIngredients,
       userGoal,
       instructions || "",
-      dishName || ""
+      dishName || "",
     );
 
     // Parse JSON result
