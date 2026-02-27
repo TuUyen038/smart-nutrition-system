@@ -49,7 +49,6 @@ function AdminRecipeDetail() {
 
   const { name, imageUrl, description, ingredients, instructions, totalNutrition, servings } =
     recipe;
-
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -72,7 +71,7 @@ function AdminRecipeDetail() {
         <Grid container spacing={3} alignItems="flex-start">
           <Grid item xs={12} md={4}>
             <BigFoodCard
-              image={imageUrl}
+              imageUrl={imageUrl}
               label={`${totalNutrition?.calories || 0} kcal`}
               title={name}
               description={description}

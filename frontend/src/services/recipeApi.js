@@ -3,6 +3,11 @@ import { getToken } from "./authApi";
 
 export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+
     if (!keyword || !keyword.trim()) {
       console.warn("Keyword rỗng, không gọi API search-by-ingredient.");
       return null;
@@ -14,7 +19,13 @@ export const getRecipesByIngredients = async (keyword, page = 1, limit = 10) => 
       limit: String(limit),
     });
 
-    const response = await fetch(`${API_BASE_URL}/search-by-ingredient?${params.toString()}`);
+    const response = await fetch(`${API_BASE_URL}/search-by-ingredient?${params.toString()}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
       console.warn(`Khong lay duoc danh sach mon an (status: ${response.status})`);
@@ -54,6 +65,10 @@ export const getRecipes = async ({
     const url = queryString ? `${API_BASE_URL}?${queryString}` : API_BASE_URL;
 
     const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+
     const headers = {
       "Content-Type": "application/json",
     };
@@ -61,7 +76,13 @@ export const getRecipes = async ({
       headers.Authorization = `Bearer ${token}`;
     }
 
-    const response = await fetch(url, { headers });
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
@@ -207,7 +228,15 @@ export const findRecipeByFoodName = async (foodName) => {
 
 export const findRecipeById = async (recipeId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/id/${recipeId}`);
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+    const response = await fetch(`${API_BASE_URL}/id/${recipeId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
       console.warn(`Không tìm thấy công thức trong DB cho "${recipeId}".`);
@@ -224,12 +253,17 @@ export const findRecipeById = async (recipeId) => {
 };
 export const getBackUpNutrition = async (ingrs) => {
   try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
     // chỉ lấy mảng tên string
     const names = ingrs.map((ingr) => ingr.name);
     const response = await fetch(`${API_BASE_URL}/back-up-nutrition`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ingrs: names }),
     });
@@ -361,21 +395,30 @@ export const getIngredientsInAi = async (recipe, servings = null) => {
 };
 
 export async function createRecipe(recipeData, token) {
-  const res = await fetch(API_BASE_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify(recipeData),
-  });
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+    const res = await fetch(API_BASE_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(recipeData),
+    });
 
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.message || "Không thể lưu công thức.");
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || "Không thể lưu công thức.");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("Lỗi khi lưu công thức:", error.message);
+    throw error;
   }
-
-  return await res.json();
 }
 
 /**
@@ -398,39 +441,62 @@ export async function getUserRecipes(userId, token) {
 }
 
 /**
- * 🔵 Lấy chi tiết một công thức
+ * Lấy chi tiết một công thức
  */
 export async function getRecipeById(id) {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
   const res = await fetch(`${API_BASE_URL}/${id}`);
   if (!res.ok) throw new Error("Không thể lấy chi tiết công thức.");
   return await res.json();
-}
-
-/**
- * 🟠 Cập nhật công thức
- */
-export async function updateRecipe(id, data, token) {
-  const res = await fetch(`${API_BASE_URL}/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({}));
-    throw new Error(error.message || "Không thể cập nhật công thức.");
+  } catch (error) {
+    console.error("Lỗi khi lấy chi tiết công thức:", error.message);
+    throw error;
   }
-
-  return await res.json();
 }
 
 /**
- * 🔴 Xóa công thức
+ * Cập nhật công thức
+ */
+export async function updateRecipe(id, data) {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+    const res = await fetch(`${API_BASE_URL}/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.message || "Không thể cập nhật công thức.");
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error("Lỗi khi cập nhật công thức:", error.message);
+    throw error;
+  }
+}
+
+/**
+ * Xóa công thức
  */
 export async function deleteRecipe(id, token) {
+  try {
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
   const res = await fetch(`${API_BASE_URL}/${id}`, {
     method: "DELETE",
     headers: {
@@ -444,14 +510,28 @@ export async function deleteRecipe(id, token) {
   }
 
   return await res.json();
+} catch (error) {
+    console.error("Lỗi khi xóa công thức:", error.message);
+    throw error;
+}
 }
 
 /**
- * 📊 Lấy thống kê recipes
+ * Lấy thống kê recipes
  */
 export async function getRecipeStats() {
   try {
-    const response = await fetch(`${API_BASE_URL}/stats`);
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+    const response = await fetch(`${API_BASE_URL}/stats`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
@@ -472,10 +552,21 @@ export async function getRecipeStats() {
  */
 export async function checkDuplicateName(name, excludeId = null) {
   try {
+    
     const params = new URLSearchParams({ name });
     if (excludeId) params.append("excludeId", excludeId);
 
-    const response = await fetch(`${API_BASE_URL}/check-duplicate?${params}`);
+    const token = getToken();
+    if (!token) {
+      throw new Error("Chưa đăng nhập");
+    }
+    const response = await fetch(`${API_BASE_URL}/check-duplicate?${params}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
     if (!response.ok) {
       return false;

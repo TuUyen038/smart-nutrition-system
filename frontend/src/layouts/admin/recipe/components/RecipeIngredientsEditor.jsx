@@ -299,7 +299,7 @@ export default function RecipeIngredientsEditor({
     }
 
     try {
-      console.log("🔄 runAutoMapping: Starting...");
+      console.log("runAutoMapping: Starting...");
       setMappingLoading(true);
       setMappingVisible(true);
 
