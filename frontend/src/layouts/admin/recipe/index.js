@@ -321,11 +321,12 @@ function RecipeManagement() {
         original?.quantity?.originalUnit ??
         row.quantity?.originalUnit ??
         unit;
-
+      
+      const rawName = original?.name;
       return {
 
         _id: row._id || undefined,
-
+        rawName: rawName || undefined,
         name: nameToSave,
 
         ingredientId:
