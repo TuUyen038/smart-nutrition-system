@@ -13,6 +13,12 @@ yarn.lock
 .env.local
 .env.*.local
 
+# Backups
+backups/
+
+# OS
+.DS_Store
+
 # Build outputs
 dist/
 build/
@@ -44,3 +50,10 @@ temp/
 ~$*.xlsx
 ~$*.xls
 ~$*.docx
+
+# crawler outputs
+**/crawler/savoury/data/
+
+#test import data
+backend/Data/validateRecipes.js
+backend/Data/validation-errors.json
