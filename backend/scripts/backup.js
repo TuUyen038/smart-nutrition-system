@@ -3,8 +3,8 @@
  * Script để backup MongoDB database
  *
  * Usage:
- *   node scripts/backup.js
- *   node scripts/backup.js --restore /path/to/backup
+ *   node scripts/backup.js (luu data vao folder backups của dự án)
+ *   node scripts/backup.js --restore /path/to/backup (restore từ backup đã tạo vào database)
  */
 
 const { exec } = require("child_process");

@@ -8,8 +8,49 @@ const recipeSchema = new mongoose.Schema(
       required: false,
     },
     name: { type: String, required: true, trim: true },
+    totalWeight: Number,
+    source: {
+      type: String,
+      // enum: ["savoury", "usda", "fatsecret", "manual"],
+      required: true,
+      default: "savoury",
+      index: true,
+    },
+
+    version: {
+      type: Number,
+      required: true,
+      default: 2,
+      index: true,
+    },
+
     description: { type: String, trim: true },
-    category: { type: String, enum: ["main", "side", "dessert", "drink"] },
+    category: {
+      type: String,
+      enum: [
+        "main", // món chính
+        "side", // món phụ
+        "soup", // canh, súp
+
+        "breakfast", // món ăn sáng
+        "lunch", // món ăn trưa
+        "dinner", // món ăn tối
+
+        "snack", // ăn vặt
+        "dessert", // món tráng miệng
+        "drink", // đồ uống
+
+        "salad", // salad
+        "sauce", // nước sốt
+
+        "baked", // món nướng, bánh
+        "fried", // món chiên
+        "steamed", // hấp
+        "boiled", // luộc
+
+        "vegetarian", // chay
+      ],
+    },
 
     instructions: [String],
     ingredients: [
@@ -17,23 +58,45 @@ const recipeSchema = new mongoose.Schema(
         ingredientId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Ingredient",
-          required: false,
         },
         quantity: {
           amount: { type: Number, required: true },
           unit: {
             type: String,
-            enum: ["g", "kg", "l", "ml", "cup", "tbsp", "tsp", "unit"],
+            enum: ["g"],
           },
+          originalAmount: Number,
+          originalUnit: String,
         },
-        // tên nguyên liệu (thô hoặc theo Ingredient)
+        note: String,
         name: { type: String, required: true, trim: true },
+        rawName: String,
       },
     ],
 
-    servings: { type: Number, default: 1 },
+    servings: { type: Number},
 
     totalNutrition: {
+      calories: Number,
+      protein: Number,
+      fat: Number,
+      carbs: Number,
+      fiber: Number,
+      sugar: Number,
+      sodium: Number,
+    },
+
+    totalNutritionPerServing: {
+      calories: Number,
+      protein: Number,
+      fat: Number,
+      carbs: Number,
+      fiber: Number,
+      sugar: Number,
+      sodium: Number,
+    },
+
+    totalNutritionPer100g: {
       calories: Number,
       protein: Number,
       fat: Number,
@@ -53,9 +116,8 @@ const recipeSchema = new mongoose.Schema(
     verified: { type: Boolean, default: true },
     // isPublic: { type: Boolean, default: false },
     deleted: { type: Boolean, default: false }, // Soft delete
-
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 recipeSchema.index({ name: "text" }); // Index dạng text cho tìm kiếm toàn văn (nếu cần)

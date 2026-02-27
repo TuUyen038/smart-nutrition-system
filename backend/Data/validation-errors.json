@@ -1,0 +1,30 @@
+[
+  {
+    "recipe": "Cách làm BÁNH CHÍN TẦNG MÂY",
+    "ingredientCount": 7,
+    "errors": [
+      "  Ingredient #4 (màu vàng: ¼ thìa cà phê bột dành dành + 65 gram nước + 120 gram bột bánh): Missing or invalid 'amount' (after conversion)",
+      "  Ingredient #4 (màu vàng: ¼ thìa cà phê bột dành dành + 65 gram nước + 120 gram bột bánh): Missing or invalid 'unit' (should be 'g')",
+      "  Ingredient #5 (màu hồng: ½ thìa cà phê bột củ dền + 65 gram nước + 120 gram bột bánh): Missing or invalid 'amount' (after conversion)",
+      "  Ingredient #5 (màu hồng: ½ thìa cà phê bột củ dền + 65 gram nước + 120 gram bột bánh): Missing or invalid 'unit' (should be 'g')",
+      "  Ingredient #6 (màu xanh: 10 gram lá nếp tươi hoặc ½ thìa cà phê bột lá nếp + 65 gram nước + 120 gram bột bánh): Missing or invalid 'amount' (after conversion)",
+      "  Ingredient #6 (màu xanh: 10 gram lá nếp tươi hoặc ½ thìa cà phê bột lá nếp + 65 gram nước + 120 gram bột bánh): Missing or invalid 'unit' (should be 'g')"
+    ]
+  },
+  {
+    "recipe": "Cách làm CHẢ GIÒ NGŨ SẮC",
+    "ingredientCount": 12,
+    "errors": [
+      "  Ingredient #11 (lá dong): Missing or invalid 'amount' (after conversion)",
+      "  Ingredient #11 (lá dong): Missing or invalid 'unit' (should be 'g')"
+    ]
+  },
+  {
+    "recipe": "[Món Tết] Cách làm CANH BÓNG THẢ",
+    "ingredientCount": 17,
+    "errors": [
+      "  Ingredient #4 (quả trứng chim cút): Missing or invalid 'amount' (after conversion)",
+      "  Ingredient #4 (quả trứng chim cút): Missing or invalid 'unit' (should be 'g')"
+    ]
+  }
+]

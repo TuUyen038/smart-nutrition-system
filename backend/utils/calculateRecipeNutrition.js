@@ -29,7 +29,7 @@ function convertToGrams(amount, unit) {
   }
 }
 
-async function calculateRecipeNutrition(ingredients, servings = 1) {
+async function calculateRecipeNutrition(ingredients, servings) {
   const totalNutrition = {
     calories: 0,
     protein: 0,
@@ -40,43 +40,40 @@ async function calculateRecipeNutrition(ingredients, servings = 1) {
     sodium: 0,
   };
 
+  let totalWeight = 0;
+
   if (!ingredients || !Array.isArray(ingredients) || ingredients.length === 0) {
-    return totalNutrition;
+    return {
+      totalNutrition,
+      totalNutritionPer100g: null,
+      totalNutritionPerServing: null,
+      totalWeight: 0,
+    };
   }
 
   // Process each ingredient
   for (const ing of ingredients) {
-    // Skip if no ingredientId (not mapped to DB)
-    if (!ing.ingredientId) {
-      continue;
-    }
+    if (!ing.ingredientId) continue;
 
-    // Skip if no quantity
-    if (!ing.quantity || !ing.quantity.amount || ing.quantity.amount <= 0) {
-      continue;
-    }
+    if (!ing.quantity?.amount || ing.quantity.amount <= 0) continue;
 
     try {
-      // Fetch ingredient from DB
       const ingredientDoc = await Ingredient.findById(ing.ingredientId);
-      if (!ingredientDoc || !ingredientDoc.nutrition) {
-        continue;
-      }
 
-      // Convert quantity to grams
+      if (!ingredientDoc?.nutrition) continue;
+
       const amountInGrams = convertToGrams(
         ing.quantity.amount,
         ing.quantity.unit
       );
-      if (amountInGrams <= 0) {
-        continue;
-      }
 
-      // Calculate factor (nutrition is per 100g)
+      if (amountInGrams <= 0) continue;
+
+      totalWeight += amountInGrams;
+
       const factor = amountInGrams / 100;
-
-      // Add nutrition values
       const nutrition = ingredientDoc.nutrition;
+
       totalNutrition.calories += (nutrition.calories || 0) * factor;
       totalNutrition.protein += (nutrition.protein || 0) * factor;
       totalNutrition.fat += (nutrition.fat || 0) * factor;
@@ -84,22 +81,51 @@ async function calculateRecipeNutrition(ingredients, servings = 1) {
       totalNutrition.fiber += (nutrition.fiber || 0) * factor;
       totalNutrition.sugar += (nutrition.sugar || 0) * factor;
       totalNutrition.sodium += (nutrition.sodium || 0) * factor;
+
     } catch (error) {
       console.error(
         `Error calculating nutrition for ingredient ${ing.ingredientId}:`,
         error
       );
-      // Continue with next ingredient
-      continue;
     }
   }
 
-  // Round to 2 decimal places
+  // ---------- ROUND TOTAL ----------
   for (const key in totalNutrition) {
-    totalNutrition[key] = Math.round(totalNutrition[key] * 100) / 100;
+    totalNutrition[key] =
+      Math.round(totalNutrition[key] * 100) / 100;
   }
 
-  return totalNutrition;
+  // ---------- CALCULATE PER 100g ----------
+  let totalNutritionPer100g = null;
+
+  if (totalWeight > 0) {
+    totalNutritionPer100g = {};
+
+    for (const key in totalNutrition) {
+      totalNutritionPer100g[key] =
+        Math.round((totalNutrition[key] * 100 / totalWeight) * 100) / 100;
+    }
+  }
+
+  // ---------- CALCULATE PER SERVING ----------
+  let totalNutritionPerServing = null;
+
+  if (servings && servings > 0) {
+    totalNutritionPerServing = {};
+
+    for (const key in totalNutrition) {
+      totalNutritionPerServing[key] =
+        Math.round((totalNutrition[key] / servings) * 100) / 100;
+    }
+  }
+
+  return {
+    totalNutrition,
+    totalNutritionPer100g,
+    totalNutritionPerServing,
+    totalWeight: Math.round(totalWeight * 100) / 100,
+  };
 }
 
 module.exports = {
