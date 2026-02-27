@@ -9,7 +9,8 @@ import MDTypography from "components/MDTypography";
 import MDButton from "components/MDButton";
 import { Chip, Divider, Grid } from "@mui/material";
 
-function BigFoodCard({ image, label, title, description, category, action }) {
+function BigFoodCard({ imageUrl, label, title, description, category, action }) {
+  console.log("imageUrl:", imageUrl);
   return (
     <Card
       sx={{
@@ -32,14 +33,15 @@ function BigFoodCard({ image, label, title, description, category, action }) {
       
     >
       <CardMedia
-        component="img"
-        image={image}
-        alt={title}
-        sx={{
-          width: "90%",
-          objectFit: "cover",
-        }}
-      />
+  component="img"
+  image={imageUrl?.replace("http://", "https://")}
+  alt={title}
+  sx={{
+    width: "100%",
+    height: 200,
+    objectFit: "cover",
+  }}
+/>
 
       <Divider sx={{ mb: 0 }} />
 
@@ -136,7 +138,7 @@ function BigFoodCard({ image, label, title, description, category, action }) {
 }
 
 BigFoodCard.propTypes = {
-  image: PropTypes.string.isRequired,
+  imageUrl: PropTypes.string.isRequired,
   label: PropTypes.string.isRequired,
   title: PropTypes.string.isRequired,
   description: PropTypes.string.isRequired,

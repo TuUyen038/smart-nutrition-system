@@ -70,7 +70,11 @@ function computeValidation(form) {
   const warnings = [];
 
   if (!form.name?.trim()) blockers.push("Thiếu tên món.");
-  if (!form.servings || Number(form.servings) <= 0) blockers.push("Khẩu phần phải > 0.");
+  // Khẩu phần là optional, có thể null
+  // Nếu có giá trị thì phải > 0
+  if (form.servings !== undefined && form.servings !== null && form.servings !== "") {
+    if (Number(form.servings) <= 0) blockers.push("Khẩu phần phải > 0 nếu có.");
+  }
 
   const rows = Array.isArray(form.ingredients) ? form.ingredients : [];
   if (rows.length === 0) warnings.push("Chưa có nguyên liệu nào.");
@@ -118,7 +122,7 @@ export default function RecipeFormDialog({
         name: recipe.name || "",
         description: recipe.description || "",
         category: recipe.category || "main",
-        servings: recipe.servings || 1,
+        servings: recipe.servings,
         imageUrl,
         instructionsText: recipe.instructionsText || "",
         ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
@@ -227,6 +231,8 @@ export default function RecipeFormDialog({
         quantity: {
           amount: item?.quantity?.amount ?? "",
           unit: item?.quantity?.unit || "g",
+          originalAmount: item?.quantity?.amount ?? "",  // ← Lưu giá trị gốc từ AI
+          originalUnit: item?.quantity?.unit || "g",      // ← Lưu unit gốc từ AI
           estimate: Boolean(item?.quantity?.estimate),
         },
 
@@ -253,7 +259,9 @@ export default function RecipeFormDialog({
   const goBack = () => setActiveStep((s) => Math.max(s - 1, 0));
 
   const handleSave = (status) => {
-    onSubmit({ ...form, status }); // status: 'draft' | 'published' (tuỳ backend bạn)
+    // ✅ Gửi data as-is, backend sẽ handle merge + preserve
+    // Frontend không tự tiện set originalAmount/originalUnit
+    onSubmit({ ...form, status });
   };
 
   return (
@@ -320,7 +328,7 @@ export default function RecipeFormDialog({
                         type="number"
                         label="Khẩu phần *"
                         value={form.servings}
-                        onChange={(e) => handleChange("servings", Number(e.target.value) || 1)}
+                        onChange={(e) => handleChange("servings", Number(e.target.value))}
                       />
                     </Grid>
 
@@ -637,7 +645,7 @@ export default function RecipeFormDialog({
                             Khẩu phần:
                           </MDTypography>
                           <MDTypography variant="body2" color="text">
-                            {form.servings || 1} người
+                            {form.servings} người
                           </MDTypography>
                         </MDBox>
                       </MDBox>
