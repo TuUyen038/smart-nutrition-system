@@ -34,6 +34,8 @@ import { uploadImage } from "services/uploadApi";
 import { useToast } from "context/ToastContext";
 import PropTypes from "prop-types";
 
+import { ObjectId } from "bson";
+
 const CATEGORY_OPTIONS = [
   { value: "main", label: "Món chính" },
   { value: "side", label: "Món phụ" },
@@ -52,7 +54,7 @@ const emptyForm = {
   name: "",
   description: "",
   category: "main",
-  servings: 1,
+  servings: "",
   imageUrl: "",
   instructionsText: "",
   ingredients: [],
@@ -83,7 +85,7 @@ function computeValidation(form) {
   const mappedCount = rows.filter((r) => !!r.ingredientId).length;
   const missingQty = rows.filter(
     (r) =>
-      r?.quantity?.amount === "" ||
+      r?.quantity?.amount === null ||
       r?.quantity?.amount === null ||
       r?.quantity?.amount === undefined
   ).length;
@@ -116,17 +118,20 @@ export default function RecipeFormDialog({
 
     setActiveStep(0);
     setImagePreview(null);
+    // TODO: recipe co nen su dung trong check useEffect khong?
     if (recipe) {
       const imageUrl = recipe.imageUrl || recipe.image || "";
-      setForm({
+      const newForm = {
         name: recipe.name || "",
         description: recipe.description || "",
         category: recipe.category || "main",
-        servings: recipe.servings,
+        servings: recipe.servings || "",
         imageUrl,
         instructionsText: recipe.instructionsText || "",
         ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
-      });
+      };
+
+      setForm(newForm);
       if (imageUrl) {
         setImagePreview(imageUrl);
       }
@@ -222,17 +227,17 @@ export default function RecipeFormDialog({
       const aiResult = await getIngredientsInAi(text);
       const aiIngredients = aiResult?.ingredients || [];
 
-      // IMPORTANT: name là tên ingredient đã được AI “làm sạch”, nên ta sẽ khóa sửa ở UI step 3.
       const rows = aiIngredients.map((item) => ({
-        id: safeUUID(),
+        _id: new ObjectId().toString(),
         source: "ai",
         name: item?.name || "",
-        rawText: item?.rawText || item?.name || "",
+        rawText: item?.rawText || "",
+        note: item?.note || "",
         quantity: {
           amount: item?.quantity?.amount ?? "",
           unit: item?.quantity?.unit || "g",
-          originalAmount: item?.quantity?.amount ?? "",  // ← Lưu giá trị gốc từ AI
-          originalUnit: item?.quantity?.unit || "g",      // ← Lưu unit gốc từ AI
+          originalAmount: item?.quantity?.originalAmount ?? null,  // ← Lưu giá trị gốc từ AI
+          originalUnit: item?.quantity?.originalUnit || null,      // ← Lưu unit gốc từ AI
           estimate: Boolean(item?.quantity?.estimate),
         },
 
@@ -240,10 +245,10 @@ export default function RecipeFormDialog({
         ingredientId: null,
         ingredientLabel: "",
         mappingName: "",
-        mappingCandidates: [],
-        mappingScore: null,
+        // mappingCandidates: [],
+        // mappingScore: null,
 
-        flags: { optional: false },
+        // flags: { optional: false },
       }));
 
       setForm((p) => ({ ...p, ingredients: rows }));
@@ -259,8 +264,6 @@ export default function RecipeFormDialog({
   const goBack = () => setActiveStep((s) => Math.max(s - 1, 0));
 
   const handleSave = (status) => {
-    // ✅ Gửi data as-is, backend sẽ handle merge + preserve
-    // Frontend không tự tiện set originalAmount/originalUnit
     onSubmit({ ...form, status });
   };
 
@@ -780,6 +783,7 @@ export default function RecipeFormDialog({
                       p: 1.5,
                     }}
                   >
+                    {/* TODO: o day co id va _id */}
                     <Grid container spacing={1}>
                       {form.ingredients.map((ing) => (
                         <Grid
@@ -787,7 +791,7 @@ export default function RecipeFormDialog({
                           xs={12}
                           sm={6}
                           md={4}
-                          key={ing.id || ing._id || `ing-${ing.name}-${ing.quantity?.amount}`}
+                          key={ing._id}
                         >
                           <MDBox
                             sx={{

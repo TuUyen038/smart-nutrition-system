@@ -10,7 +10,6 @@ import MDButton from "components/MDButton";
 import { Chip, Divider, Grid } from "@mui/material";
 
 function BigFoodCard({ imageUrl, label, title, description, category, action }) {
-  console.log("imageUrl:", imageUrl);
   return (
     <Card
       sx={{

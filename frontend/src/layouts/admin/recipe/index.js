@@ -29,16 +29,14 @@ import { useToast } from "context/ToastContext";
 import { handleError } from "utils/errorHandler";
 
 function toUiIngredientRow(input) {
-  const id = input._id?.toString?.() || input.id || crypto.randomUUID();
-
+  const id = input._id?.toString?.() || crypto.randomUUID();
+  console.log(">>>>toUiIngredientRow", input);
   return {
-    id,
-
-    _id: input._id?.toString?.() || null,
+    _id: input._id?.toString?.(),
 
     name: input?.name || "",
 
-    rawText: input?.rawText || input?.name || "",
+    rawName: input?.rawName || "",
 
     quantity: {
       amount: input?.quantity?.amount ?? "",
@@ -52,15 +50,14 @@ function toUiIngredientRow(input) {
       estimate: Boolean(input?.quantity?.estimate),
     },
 
-    grams: input?.grams ?? "",
+    // grams: input?.grams ?? "",
 
     ingredientId: input?.ingredientId ?? null,
 
-    ingredientLabel: input?.ingredientLabel || input?.name || "",
-
     mappingName: input?.mappingName || "",
+    note: input?.note || null,
 
-    flags: input?.flags ?? { optional: false },
+    // flags: input?.flags ?? { optional: false },
   };
 }
 function RecipeManagement() {
@@ -96,7 +93,7 @@ function RecipeManagement() {
 
   const [allIngredients, setAllIngredients] = useState([]);
 
-  const fetchData = async () => {
+  const fetchRecipes = async () => {
     try {
       setLoading(true);
       const result = await getRecipes({
@@ -121,18 +118,6 @@ function RecipeManagement() {
       setRecipes([]);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchStats = async () => {
-    try {
-      setStatsLoading(true);
-      const statsData = await getRecipeStats();
-      setStats(statsData);
-    } catch (err) {
-      console.error("Fetch stats error:", err);
-    } finally {
-      setStatsLoading(false);
     }
   };
 
@@ -185,13 +170,12 @@ function RecipeManagement() {
       }
     }
   };
-
+  // TODO: 3 useEffect co can khong
   useEffect(() => {
-    fetchData();
+    fetchRecipes();
   }, [search, categoryFilter, page, sortBy, sortOrder]);
 
   useEffect(() => {
-    fetchStats();
     fetchAllIngredients();
   }, []);
 
@@ -218,7 +202,7 @@ function RecipeManagement() {
       ...recipe,
       instructionsText,
       ingredients: uiIngredients,
-      imageUrl: recipe.imageUrl || recipe.image || "",
+      imageUrl: recipe.imageUrl || null,
     });
 
     setDialogOpen(true);
@@ -231,13 +215,12 @@ function RecipeManagement() {
 
   const handleDeleteConfirm = async () => {
     if (!recipeToDelete) return;
-
+    // TODO: nho la neu item co thay doi thi tu render lai ma, lieu co can phai goi lai fetch khong
     try {
       setDeleting(true);
       await deleteRecipe(recipeToDelete._id);
       showSuccess(`Đã xóa món ăn "${recipeToDelete.name}"`);
-      await fetchData();
-      await fetchStats();
+      await fetchRecipes();
       setDeleteDialogOpen(false);
       setRecipeToDelete(null);
     } catch (err) {
@@ -254,8 +237,7 @@ function RecipeManagement() {
   };
 
   const handleDialogSubmit = async (formData) => {
-    console.log("Form data received in parent:", formData);
-
+    console.log("Submit form data:", formData);
     try {
       if (!formData.name?.trim()) {
         showError("Tên món ăn là bắt buộc");
@@ -287,98 +269,59 @@ function RecipeManagement() {
 
       // ✅ BUILD ORIGINAL MAP
       const originalMap = new Map(
-        (editingRecipe?.ingredients || []).map((ing) => [ing._id || ing.id, ing])
+        (editingRecipe?.ingredients || []).map((ing) => [String(ing._id), ing])
       );
-
       // ✅ BUILD INGREDIENT PAYLOAD
       if (formData.ingredients !== undefined) {
+        payload.ingredients = formData.ingredients
+          .map((row) => {
+            const original = originalMap.get(String(row._id));
+            const nameToSave = row.mappingName || row.name;
 
-  payload.ingredients = formData.ingredients
-    .map((row) => {
+            const amount = Number(row.quantity?.amount) || 0;
 
-      const original =
-        originalMap.get(row._id) ||
-        originalMap.get(row.id);
+            const unit = row.quantity?.unit || "g";
 
-      const nameToSave =
-        row.ingredientLabel ||
-        row.mappingName ||
-        row.name ||
-        "";
+            const originalAmount =
+              original?.quantity?.originalAmount ?? row.quantity?.originalAmount ?? amount;
 
-      const amount =
-        Number(row.quantity?.amount) || 0;
+            const originalUnit =
+              original?.quantity?.originalUnit ?? row.quantity?.originalUnit ?? unit;
 
-      const unit =
-        row.quantity?.unit || "g";
+            return {
+              _id: row._id ?? undefined,
+              rawName: original?.rawName ?? null,
+              name: nameToSave ?? null,
+              note: row.note ?? null,
 
-      const originalAmount =
-        original?.quantity?.originalAmount ??
-        row.quantity?.originalAmount ??
-        amount;
+              ingredientId: row.ingredientId ?? undefined,
 
-      const originalUnit =
-        original?.quantity?.originalUnit ??
-        row.quantity?.originalUnit ??
-        unit;
-      
-      const rawName = original?.name;
-      return {
+              quantity: {
+                amount: Number(row.quantity?.amount) || null,
+                unit: row.quantity?.unit || "g",
+                originalAmount:
+                  original?.quantity?.originalAmount ?? row.quantity?.originalAmount ?? null,
+                originalUnit:
+                  original?.quantity?.originalUnit ?? row.quantity?.originalUnit ?? null,
+              },
 
-        _id: row._id || undefined,
-        rawName: rawName || undefined,
-        name: nameToSave,
-
-        ingredientId:
-          row.ingredientId || undefined,
-
-        quantity: {
-
-          amount,
-
-          unit,
-
-          originalAmount,
-
-          originalUnit,
-
-        },
-
-        grams:
-          row.grams === "" ||
-          row.grams === null ||
-          row.grams === undefined
-            ? undefined
-            : Number(row.grams),
-
-        isOptional:
-          Boolean(row?.flags?.optional),
-
-        rawText:
-          row.rawText || undefined,
-
-      };
-
-    })
-    .filter(
-      (ing) =>
-        ing.name &&
-        ing.name.trim() &&
-        ing.quantity.amount > 0
-    );
-
-}
+              isOptional: Boolean(row?.flags?.optional),
+            };
+          })
+          .filter((ing) => ing.rawName || ing.name);
+      }
       // SAVE
       if (editingRecipe?._id) {
+        console.log("payload con lai:", payload);
         await updateRecipe(editingRecipe._id, payload);
         showSuccess("Cập nhật món ăn thành công");
       } else {
+        console.log("payload con lai:", payload);
         await createRecipe(payload);
         showSuccess("Thêm món ăn thành công");
       }
 
-      await fetchData();
-      await fetchStats();
+      await fetchRecipes();
       handleDialogClose();
     } catch (err) {
       const errorMessage = handleError(err);

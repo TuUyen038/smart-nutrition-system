@@ -244,7 +244,6 @@ export const findRecipeById = async (recipeId) => {
     }
 
     const data = await response.json();
-    console.log(data);
     return data;
   } catch (error) {
     console.error(`Lỗi khi lấy chi tiet công thức "${recipeId}":`, error.message);
@@ -476,6 +475,7 @@ export async function updateRecipe(id, data) {
       body: JSON.stringify(data),
     });
 
+    console.log("data update recipe: ", data);
     if (!res.ok) {
       const error = await res.json().catch(() => ({}));
       throw new Error(error.message || "Không thể cập nhật công thức.");

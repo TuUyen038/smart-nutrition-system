@@ -19,9 +19,7 @@ import {
   LinearProgress,
   Paper,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
-import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import CloseIcon from "@mui/icons-material/Close";
 
 import MDBox from "components/MDBox";
@@ -30,6 +28,8 @@ import MDButton from "components/MDButton";
 
 import PropTypes from "prop-types";
 import { fetchIngredientsNutrition } from "services/mappingModelApi";
+
+import { ObjectId } from "bson";
 
 const LS_ALIAS_KEY = "recipe_ing_alias_v1"; // rawNameNormalized -> { ingredientId, label }
 
@@ -41,13 +41,6 @@ function normalizeText(s) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, " ");
-}
-
-function safeUUID() {
-  return (
-    (typeof crypto !== "undefined" && crypto?.randomUUID?.()) ||
-    `${Date.now()}-${Math.random().toString(16).slice(2)}`
-  );
 }
 
 function loadAlias() {
@@ -77,7 +70,7 @@ function toGram(amount, unit) {
 }
 
 function extractTopName(top) {
-  return top?.name_vi || top?.food_name_vn || top?.name || "";
+  return top?.name_vi || top?.name || "";
 }
 
 function extractScore(top) {
@@ -135,14 +128,12 @@ export default function RecipeIngredientsEditor({
   const rawRows = useMemo(() => {
     return rows.filter((r) => r?.source !== "manual" && (r?.name || "").trim());
   }, [rows]);
-
   // mapped list = all rows (AI + manual additions)
   const mappedRows = rows;
-
   // Get mapped rows that correspond to raw rows (for alignment)
   const mappedRowsForRaw = useMemo(() => {
     return rawRows.map((rawRow) => {
-      return mappedRows.find((mr) => mr.id === rawRow.id) || rawRow;
+      return mappedRows.find((mr) => mr._id === rawRow._id) || rawRow;
     });
   }, [rawRows, mappedRows]);
 
@@ -182,11 +173,9 @@ export default function RecipeIngredientsEditor({
 
     next[index] = {
       ...next[index],
-      ingredientId: opt?._id || opt?.id || null,
-      ingredientLabel: ingredientName,
+      ingredientId: opt?._id || null,
       // hiển thị mappingName theo DB sau khi chọn
       mappingName: opt ? ingredientName || next[index].mappingName || "" : next[index].mappingName,
-      // ✅ Tự động set name từ ingredientLabel nếu name đang rỗng (cho manual ingredients)
       // Giữ nguyên name hiện tại nếu đã có, chỉ set nếu rỗng
       name:
         next[index].name && next[index].name.trim()
@@ -217,32 +206,44 @@ export default function RecipeIngredientsEditor({
     });
   };
 
-  const handleRemoveRow = (index) => {
-    const next = mappedRows.filter((_, i) => i !== index);
+  const handleRemoveRow = (id) => {
+    const next = mappedRows.filter((r) => r._id !== id);
     onChange(next);
-    if (editingIndex === index) stopEdit();
+
+    if (editingIndex !== null) {
+      const row = mappedRows[editingIndex];
+      if (row?._id === id) stopEdit();
+    }
   };
 
   const handleAddRow = () => {
-    const next = [
-      ...mappedRows,
-      {
-        id: safeUUID(),
-        source: "manual",
-        name: "",
-        rawText: "",
-        quantity: { amount: "", unit: "g", estimate: false },
+    console.log("vô ADD")
+    const newRow = {
+      _id: new ObjectId().toString(),
+      source: "manual",
+      name: "",
+      // rawText: "",
+      quantity: { amount: "", unit: "g", estimate: false },
 
-        ingredientId: null,
-        ingredientLabel: "",
-        mappingName: "",
-        mappingSuggestion: null,
-        mappingCandidates: [],
-        mappingScore: null,
-      },
+      ingredientId: null,
+      mappingName: "",
+      // mappingSuggestion: null,
+      // mappingCandidates: [],
+      // mappingScore: null,
+    }
+    const next = [
+      ...(mappedRows || []),
+      newRow
     ];
+    console.log(next)
     onChange(next);
-    setEditingIndex(next.length - 1);
+
+    setTimeout(() => {
+      const idx = next.findIndex(r => r._id === newRow._id)
+      setEditingIndex(idx)
+    })
+
+    // setEditingIndex(next.length - 1);
     setMappingVisible(true);
   };
 
@@ -250,7 +251,6 @@ export default function RecipeIngredientsEditor({
     setCreateRowIndex(index);
     const prefill =
       mappedRows[index]?.mappingName ||
-      mappedRows[index]?.ingredientLabel ||
       mappedRows[index]?.name ||
       "";
     setNewIngName(prefill);
@@ -264,12 +264,13 @@ export default function RecipeIngredientsEditor({
     setNewIngName("");
     setNewIngNameEn("");
   };
-
+  // TODO: đã có hàm này chưa?
   const handleCreateIngredient = async () => {
     if (!onCreateIngredient) return;
     if (!newIngName.trim()) return;
 
     try {
+      console.log("vao try trong handleCreateIngredient")
       const created = await onCreateIngredient({
         name: newIngName.trim(),
         name_en: newIngNameEn.trim() || undefined,
@@ -307,7 +308,7 @@ export default function RecipeIngredientsEditor({
       const aiIndexes = [];
       const aiPayload = [];
       rawRows.forEach((r) => {
-        const idx = mappedRows.findIndex((x) => x?.id === r?.id);
+        const idx = mappedRows.findIndex((x) => x?._id === r?._id);
         if (idx >= 0) {
           aiIndexes.push(idx);
           aiPayload.push(mappedRows[idx]);
@@ -315,7 +316,7 @@ export default function RecipeIngredientsEditor({
       });
 
       const results = await fetchIngredientsNutrition(aiPayload, 3);
-
+      console.log("vao fetchMapping")
       const next = [...mappedRows];
       results.forEach((item, i) => {
         const targetIdx = aiIndexes[i];
@@ -336,7 +337,7 @@ export default function RecipeIngredientsEditor({
         let autoIngredientLabel = "";
         if (top && (top.exact_alias_match || (mappingScore && mappingScore >= 0.9))) {
           // Use mongo_id if available, fallback to id
-          autoIngredientId = top.mongo_id || top.id || null;
+          autoIngredientId = top.mongo_id || null;
           autoIngredientLabel = top.name_vi || top.name || "";
         }
 
@@ -354,18 +355,18 @@ export default function RecipeIngredientsEditor({
           ingredientId: hasUserSelection
             ? next[targetIdx].ingredientId
             : autoIngredientId || next[targetIdx].ingredientId || null,
-          ingredientLabel: hasUserSelection
-            ? next[targetIdx].ingredientLabel
-            : autoIngredientLabel || next[targetIdx].ingredientLabel || "",
+          // ingredientLabel: hasUserSelection
+          //   ? next[targetIdx].ingredientLabel
+          //   : autoIngredientLabel || next[targetIdx].ingredientLabel || "",
           // ✅ Chỉ update quantity nếu chưa có user selection
           quantity:
             hasUserSelection && next[targetIdx].quantity?.amount
               ? next[targetIdx].quantity
               : {
-                  amount: grams !== "" ? grams : q.unit === "g" ? q.amount : "",
-                  unit: "g",
-                  estimate: Boolean(q.estimate),
-                },
+                amount: grams !== "" ? grams : q.unit === "g" ? q.amount : "",
+                unit: "g",
+                estimate: Boolean(q.estimate),
+              },
         };
 
         // apply alias auto select if exists (only if not already set from mapping)
@@ -374,7 +375,7 @@ export default function RecipeIngredientsEditor({
           const saved = aliasMap[key];
           if (saved?.ingredientId) {
             next[targetIdx].ingredientId = saved.ingredientId;
-            next[targetIdx].ingredientLabel = saved.label || "";
+            // next[targetIdx].mappingName = saved.label || "";
             // show name in mappingName if mappingName empty
             if (!next[targetIdx].mappingName) next[targetIdx].mappingName = saved.label || "";
           }
@@ -430,10 +431,7 @@ export default function RecipeIngredientsEditor({
         hasRunMappingRef.current = true; // Đánh dấu đã có mapping data
       }
     }
-  }, [rawRows, aiLoading, mappedRows]);
-
-  const progressPercent =
-    summary.totalMapped > 0 ? Math.round((summary.chosenDb / summary.totalMapped) * 100) : 0;
+  }, [aiLoading]);
 
   return (
     <MDBox>
@@ -497,11 +495,11 @@ export default function RecipeIngredientsEditor({
             ) : (
               <MDBox display="flex" flexDirection="column" gap={2} flex={1}>
                 {rawRows.map((r, i) => {
-                  const mappedRow = mappedRows.find((mr) => mr.id === r.id);
+                  const mappedRow = mappedRows.find((mr) => mr._id === r._id);
                   const isMapped = !!mappedRow?.ingredientId;
                   return (
                     <Paper
-                      key={r.id || i}
+                      key={r._id || i}
                       elevation={isMapped ? 0 : 1}
                       sx={{
                         border: "1px solid",
@@ -527,7 +525,7 @@ export default function RecipeIngredientsEditor({
                             fontWeight="medium"
                             sx={{ wordBreak: "break-word" }}
                           >
-                            {r.name}
+                            {r.rawName || r.name}
                           </MDTypography>
                         </MDBox>
                         <Chip
@@ -594,21 +592,21 @@ export default function RecipeIngredientsEditor({
                   )
                 )}
               </MDBox>
-            ) : mappingVisible || mappedRows.some((r) => r.mappingName) ? (
-              mappedRowsForRaw.length > 0 ? (
+            ) : mappingVisible || mappedRows.some((r) => r._id) ? (
+              (mappedRowsForRaw.length > 0) || (manualRows.length > 0) ? (
                 <MDBox flex={1}>
                   {/* Mapped rows corresponding to raw rows */}
                   {mappedRowsForRaw.map((row, rawIndex) => {
                     // Find the actual index in mappedRows array
-                    const actualIndex = mappedRows.findIndex((mr) => mr.id === row.id);
+                    const actualIndex = mappedRows.findIndex((mr) => mr._id === row._id);
                     if (actualIndex < 0) return null;
 
                     const isMapped = !!row.ingredientId;
-                    const rawRow = rawRows[rawIndex];
+                    // const rawRow = rawRows[rawIndex];
 
                     return (
                       <Paper
-                        key={row.id || rawIndex}
+                        key={row._id || rawIndex}
                         elevation={isMapped ? 0 : 1}
                         sx={{
                           p: 1.5,
@@ -629,7 +627,7 @@ export default function RecipeIngredientsEditor({
                           <IconButton
                             size="small"
                             color="error"
-                            onClick={() => handleRemoveRow(actualIndex)}
+                            onClick={() => handleRemoveRow(row._id)}
                             sx={{
                               position: "absolute",
                               top: 4,
@@ -674,7 +672,7 @@ export default function RecipeIngredientsEditor({
                                 fullWidth
                                 size="small"
                                 label="Tên nguyên liệu mapping"
-                                value={row.mappingName || row.ingredientLabel || row.name || ""}
+                                value={row.mappingName || row.name || ""}
                                 InputProps={{ readOnly: true }}
                                 placeholder="Chưa có gợi ý mapping - Click để chọn"
                                 onClick={() => startEdit(actualIndex)}
@@ -709,14 +707,12 @@ export default function RecipeIngredientsEditor({
                               {(isMapped || typeof row.mappingScore === "number") &&
                                 (() => {
                                   let scorePercent;
-                                  if (isMapped) {
-                                    scorePercent = 100;
-                                  } else if (typeof row.mappingScore === "number") {
+                                  if (isMapped && typeof row.mappingScore === "number") {
                                     scorePercent = Math.round(row.mappingScore * 100);
                                   } else {
                                     return null;
                                   }
-                                  const isGreen = scorePercent === 100;
+                                  const isGreen = scorePercent >= 90;
                                   return (
                                     <MDTypography
                                       variant="caption"
@@ -768,13 +764,13 @@ export default function RecipeIngredientsEditor({
                       <Divider sx={{ mb: 2 }} />
 
                       {manualRows.map((row, idx) => {
-                        const actualIndex = mappedRows.findIndex((mr) => mr.id === row.id);
+                        const actualIndex = mappedRows.findIndex((mr) => mr._id === row._id);
                         if (actualIndex < 0) return null;
 
                         const isMapped = !!row.ingredientId;
                         return (
                           <Paper
-                            key={row.id || `manual-${idx}`}
+                            key={row._id || row._id}
                             elevation={isMapped ? 0 : 1}
                             sx={{
                               p: 1.5,
@@ -794,7 +790,7 @@ export default function RecipeIngredientsEditor({
                               <IconButton
                                 size="small"
                                 color="error"
-                                onClick={() => handleRemoveRow(actualIndex)}
+                                onClick={() => handleRemoveRow(row._id)}
                                 sx={{
                                   position: "absolute",
                                   top: 8,
@@ -836,7 +832,7 @@ export default function RecipeIngredientsEditor({
                                     fullWidth
                                     size="small"
                                     label="Tên nguyên liệu mapping"
-                                    value={row.mappingName || row.ingredientLabel || row.name || ""}
+                                    value={row.mappingName || ""}
                                     InputProps={{ readOnly: true }}
                                     placeholder="Chưa có gợi ý mapping - Click để chọn"
                                     onClick={() => startEdit(actualIndex)}
@@ -917,16 +913,16 @@ export default function RecipeIngredientsEditor({
               ) : (
                 <Alert severity="info">
                   <MDTypography variant="caption">
-                    Chưa có nguyên liệu nào để mapping. Hãy quay lại bước trước và phân tích nguyên
-                    liệu bằng AI.
+                    Chưa có nguyên liệu nào để mapping. Hãy quay lại bước trước và chọn &quot;Phân tích nguyên
+                    liệu bằng AI&quot; hoặc chọn &quot;Thêm nguyên liệu&quot;.
                   </MDTypography>
                 </Alert>
               )
             ) : (
               <Alert severity="warning">
                 <MDTypography variant="caption">
-                  Chưa mapping. Hãy quay lại bước trước và bấm &quot;Phân tích nguyên liệu
-                  (AI)&quot; để tự động mapping.
+                  Chưa mapping. Hãy quay lại bước trước và chọn &quot;Phân tích nguyên liệu
+                  bằng AI&quot;.
                 </MDTypography>
               </Alert>
             )}

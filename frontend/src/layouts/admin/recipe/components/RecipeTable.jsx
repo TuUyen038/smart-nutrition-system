@@ -214,12 +214,12 @@ export default function RecipeTable({
                       style={{
                         padding: "10px 12px",
                         borderRight: "1px solid #eee",
-                        textAlign: "center",
+                        textAlign: "left",
                         whiteSpace: "nowrap",
                       }}
                     >
                       <MDTypography variant="caption" color="text">
-                        {recipe.servings || 1}
+                        {recipe.servings || "-"}
                       </MDTypography>
                     </td>
 
