@@ -60,7 +60,7 @@ const recipeSchema = new mongoose.Schema(
           ref: "Ingredient",
         },
         quantity: {
-          amount: { type: Number, required: true },
+          amount: { type: Number},
           unit: {
             type: String,
             enum: ["g"],

@@ -59,5 +59,6 @@ ingredientSchema.index(
   { "external_refs.provider": 1, "external_refs.external_id": 1 },
   { sparse: true }
 );
+ingredientSchema.index({ name: 1 }, { unique: true });
 
 module.exports = mongoose.model("Ingredient", ingredientSchema);

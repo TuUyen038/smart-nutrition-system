@@ -528,6 +528,8 @@ const validateRecipe = (data, isUpdate = false) => {
 
   if (
     data.servings !== undefined &&
+    data.servings !== null &&
+    data.servings !== "" &&
     (data.servings < 1 || data.servings > 100)
   ) {
     errors.push("Khẩu phần phải từ 1 đến 100");
@@ -599,8 +601,7 @@ const updateRecipe = async (req, res) => {
     // Build update object
     const updateData = {};
 
-    if (req.body.name !== undefined)
-      updateData.name = req.body.name.trim();
+    if (req.body.name !== undefined) updateData.name = req.body.name.trim();
 
     if (req.body.description !== undefined)
       updateData.description = req.body.description?.trim();
@@ -620,17 +621,27 @@ const updateRecipe = async (req, res) => {
       updateData.ingredients = req.body.ingredients.map((newIng) => {
         // Tìm ingredient cũ bằng name (không phải index)
         const oldIng = existingRecipe.ingredients?.find(
-          (ing) => ing.name === newIng.name || ing.rawName === newIng.rawName
+          (ing) => ing.name === newIng.name || ing.rawName === newIng.rawName,
         );
-        
+
         // ✅ Merge quantity: lấy từ newIng, fallback to oldIng, fallback to defaults
         const mergedQuantity = {
           amount: newIng.quantity?.amount ?? oldIng?.quantity?.amount ?? 0,
           unit: newIng.quantity?.unit ?? oldIng?.quantity?.unit ?? "g",
-          originalAmount: newIng.quantity?.originalAmount ?? oldIng?.quantity?.originalAmount ?? newIng.quantity?.amount ?? oldIng?.quantity?.amount ?? 0,
-          originalUnit: newIng.quantity?.originalUnit ?? oldIng?.quantity?.originalUnit ?? newIng.quantity?.unit ?? oldIng?.quantity?.unit ?? "g",
+          originalAmount:
+            newIng.quantity?.originalAmount ??
+            oldIng?.quantity?.originalAmount ??
+            newIng.quantity?.amount ??
+            oldIng?.quantity?.amount ??
+            0,
+          originalUnit:
+            newIng.quantity?.originalUnit ??
+            oldIng?.quantity?.originalUnit ??
+            newIng.quantity?.unit ??
+            oldIng?.quantity?.unit ??
+            "g",
         };
-        
+
         return {
           ...newIng,
           quantity: mergedQuantity,
@@ -638,8 +649,7 @@ const updateRecipe = async (req, res) => {
       });
     }
 
-    if (req.body.status !== undefined)
-      updateData.status = req.body.status;
+    if (req.body.status !== undefined) updateData.status = req.body.status;
 
     if (req.body.verified !== undefined)
       updateData.verified = req.body.verified;
@@ -653,48 +663,36 @@ const updateRecipe = async (req, res) => {
     }
 
     // ✅ chỉ calculate nutrition nếu ingredients hoặc servings thay đổi
-    if (
-      req.body.ingredients !== undefined ||
-      req.body.servings !== undefined
-    ) {
+    if (req.body.ingredients !== undefined || req.body.servings !== undefined) {
       try {
-  const ingredientsToUse =
-    req.body.ingredients ?? existingRecipe.ingredients;
+        const ingredientsToUse =
+          req.body.ingredients ?? existingRecipe.ingredients;
 
-  const servingsToUse =
-    req.body.servings ?? existingRecipe.servings;
+        const servingsToUse = req.body.servings ?? existingRecipe.servings;
 
-  const nutrition =
-    await calculateRecipeNutrition(
-      ingredientsToUse,
-      servingsToUse
-    );
+        const nutrition = await calculateRecipeNutrition(
+          ingredientsToUse,
+          servingsToUse,
+        );
 
-  updateData.totalNutrition =
-    nutrition.totalNutrition;
+        updateData.totalNutrition = nutrition.totalNutrition;
 
-  updateData.totalNutritionPer100g =
-    nutrition.totalNutritionPer100g;
+        updateData.totalNutritionPer100g = nutrition.totalNutritionPer100g;
 
-  updateData.totalWeight =
-    nutrition.totalWeight;
+        updateData.totalWeight = nutrition.totalWeight;
 
-  if (nutrition.totalNutritionPerServing) {
-    updateData.totalNutritionPerServing =
-      nutrition.totalNutritionPerServing;
-  } else {
-    updateData.$unset = {
-      ...(updateData.$unset || {}),
-      totalNutritionPerServing: ""
-    };
-  }
-
-} catch (error) {
-  console.error(
-    "Nutrition calculation failed:",
-    error
-  );
-}
+        if (nutrition.totalNutritionPerServing) {
+          updateData.totalNutritionPerServing =
+            nutrition.totalNutritionPerServing;
+        } else {
+          updateData.$unset = {
+            ...(updateData.$unset || {}),
+            totalNutritionPerServing: "",
+          };
+        }
+      } catch (error) {
+        console.error("Nutrition calculation failed:", error);
+      }
     }
 
     const updatedRecipe = await Recipe.findByIdAndUpdate(
@@ -703,11 +701,10 @@ const updateRecipe = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     );
 
     res.status(200).json(updatedRecipe);
-
   } catch (error) {
     console.error("Update recipe error:", error);
     res.status(500).json({ message: error.message });

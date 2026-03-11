@@ -5,6 +5,7 @@ const cheerio = require("cheerio");
 // =====================================
 
 const UNIT_MAP = {
+  gr: "g",
   g: "g",
   gram: "g",
   kg: "kg",
@@ -119,7 +120,7 @@ function convertToGram(amount, unit) {
 
 function parseRange(text) {
   const rangeRegex =
-    /^(\d+(?:[.,]\d+)?)\s*[–-]\s*(\d+(?:[.,]\d+)?)\s*(mg|g|gram|kg|ml|l)/i;
+    /^(\d+(?:[.,]\d+)?)\s*[–-]\s*(\d+(?:[.,]\d+)?)\s*(gram|gr|mg|g|kg|ml|l)/i;
 
   const match = text.match(rangeRegex);
 
@@ -149,7 +150,7 @@ function parseIngredient(text) {
   if (range) {
     const name = text
       .replace(
-        /^(\d+(?:[.,]\d+)?)\s*[–-]\s*(\d+(?:[.,]\d+)?)\s*(gram|mg|kg|ml|l|g)/i,
+        /^(\d+(?:[.,]\d+)?)\s*[–-]\s*(\d+(?:[.,]\d+)?)\s*(gram|gr|mg|kg|ml|l|g)/i,
         "",
       )
       .trim();
