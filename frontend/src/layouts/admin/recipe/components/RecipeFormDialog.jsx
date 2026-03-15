@@ -114,8 +114,6 @@ export default function RecipeFormDialog({
   const { showSuccess, showError } = useToast();
 
   useEffect(() => {
-    if (!open) return;
-
     setActiveStep(0);
     setImagePreview(null);
     // TODO: recipe co nen su dung trong check useEffect khong?

@@ -217,7 +217,6 @@ export default function RecipeIngredientsEditor({
   };
 
   const handleAddRow = () => {
-    console.log("vô ADD")
     const newRow = {
       _id: new ObjectId().toString(),
       source: "manual",
@@ -235,7 +234,6 @@ export default function RecipeIngredientsEditor({
       ...(mappedRows || []),
       newRow
     ];
-    console.log(next)
     onChange(next);
 
     setTimeout(() => {
@@ -344,7 +342,6 @@ export default function RecipeIngredientsEditor({
         // ✅ Chỉ update mapping fields nếu chưa có ingredientId (chưa được user chọn)
         // Nếu user đã chọn rồi (có ingredientId), giữ nguyên data đã chỉnh sửa
         const hasUserSelection = !!next[targetIdx].ingredientId;
-
         next[targetIdx] = {
           ...next[targetIdx],
           // ✅ Chỉ update mapping fields nếu chưa có user selection
@@ -365,6 +362,8 @@ export default function RecipeIngredientsEditor({
               : {
                 amount: grams !== "" ? grams : q.unit === "g" ? q.amount : "",
                 unit: "g",
+                originalAmount: q.originalAmount ?? null,
+                originalUnit: q.originalUnit ?? null,
                 estimate: Boolean(q.estimate),
               },
         };
@@ -537,9 +536,11 @@ export default function RecipeIngredientsEditor({
                               : "warning"
                           }
                           label={
-                            r?.quantity?.amount !== "" && r?.quantity?.amount != null
-                              ? `${r.quantity.amount} ${r.quantity.unit || ""}`
-                              : "thiếu lượng"
+                            r?.quantity?.originalAmount
+                              ? `${r.quantity.originalAmount} ${r.quantity.originalUnit || ""}`
+                              : r?.quantity?.amount
+                                ? `${r.quantity.amount} ${r.quantity.unit || ""}`
+                                : "thiếu lượng"
                           }
                         />
                       </MDBox>

@@ -36,7 +36,7 @@ function BigFoodCard({ imageUrl, label, title, description, category, action }) 
   image={imageUrl?.replace("http://", "https://")}
   alt={title}
   sx={{
-    width: "100%",
+    width: "95%",
     height: 200,
     objectFit: "cover",
   }}
