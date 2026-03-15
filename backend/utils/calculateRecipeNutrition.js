@@ -54,8 +54,9 @@ async function calculateRecipeNutrition(ingredients, servings) {
   // Process each ingredient
   for (const ing of ingredients) {
     if (!ing.ingredientId) continue;
-
+console.log("truoc amount")
     if (!ing.quantity?.amount || ing.quantity.amount <= 0) continue;
+console.log("sau amount")
 
     try {
       const ingredientDoc = await Ingredient.findById(ing.ingredientId);
@@ -64,7 +65,7 @@ async function calculateRecipeNutrition(ingredients, servings) {
 
       const amountInGrams = convertToGrams(
         ing.quantity.amount,
-        ing.quantity.unit
+        ing.quantity.unit,
       );
 
       if (amountInGrams <= 0) continue;
@@ -73,7 +74,7 @@ async function calculateRecipeNutrition(ingredients, servings) {
 
       const factor = amountInGrams / 100;
       const nutrition = ingredientDoc.nutrition;
-
+      console.log("nutrition of each ing: ", ing, nutrition);
       totalNutrition.calories += (nutrition.calories || 0) * factor;
       totalNutrition.protein += (nutrition.protein || 0) * factor;
       totalNutrition.fat += (nutrition.fat || 0) * factor;
@@ -81,19 +82,17 @@ async function calculateRecipeNutrition(ingredients, servings) {
       totalNutrition.fiber += (nutrition.fiber || 0) * factor;
       totalNutrition.sugar += (nutrition.sugar || 0) * factor;
       totalNutrition.sodium += (nutrition.sodium || 0) * factor;
-
     } catch (error) {
       console.error(
         `Error calculating nutrition for ingredient ${ing.ingredientId}:`,
-        error
+        error,
       );
     }
   }
 
   // ---------- ROUND TOTAL ----------
   for (const key in totalNutrition) {
-    totalNutrition[key] =
-      Math.round(totalNutrition[key] * 100) / 100;
+    totalNutrition[key] = Math.round(totalNutrition[key] * 100) / 100;
   }
 
   // ---------- CALCULATE PER 100g ----------
@@ -104,7 +103,7 @@ async function calculateRecipeNutrition(ingredients, servings) {
 
     for (const key in totalNutrition) {
       totalNutritionPer100g[key] =
-        Math.round((totalNutrition[key] * 100 / totalWeight) * 100) / 100;
+        Math.round(((totalNutrition[key] * 100) / totalWeight) * 100) / 100;
     }
   }
 

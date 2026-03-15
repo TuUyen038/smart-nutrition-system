@@ -44,18 +44,18 @@ async function importRecipes() {
     // transform data
     const transformed = recipes.map((r) => ({
       ...r,
+      servings: r.serving ?? null,
+
       date: convertDate(r.date),
       // ✅ Normalize quantity structure
       ingredients: (r.ingredients || []).map((ing) => {
         const raw = ing.name;
-
         return {
           ...ing,
 
           // lưu name JSON thành cả name và rawName
           name: raw,
           rawName: raw,
-
           quantity: {
             amount: ing.quantity?.amount ?? 0,
             unit: ing.quantity?.unit ?? "g",
